@@ -1,6 +1,7 @@
 # Environments & Credentials
 env/
 venv/
+.venv/
 .env*
 
 # Django Database & Cache
