@@ -21,6 +21,10 @@ class ProfileTests(TestCase):
         response = self.client.get(reverse('profil:index'))
         self.assertRedirects(response, f"{reverse('profil:login')}?next={reverse('profil:index')}")
 
+    def test_login_keeps_requested_destination(self):
+        response = self.client.get(f"{reverse('profil:login')}?next={reverse('profil:index')}")
+        self.assertContains(response, f'name="next" value="{reverse("profil:index")}"')
+
     @patch('profil.views.environment_snapshot', return_value={
         'temperature_2m': 28.0,
         'relative_humidity_2m': 75,
