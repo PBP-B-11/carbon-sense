@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Hapus Akun | Carbon Sense{% endblock %}
+{% block content %}
+<div class="container auth-page"><section class="danger"><h1>Hapus akun</h1><p>Tindakan ini menghapus akun dan data aktivitas, tantangan, serta postingan Anda secara permanen.</p><form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn--danger" type="submit">Hapus permanen</button></form></section></div>
+{% endblock %}
