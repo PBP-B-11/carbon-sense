@@ -1550,6 +1550,20 @@ main {
   padding: 30px 32px 0;
 }
 
+.auth-page .edit-form {
+  height: auto;
+  min-height: 484px;
+  padding-bottom: 32px;
+}
+
+.form-errors {
+  padding: 12px 16px;
+  margin: 16px 0;
+  border: 1px solid #b04a35;
+  border-radius: 12px;
+  background: #fff0eb;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1627,6 +1641,303 @@ main {
   margin-top: auto;
   margin-bottom: 2px;
   align-self: flex-start;
+}
+
+/* Profil aktual: kartu mengikuti isi, termasuk formulir dan data cuaca yang berubah. */
+.profile-page {
+  padding-bottom: 16px;
+}
+
+.profile-heading h1 {
+  font-size: clamp(42px, 5vw, 68px);
+  line-height: 1.1;
+}
+
+.profile-page .profile-top {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.1fr);
+  align-items: stretch;
+}
+
+.profile-page .profile-card {
+  height: auto;
+  min-height: 318px;
+  padding: 30px;
+}
+
+.profile-page .profile-id {
+  gap: 16px;
+}
+
+.profile-page .profile-id > div {
+  min-width: 0;
+}
+
+.profile-page .profile-id .avatar {
+  width: 68px;
+  height: 68px;
+  font-size: 25px;
+  background: var(--color-highlight);
+}
+
+.profile-page .profile-id h2 {
+  overflow-wrap: anywhere;
+}
+
+.profile-bio {
+  margin-top: 25px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.profile-details {
+  display: grid;
+  gap: 10px;
+  margin: 24px 0 0;
+  padding-top: 20px;
+  border-top: var(--border-subtle);
+}
+
+.profile-details dt {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.profile-details dd {
+  margin: 5px 0 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.profile-air {
+  min-width: 0;
+  min-height: 318px;
+  padding: 30px;
+  border: var(--border-strong);
+  border-radius: 32px 72px 40px 48px;
+  background: #397b96;
+  color: var(--color-bg-surface);
+}
+
+.profile-air-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.profile-air-heading h2 {
+  font-size: 25px;
+  line-height: 1.2;
+}
+
+.profile-air-heading span {
+  flex: none;
+  font-size: 12px;
+}
+
+.profile-air-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.profile-air-metric {
+  min-width: 0;
+  min-height: 118px;
+  padding: 15px 12px;
+  border-radius: 18px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+.profile-air-metric .metric-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.profile-air-metric svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.profile-air-metric strong {
+  display: block;
+  margin-top: 7px;
+  font: 700 clamp(21px, 2vw, 32px)/1 var(--font-display);
+  white-space: nowrap;
+}
+
+.profile-air-metric strong span {
+  display: block;
+  margin-top: 3px;
+  font-size: 16px;
+}
+
+.profile-air-metric small {
+  display: block;
+  margin-top: 8px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.profile-air-note {
+  margin-top: 24px;
+  padding: 15px 18px;
+  border-radius: 16px;
+  background: var(--color-tertiary-subtle);
+  color: var(--color-warning-text);
+  font-size: 13px;
+}
+
+.profile-page .profile-settings {
+  grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr);
+}
+
+.profile-edit {
+  min-width: 0;
+  padding: 30px;
+}
+
+.profile-edit h2 {
+  font-size: 28px;
+}
+
+.profile-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.profile-edit-form,
+.profile-city,
+.profile-city form,
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.profile-edit-form,
+.profile-city {
+  gap: 14px;
+}
+
+.profile-field {
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profile-field input,
+.profile-field textarea,
+.profile-field select {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: var(--border-default);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: 400 14px var(--font-body);
+}
+
+.profile-field textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.profile-field .errorlist {
+  color: var(--color-error-text);
+  font-size: 12px;
+}
+
+.profile-city h3 {
+  font-size: 17px;
+}
+
+.profile-city form {
+  gap: 14px;
+}
+
+.profile-hint {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.profile-edit .btn {
+  align-self: flex-start;
+  height: 42px;
+  padding: 0 18px;
+  font-size: 13px;
+}
+
+.profile-password {
+  display: inline-flex;
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: var(--border-subtle);
+  color: var(--color-primary-hover);
+  font-weight: 700;
+}
+
+.profile-password:hover {
+  text-decoration: underline;
+}
+
+.profile-page .profile-danger {
+  height: auto;
+  min-height: 228px;
+  padding: 30px;
+  border: 1px solid #efc4ba;
+  border-radius: 42px 54px 28px 48px;
+}
+
+.profile-danger h2 {
+  margin: 0;
+  font-size: 23px;
+}
+
+.profile-danger p {
+  margin: 12px 0 22px;
+}
+
+.profile-danger .btn {
+  width: 100%;
+  height: 42px;
+  font-size: 13px;
+}
+
+@media (max-width: 850px) {
+  .profile-page .profile-top,
+  .profile-page .profile-settings {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .profile-page .profile-air-metrics,
+  .profile-edit-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-air-heading {
+    flex-direction: column;
+  }
 }
 
 /* =========================================================
