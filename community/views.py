@@ -6,6 +6,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import CommentForm, PostForm
 from .models import Like, Post
+from .news import fetch_news, find_article
 
 
 def index(request):
@@ -24,7 +25,7 @@ def index(request):
     return render(
         request,
         "community/community.html",
-        {"posts": posts, "form": PostForm()},
+        {"posts": posts, "form": PostForm(), "news": fetch_news()},
     )
 
 
@@ -95,3 +96,23 @@ def add_comment(request, pk):
         comment.author = request.user
         comment.save()
     return redirect("community:post_detail", pk=post.pk)
+
+
+@login_required
+@require_POST
+def share_news(request):
+    article = find_article(request.POST.get("url", ""))
+    if article is None:
+        messages.error(request, "Berita tidak ditemukan atau sudah kedaluwarsa.")
+        return redirect("community:index")
+
+    Post.objects.create(
+        author=request.user,
+        category="berita",
+        content=request.POST.get("content", "").strip(),
+        news_title=article["title"][:255],
+        news_source=article["source"][:100],
+        news_url=article["url"],
+        news_snippet=article["snippet"],
+    )
+    return redirect("community:index")
