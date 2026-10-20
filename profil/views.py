@@ -6,6 +6,8 @@ from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.views.decorators.http import require_GET, require_POST
 
+from challenges.utils import ringkasan_pengguna
+
 from .forms import CityChoiceForm, DeleteAccountForm, EmailForm, ProfileForm, RegisterForm
 from .models import UserProfile
 from .services import city_from_token, city_token, environment_snapshot, search_cities
@@ -55,6 +57,7 @@ def index(request, email_form=None, profile_form=None, city_form=None):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
     return render(request, 'profil/profil.html', {
         'profile': profile,
+        'challenge_stats': ringkasan_pengguna(request.user),
         'snapshot': environment_snapshot(profile),
         'email_form': email_form if email_form is not None else EmailForm(instance=request.user),
         'profile_form': profile_form if profile_form is not None else ProfileForm(instance=profile),

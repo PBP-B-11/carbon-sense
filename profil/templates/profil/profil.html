@@ -22,6 +22,10 @@
       <dl class="profile-details">
         <div><dt>Email</dt><dd>{{ request.user.email }}</dd></div>
         <div><dt>Kota domisili</dt><dd>{{ profile.city_name|default:"Belum dipilih" }}</dd></div>
+        <div><dt>Poin</dt><dd>{{ challenge_stats.poin }}</dd></div>
+        <div><dt>Streak</dt><dd>{{ challenge_stats.streak }} hari</dd></div>
+        <div><dt>Tantangan</dt><dd>{{ challenge_stats.diikuti }} diikuti, {{ challenge_stats.selesai }} selesai</dd></div>
+        <div><dt>Lencana</dt><dd>{{ challenge_stats.lencana }} dari {{ challenge_stats.total_lencana }}</dd></div>
       </dl>
     </article>
     <section class="profile-air" aria-label="Kondisi lingkungan saat ini">
