@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Carbon Sense: Carbon Tracker{% endblock %}
 
@@ -100,22 +101,45 @@
       </section>
 
       <section class="tracker-forms">
-        <form class="card card--c quick" id="catat-cepat" aria-labelledby="judul-catat">
+        <form method="post" class="card card--c quick" id="catat-cepat" aria-labelledby="judul-catat">
           <p class="eyebrow">Catat cepat</p>
           <h2 id="judul-catat">Apa aktivitasmu tadi?</h2>
-          <div class="chips" role="group" aria-label="Jenis aktivitas">
-            <button class="chip chip--select" type="button" aria-pressed="false">KRL</button>
-            <button class="chip chip--select" type="button" aria-pressed="false">Motor</button>
-            <button class="chip chip--select" type="button" aria-pressed="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Mobil</button>
-            <button class="chip chip--select" type="button" aria-pressed="false">AC</button>
-            <button class="chip chip--select" type="button" aria-pressed="false">Daging</button>
+          {% csrf_token %}
+          {{ form.non_field_errors }}
+          <fieldset class="chips">
+            <legend class="sr-only">{{ form.activity_type.label }}</legend>
+            {% for radio in form.activity_type %}
+              <label class="activity-choice">
+                {{ radio.tag }}
+                <span class="chip chip--select">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>
+                  {{ radio.choice_label }}
+                </span>
+              </label>
+            {% endfor %}
+          </fieldset>
+          {{ form.activity_type.errors }}
+          <div class="field">
+            <label for="{{ form.quantity.id_for_label }}" id="quantity-label">Jarak tempuh</label>
+            <span class="input">
+              {{ form.quantity }}
+              <span class="input-suffix" id="quantity-unit">km</span>
+            </span>
+            {{ form.quantity.errors }}
           </div>
-          <label class="field">Jarak tempuh
-            <span class="input"><input type="text" inputmode="decimal" value="12,5"><span class="input-suffix">km</span></span>
-          </label>
-          <label class="field">Tanggal
-            <span class="input"><input type="text" value="Sabtu, 26 September"><span class="input-suffix"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-calendar"/></svg></span></span>
-          </label>
+          <div class="field">
+            <label for="{{ form.date.id_for_label }}">Tanggal</label>
+            <span class="input">{{ form.date }}</span>
+            {{ form.date.errors }}
+          </div>
+          <details class="activity-notes"{% if form.description.value or form.description.errors %} open{% endif %}>
+            <summary>Tambah catatan (opsional)</summary>
+            <div class="field">
+              <label for="{{ form.description.id_for_label }}">Catatan</label>
+              <span class="input">{{ form.description }}</span>
+              {{ form.description.errors }}
+            </div>
+          </details>
           <div class="actions"><button class="btn btn--primary" type="submit">Simpan aktivitas</button></div>
         </form>
 
@@ -135,4 +159,5 @@
         </article>
       </section>
     </div>
+    <script src="{% static 'js/tracker-form.js' %}" defer></script>
 {% endblock %}

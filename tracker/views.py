@@ -1,5 +1,7 @@
 from django.shortcuts import render
+from .forms import CarbonActivityForm
 
 
 def index(request):
-    return render(request, "tracker/tracker.html")
+    form = CarbonActivityForm()
+    return render(request, "tracker/tracker.html", {"form": form})
