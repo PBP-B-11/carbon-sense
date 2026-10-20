@@ -7,6 +7,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from .forms import TantanganForm
 from .models import Badge, Challenge, Participation, PointEntry, UserBadge
 from .utils import hitung_streak, sudah_checkin_hari_ini, total_poin
 
@@ -77,6 +78,16 @@ def berhenti(request, tantangan):
 
 
 AKSI = {"ikut": ikuti, "checkin": checkin, "berhenti": berhenti}
+
+
+@login_required
+def tambah_tantangan(request):
+    form = TantanganForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        tantangan = form.save()
+        messages.success(request, f'Tantangan "{tantangan.title}" ditambahkan.')
+        return redirect("challenges:index")
+    return render(request, "challenges/tambah.html", {"form": form})
 
 
 @login_required
