@@ -1,45 +1,13 @@
-<!doctype html>
-<html lang="id">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Carbon Sense: Carbon Tracker</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&amp;family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
-</head>
-<body>
-<svg class="sprite" width="0" height="0" aria-hidden="true">
-<symbol id="i-sprout" viewBox="0 0 24 24"><path d="M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3"/><path d="M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4"/><path d="M5 21h14"/></symbol>
-<symbol id="i-bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></symbol>
-<symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
-<symbol id="i-car" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></symbol>
-<symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
-<symbol id="i-utensils" viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></symbol>
-<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
-<symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></symbol>
-</svg>
-<div class="page">
+{% extends "base.html" %}
+
+{% block title %}Carbon Sense: Carbon Tracker{% endblock %}
+
+{% block blobs %}
   <i class="blob blob--tracker-1" aria-hidden="true"></i>
   <i class="blob blob--tracker-2" aria-hidden="true"></i>
-<header class="site-header">
-  <div class="container">
-    <a class="brand" href="index.html" aria-label="Carbon Sense, ke beranda"><span class="brand-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-sprout"/></svg></span>Carbon Sense</a>
-    <nav class="nav-modul" aria-label="Modul">
-      <a href="tracker.html" aria-current="page">Carbon Tracker</a>
-      <a href="profil.html">Profil dan Udara</a>
-      <a href="challenges.html">Eco-Challenges</a>
-      <a href="community.html">Green Community</a>
-    </nav>
-    <div class="akun">
-      <button class="icon-btn" type="button" aria-label="Notifikasi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-bell"/></svg></button>
-      <button class="avatar avatar--48" type="button" aria-label="Akun saya">NP</button>
-    </div>
-  </div>
-</header>
+{% endblock %}
 
-  <main>
+{% block content %}
     <div class="container">
       <div class="page-title">
         <div>
@@ -167,36 +135,4 @@
         </article>
       </section>
     </div>
-  </main>
-<footer class="site-footer">
-  <div class="container">
-    <div>
-      <a class="brand brand--inverse" href="index.html" aria-label="Carbon Sense, ke beranda"><span class="brand-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-sprout"/></svg></span>Carbon Sense</a>
-      <p class="footer-tag">Lacak, kurangi, lalu bagikan <span class="hl">jejak karbon</span> harianmu.</p>
-    </div>
-    <div class="footer-cols">
-      <div>
-        <h2>Modul</h2>
-        <ul>
-          <li><a href="tracker.html">Carbon Tracker</a></li>
-          <li><a href="profil.html">Profil dan Udara</a></li>
-          <li><a href="challenges.html">Eco-Challenges</a></li>
-          <li><a href="community.html">Green Community</a></li>
-        </ul>
-      </div>
-      <div>
-        <h2>Sumber data</h2>
-        <ul>
-          <li><a href="https://www.climatiq.io" rel="noopener">Climatiq</a></li>
-          <li><a href="https://open-meteo.com" rel="noopener">Open-Meteo</a></li>
-          <li><a href="https://gnews.io" rel="noopener">GNews</a></li>
-        </ul>
-      </div>
-    </div>
-    <p class="copyright">Kelompok PBP B-11, 2026</p>
-  </div>
-</footer>
-
-</div>
-</body>
-</html>
+{% endblock %}
