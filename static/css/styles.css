@@ -2389,3 +2389,46 @@ main {
 .col-150 {
   width: 150px;
 }
+
+/* ---------- Formulir tambah tantangan ---------- */
+.form-card {
+  margin-top: 28px;
+  padding: 32px;
+}
+
+.form-card .form-grid {
+  margin-top: 19px;
+}
+
+.form-grid .field--wide {
+  grid-column: 1 / -1;
+}
+
+.input select,
+.input textarea {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+
+.input--area {
+  height: auto;
+  align-items: flex-start;
+  padding-block: 14px;
+}
+
+.input textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.field-error {
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--color-error-text);
+}
