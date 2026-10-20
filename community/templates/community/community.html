@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Carbon Sense: Green Community{% endblock %}
+
+{% block blobs %}
+  <i class="blob blob--community-1" aria-hidden="true"></i>
+  <i class="blob blob--community-2" aria-hidden="true"></i>
+{% endblock %}
+
+{% block main_attrs %} class="community-main"{% endblock %}
+
+{% block content %}
+    <div class="container">
+      <div class="page-title">
+        <div>
+          <span class="eyebrow t-moss-deep">Modul 4, Green Community</span>
+          <h1 class="hl-gap-14">Cerita kecil, <span class="hl">dampak besar</span></h1>
+        </div>
+      </div>
+
+      <div class="community-grid">
+        <div class="feed">
+          <form class="card card--a composer">
+            <div class="row">
+              <span class="avatar avatar--46" aria-hidden="true">NP</span>
+              <textarea aria-label="Tulis postingan" placeholder="Bagikan tips atau ceritamu minggu ini..."></textarea>
+            </div>
+            <div class="actions"><button class="btn btn--primary" type="submit">Posting</button></div>
+          </form>
+
+          <article class="card card--b post">
+            <header class="post-head">
+              <span class="avatar avatar--46 avatar--amber" aria-hidden="true">RA</span>
+              <div class="who"><strong>[NAMA PENGGUNA]</strong><small>2 jam lalu</small></div>
+              <span class="pill pill--moss">Tips</span>
+            </header>
+            <p>Minggu ini aku coba naik KRL ke kampus setiap hari. Ternyata lebih cepat dari motor di jam sibuk, dan grafik Transportasi-ku turun hampir separuh.</p>
+            <footer class="post-foot">
+              <span class="liked"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-leaf"/></svg>24 suka</span>
+              <span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-message-circle"/></svg>6 komentar</span>
+            </footer>
+          </article>
+
+          <article class="card card--c post">
+            <header class="post-head">
+              <span class="avatar avatar--46" aria-hidden="true">NP</span>
+              <div class="who"><strong>[NAMA PENGGUNA]</strong><small>Kemarin</small></div>
+              <span class="pill pill--teal">Diskusi</span>
+            </header>
+            <p>Ada yang punya cara supaya kamar kos tetap sejuk tanpa AC semalaman? Aku mau ikut tantangan AC mati jam 22.00.</p>
+            <footer class="post-foot">
+              <span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-leaf"/></svg>11 suka</span>
+              <span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-message-circle"/></svg>9 komentar</span>
+              <span class="edit"><a href="#">Edit</a><a href="#">Hapus</a></span>
+            </footer>
+          </article>
+        </div>
+
+        <aside class="card card--a side-news" aria-labelledby="judul-berita">
+          <div class="news-head"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-flame"/></svg><h2 id="judul-berita">Berita hangat</h2></div>
+          <ul>
+            <li class="news-item"><h3>[JUDUL BERITA DARI GNEWS]</h3><p>GNews, [WAKTU]</p></li>
+            <li class="news-item"><h3>[JUDUL BERITA DARI GNEWS]</h3><p>GNews, [WAKTU]</p></li>
+          </ul>
+        </aside>
+      </div>
+    </div>
+{% endblock %}
