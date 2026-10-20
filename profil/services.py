@@ -1,15 +1,15 @@
-import json
 from urllib.parse import urlencode
-from urllib.request import urlopen
 
+import requests
 from django.core import signing
 
 
 def _get(url):
     try:
-        with urlopen(url, timeout=4) as response:
-            return json.loads(response.read())
-    except (OSError, ValueError, json.JSONDecodeError):
+        response = requests.get(url, timeout=4)
+        response.raise_for_status()
+        return response.json()
+    except (requests.RequestException, ValueError):
         return None
 
 
