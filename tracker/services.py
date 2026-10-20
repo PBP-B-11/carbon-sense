@@ -38,3 +38,13 @@ def find_electricity_factors():
 
     response.raise_for_status()
     return response.json()["results"]
+
+# Indonesia electricity production mix Ember, 2024.
+ELECTRICITY_FACTOR_ID = "b51303e8-8cb4-8fce-be63-ff652cdec052"
+
+
+def estimate_electricity(kwh):
+    return estimate_emissions(
+        ELECTRICITY_FACTOR_ID,
+        {"energy": float(kwh), "energy_unit": "kWh"},
+    )
