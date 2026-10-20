@@ -20,3 +20,21 @@ def estimate_emissions(factor_id, parameters):
 
     response.raise_for_status()
     return response.json()
+
+def find_electricity_factors():
+    response = requests.get(
+        "https://api.climatiq.io/data/v1/search",
+        headers={
+            "Authorization": f"Bearer {settings.CLIMATIQ_API_KEY}",
+        },
+        params={
+            "query": "electricity",
+            "region": "ID",
+            "unit_type": "Energy",
+            "data_version": "^37",
+        },
+        timeout=10,
+    )
+
+    response.raise_for_status()
+    return response.json()["results"]
