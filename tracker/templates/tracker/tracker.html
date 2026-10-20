@@ -140,7 +140,13 @@
               {{ form.description.errors }}
             </div>
           </details>
-          <div class="actions"><button class="btn btn--primary" type="submit">Simpan aktivitas</button></div>
+          {% if estimate %}
+            <p class="hint" role="status">
+              Estimasi emisi:
+              <strong>{{ estimate.co2e|floatformat:4 }} kg CO₂e</strong>
+            </p>
+          {% endif %}
+          <div class="actions"><button class="btn btn--primary" type="submit">Hitung emisi</button></div>
         </form>
 
         <article class="card card--a history" aria-labelledby="judul-riwayat">
