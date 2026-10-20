@@ -126,6 +126,7 @@ def daftar_tantangan(request):
             "challenge": pertama.challenge,
             "checked_today": sudah_checkin_sekarang,
             "dots": titik,
+            "sisa_hari": progres["total_days"] - progres["done_days"],
             **progres,
         }
 
