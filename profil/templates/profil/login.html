@@ -1,5 +1,26 @@
 {% extends "base.html" %}
 {% block title %}Masuk | Carbon Sense{% endblock %}
 {% block content %}
-<div class="container auth-page"><section class="card card--a edit-form"><h1>Masuk</h1><form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn--primary" type="submit">Masuk</button></form><p>Belum punya akun? <a href="{% url 'profil:register' %}">Daftar</a></p></section></div>
+<div class="container login-page">
+  <div class="login-layout">
+    <div class="login-intro">
+      <span class="eyebrow t-teal">Carbon Sense</span>
+      <h1>Selamat datang <em>kembali.</em></h1>
+      <p>Lanjutkan mencatat jejak karbon dan temukan langkah kecil untuk hidup lebih hijau.</p>
+    </div>
+    <section class="login-card" aria-labelledby="login-title">
+      <h2 id="login-title">Masuk ke akunmu</h2>
+      <p>Senang melihatmu lagi. Yuk, lanjutkan perjalananmu.</p>
+      <form class="login-form" method="post">
+        {% csrf_token %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        {{ form.non_field_errors }}
+        <div class="login-field"><label for="{{ form.username.id_for_label }}">Nama pengguna</label>{{ form.username }}{{ form.username.errors }}</div>
+        <div class="login-field"><label for="{{ form.password.id_for_label }}">Kata sandi</label>{{ form.password }}{{ form.password.errors }}</div>
+        <button class="btn btn--primary" type="submit">Masuk</button>
+      </form>
+      <p class="login-signup">Belum punya akun? <a href="{% url 'profil:register' %}">Daftar sekarang</a></p>
+    </section>
+  </div>
+</div>
 {% endblock %}
