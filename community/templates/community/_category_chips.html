@@ -1,0 +1,3 @@
+{% for value, label in form.fields.category.choices %}
+<label class="chip"><input class="sr-only" type="radio" name="category" value="{{ value }}"{% if value == selected %} checked{% endif %}>{{ label }}</label>
+{% endfor %}
