@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Carbon Sense: Beranda{% endblock %}
+
+{% block blobs %}
+  <i class="blob blob--home-1" aria-hidden="true"></i>
+  <i class="blob blob--home-2" aria-hidden="true"></i>
+{% endblock %}
+
+{% block content %}
+    <section class="home-hero container" aria-labelledby="judul-beranda">
+      <div>
+        <h1 id="judul-beranda">Kenali Jejakmu<br>Jaga <span class="hl">Bumimu</span></h1>
+        <p class="lede">Catat perjalanan, pemakaian listrik, dan makananmu. Carbon Sense menghitung emisinya dan memberi satu saran kecil setiap hari.</p>
+        <div class="cta">
+          <a class="btn btn--primary" href="{% url 'tracker:index' %}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>Catat aktivitas</a>
+          <a class="btn" href="{% url 'tracker:index' %}">Lihat dashboard</a>
+        </div>
+      </div>
+      <div class="seed-col">
+        <p class="eyebrow">Minggu ini</p>
+        <div class="seed seed--lg" role="img" aria-label="42,6 kilogram CO2e minggu ini">
+          <span class="num">42,6</span>
+          <span class="unit">kg CO₂e</span>
+        </div>
+        <p class="caption">Faktor emisi dari Climatiq</p>
+      </div>
+    </section>
+
+    <section class="home-modules container" aria-labelledby="judul-modul">
+      <h2 class="sec-title" id="judul-modul">Empat ruang untuk hidup <span class="hl">lebih hijau</span></h2>
+      <ul class="module-grid">
+        <li class="card card--a module">
+          <span class="icon-disc tone-moss"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-leaf"/></svg></span>
+          <span class="eyebrow">Modul 1</span>
+          <h3>Carbon Tracker</h3>
+          <p>Catat aktivitas harian dan lihat emisinya per kategori.</p>
+          <a class="open" href="{% url 'tracker:index' %}">Buka <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+        </li>
+        <li class="card card--b module">
+          <span class="icon-disc tone-teal"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-cloud-sun"/></svg></span>
+          <span class="eyebrow">Modul 2</span>
+          <h3>Profil dan Udara</h3>
+          <p>Atur targetmu dan pantau kualitas udara di kotamu.</p>
+          <a class="open" href="{% url 'profil:index' %}">Buka <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+        </li>
+        <li class="card card--c module">
+          <span class="icon-disc tone-amber"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trophy"/></svg></span>
+          <span class="eyebrow">Modul 3</span>
+          <h3>Eco-Challenges</h3>
+          <p>Ikuti tantangan mingguan, kumpulkan poin dan lencana.</p>
+          <a class="open" href="{% url 'challenges:index' %}">Buka <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+        </li>
+        <li class="card card--d module">
+          <span class="icon-disc tone-moss"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-message-circle"/></svg></span>
+          <span class="eyebrow">Modul 4</span>
+          <h3>Green Community</h3>
+          <p>Bagikan tips dan cerita, belajar dari teman lain.</p>
+          <a class="open" href="{% url 'community:index' %}">Buka <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+        </li>
+      </ul>
+    </section>
+
+    <section class="home-feature container">
+      <article class="card-dark tip" aria-labelledby="judul-tips">
+        <p class="eyebrow">Tips hari ini</p>
+        <h2 id="judul-tips">Ganti satu perjalanan mobil 10 km dengan <span class="hl">KRL.</span></h2>
+        <p class="desc">Kamu bisa menghemat sekitar 1,9 kg CO₂e. Satu perjalanan saja sudah terlihat di grafik mingguanmu.</p>
+        <a class="btn btn--lichen" href="{% url 'tracker:index' %}">Coba minggu ini</a>
+      </article>
+      <section class="card card--b news" aria-labelledby="judul-berita">
+        <div class="news-head"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-flame"/></svg><h2 id="judul-berita">Berita hangat</h2></div>
+        <ul>
+          <li class="news-item"><h3>[JUDUL BERITA DARI GNEWS]</h3><p>GNews, [WAKTU]</p></li>
+          <li class="news-item"><h3>[JUDUL BERITA DARI GNEWS]</h3><p>GNews, [WAKTU]</p></li>
+          <li class="news-item"><h3>[JUDUL BERITA DARI GNEWS]</h3><p>GNews, [WAKTU]</p></li>
+        </ul>
+      </section>
+    </section>
+{% endblock %}

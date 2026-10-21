@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% load community_tags %}
+
+{% block title %}Carbon Sense: Green Community{% endblock %}
+
+{% block blobs %}
+  <i class="blob blob--community-1" aria-hidden="true"></i>
+  <i class="blob blob--community-2" aria-hidden="true"></i>
+{% endblock %}
+
+{% block main_attrs %} class="community-main"{% endblock %}
+
+{% block content %}
+    <div class="container">
+      <div class="page-title">
+        <div>
+          <span class="eyebrow t-moss-deep">Modul 4, Green Community</span>
+          <h1 class="hl-gap-14">Cerita kecil, <span class="hl">dampak besar</span></h1>
+        </div>
+      </div>
+
+      <div class="community-grid">
+        <div class="feed">
+          {% for message in messages %}
+          <p class="card feed-note" role="alert">{{ message }}</p>
+          {% endfor %}
+
+          {% if user.is_authenticated %}
+          <form class="card card--a composer" method="post" action="{% url 'community:create_post' %}">
+            {% csrf_token %}
+            <div class="row">
+              <span class="avatar avatar--46" aria-hidden="true">{{ user.username|slice:":2"|upper }}</span>
+              <textarea name="content" aria-label="Tulis postingan" placeholder="Bagikan tips atau ceritamu minggu ini..." required></textarea>
+            </div>
+            <div class="cat-choice">
+              {% include "community/_category_chips.html" with selected="tips" %}
+              <button class="btn btn--primary" type="submit">Posting</button>
+            </div>
+          </form>
+          {% else %}
+          <p class="card card--a feed-note">Masuk untuk membuat postingan, menyukai, dan berkomentar.</p>
+          {% endif %}
+
+          {% for post in posts %}
+          <article class="card post">
+            <header class="post-head">
+              <span class="avatar avatar--46" aria-hidden="true">{{ post.author.username|slice:":2"|upper }}</span>
+              <div class="who"><strong>{{ post.author.username }}</strong><small>{{ post.created_at|ago }}</small></div>
+              <span class="pill {% if post.category == 'tips' %}pill--moss{% elif post.category == 'diskusi' %}pill--teal{% else %}pill--amber{% endif %}">{{ post.get_category_display }}</span>
+            </header>
+            <p>{{ post.content|linebreaksbr }}</p>
+            {% if post.has_news %}
+            <a class="post-news" href="{{ post.news_url }}" target="_blank" rel="noopener noreferrer">
+              <small>{{ post.news_source }}</small>
+              <strong>{{ post.news_title }}</strong>
+              {% if post.news_snippet %}<small>{{ post.news_snippet }}</small>{% endif %}
+            </a>
+            {% endif %}
+            <footer class="post-foot">
+              <form method="post" action="{% url 'community:toggle_like' post.pk %}">
+                {% csrf_token %}
+                <button type="submit"{% if post.is_liked %} class="liked" aria-pressed="true"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-leaf"/></svg>{{ post.like_count }} suka</button>
+              </form>
+              <a href="{% url 'community:post_detail' post.pk %}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-message-circle"/></svg>{{ post.comment_count }} komentar</a>
+              {% if post.author_id == user.id %}
+              <span class="edit">
+                <button type="button" class="js-edit" data-action="{% url 'community:edit_post' post.pk %}" data-category="{{ post.category }}" data-content="{{ post.content }}">Edit</button>
+                <form method="post" action="{% url 'community:delete_post' post.pk %}" onsubmit="return confirm('Hapus postingan ini?')">
+                  {% csrf_token %}
+                  <button type="submit">Hapus</button>
+                </form>
+              </span>
+              {% endif %}
+            </footer>
+          </article>
+          {% empty %}
+          <p class="card feed-note">Belum ada postingan. Jadilah yang pertama bercerita.</p>
+          {% endfor %}
+        </div>
+
+        <aside class="card card--a side-news" aria-labelledby="judul-berita">
+          <div class="news-head"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-flame"/></svg><h2 id="judul-berita">Berita hangat</h2></div>
+          <ul>
+            {% for article in news %}
+            <li class="news-item">
+              <h3><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">{{ article.title }}</a></h3>
+              <p>{{ article.source }}{% if article.published_at %}, {{ article.published_at|ago }}{% endif %}</p>
+              {% if user.is_authenticated %}
+              <form method="post" action="{% url 'community:share_news' %}">
+                {% csrf_token %}
+                <input type="hidden" name="url" value="{{ article.url }}">
+                <button type="submit">Bagikan ke feed</button>
+              </form>
+              {% endif %}
+            </li>
+            {% empty %}
+            <li class="news-item"><p>Berita belum tersedia.</p></li>
+            {% endfor %}
+          </ul>
+        </aside>
+      </div>
+    </div>
+
+    <dialog class="edit-dialog" id="edit-dialog" aria-labelledby="edit-title">
+      <form method="post" id="edit-form">
+        {% csrf_token %}
+        <h2 id="edit-title">Edit postingan</h2>
+        <textarea name="content" aria-label="Isi postingan" required></textarea>
+        <div class="cat-choice">
+          {% include "community/_category_chips.html" with selected="" %}
+        </div>
+        <div class="cat-choice">
+          <button class="btn btn--primary" type="submit">Simpan</button>
+          <button class="btn" type="button" id="edit-cancel">Batal</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script>
+      (function () {
+        var dialog = document.getElementById('edit-dialog');
+        var form = document.getElementById('edit-form');
+        document.querySelectorAll('.js-edit').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            form.action = btn.dataset.action;
+            form.elements.content.value = btn.dataset.content;
+            form.querySelectorAll('input[name=category]').forEach(function (r) {
+              r.checked = r.value === btn.dataset.category;
+            });
+            dialog.showModal();
+          });
+        });
+        document.getElementById('edit-cancel').addEventListener('click', function () { dialog.close(); });
+      })();
+    </script>
+{% endblock %}

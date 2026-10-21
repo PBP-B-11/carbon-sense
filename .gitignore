@@ -1,6 +1,7 @@
 # Environments & Credentials
 env/
 venv/
+.venv/
 .env*
 
 # Django Database & Cache
@@ -13,3 +14,5 @@ __pycache__/
 .vscode/*
 !.vscode/settings.json
 .idea/
+# Static files hasil collectstatic
+staticfiles/
