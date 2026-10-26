@@ -1338,8 +1338,52 @@ main {
 }
 
 .history {
-  height: 506px;
-  padding: 35px 32px 0;
+  min-height: 506px;
+  min-width: 0;
+  padding: 35px 32px 32px;
+}
+
+.history-total {
+  margin-top: 12px;
+}
+
+.history-table-wrap {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.history .table {
+  min-width: 620px;
+  table-layout: auto;
+}
+
+.history .table td:nth-child(2) {
+  min-width: 150px;
+  max-width: 250px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.history .table .history-empty {
+  padding: 24px 12px;
+  white-space: normal;
+  color: var(--color-text-secondary);
+}
+
+.history-edit {
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.history-edit:hover {
+  text-decoration: underline;
+}
+
+.history-edit:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
 }
 
 .table {

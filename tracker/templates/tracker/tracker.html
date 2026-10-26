@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Carbon Sense: Carbon Tracker{% endblock %}
+{% block title %}Carbon Sense: {% if editing_activity %}Edit Aktivitas{% else %}Carbon Tracker{% endif %}{% endblock %}
 
 {% block blobs %}
   <i class="blob blob--tracker-1" aria-hidden="true"></i>
@@ -21,7 +21,7 @@
             <button class="chip" type="button" aria-pressed="false">Bulan ini</button>
             <button class="chip" type="button" aria-pressed="false">Tahun ini</button>
           </div>
-          <a class="btn btn--primary" href="#catat-cepat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>Tambah aktivitas</a>
+          <a class="btn btn--primary" href="{% url 'tracker:index' %}#catat-cepat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>Tambah aktivitas</a>
         </div>
       </div>
 
@@ -102,8 +102,8 @@
 
       <section class="tracker-forms">
         <form method="post" class="card card--c quick" id="catat-cepat" aria-labelledby="judul-catat">
-          <p class="eyebrow">Catat cepat</p>
-          <h2 id="judul-catat">Apa aktivitasmu tadi?</h2>
+          <p class="eyebrow">{% if editing_activity %}Edit aktivitas{% else %}Catat cepat{% endif %}</p>
+          <h2 id="judul-catat">{% if editing_activity %}Perbarui aktivitasmu{% else %}Apa aktivitasmu tadi?{% endif %}</h2>
           {% csrf_token %}
           {% for message in messages %}
             <p class="hint" role="status">{{ message }}</p>
@@ -150,28 +150,74 @@
             </p>
           {% endif %}
           <div class="actions">
+            {% if editing_activity %}
+              <a class="btn" href="{% url 'tracker:index' %}#catat-cepat">Batal</a>
+            {% endif %}
             <button class="btn" type="submit" name="action" value="estimate">
               Hitung emisi
             </button>
             <button class="btn btn--primary" type="submit" name="action" value="save">
-              Simpan aktivitas
+              {% if editing_activity %}Simpan perubahan{% else %}Simpan aktivitas{% endif %}
             </button>
           </div>
         </form>
 
         <article class="card card--a history" aria-labelledby="judul-riwayat">
           <h2 class="card-title" id="judul-riwayat">Riwayat aktivitas</h2>
-          <table class="table">
-            <colgroup><col class="col-71"><col class="col-150"><col class="col-106"><col class="col-68"><col class="col-143"><col></colgroup>
-            <thead><tr><th scope="col">Tanggal</th><th scope="col">Aktivitas</th><th scope="col">Kategori</th><th scope="col">Emisi</th><th scope="col">Level</th><th scope="col"><span class="sr-only">Aksi</span></th></tr></thead>
-            <tbody>
-              <tr><td>26 Sep</td><td>Mobil, 12,5 km</td><td>Transportasi</td><td><strong>2,4 kg</strong></td><td><span class="level level--medium">Sedang</span></td><td><span class="acts"><a href="#">Edit</a><a href="#">Hapus</a></span></td></tr>
-              <tr><td>26 Sep</td><td>AC, 6 jam</td><td>Listrik</td><td><strong>3,4 kg</strong></td><td><span class="level level--high">Tinggi</span></td><td><span class="acts"><a href="#">Edit</a><a href="#">Hapus</a></span></td></tr>
-              <tr><td>25 Sep</td><td>KRL, 18 km</td><td>Transportasi</td><td><strong>0,6 kg</strong></td><td><span class="level level--low">Rendah</span></td><td><span class="acts"><a href="#">Edit</a><a href="#">Hapus</a></span></td></tr>
-              <tr><td>24 Sep</td><td>Daging sapi, 200 g</td><td>Makanan</td><td><strong>5,4 kg</strong></td><td><span class="level level--very-high">Sangat tinggi</span></td><td><span class="acts"><a href="#">Edit</a><a href="#">Hapus</a></span></td></tr>
-              <tr><td>24 Sep</td><td>Motor, 9 km</td><td>Transportasi</td><td><strong>0,9 kg</strong></td><td><span class="level level--low">Rendah</span></td><td><span class="acts"><a href="#">Edit</a><a href="#">Hapus</a></span></td></tr>
-            </tbody>
-          </table>
+          <p class="hint history-total">
+            Total emisi seluruh waktu:
+            <strong>{{ total_emissions|floatformat:4 }} kg CO₂e</strong>
+          </p>
+          <div class="history-table-wrap" role="region" aria-label="Tabel riwayat aktivitas" tabindex="0">
+            <table class="table">
+              <caption class="sr-only">Aktivitas karbon tersimpan, terbaru terlebih dahulu</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Tanggal</th>
+                  <th scope="col">Aktivitas</th>
+                  <th scope="col">Kategori</th>
+                  <th scope="col">Jumlah</th>
+                  <th scope="col">Emisi</th>
+                  <th scope="col">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for activity in activities %}
+                  <tr>
+                    <td>{{ activity.date|date:"d M Y" }}</td>
+                    <td>{{ activity.description|default:activity.get_activity_type_display }}</td>
+                    <td>
+                      {% if activity.activity_type == "car_travel" %}
+                        Transportasi
+                      {% elif activity.activity_type == "electricity" %}
+                        Listrik
+                      {% elif activity.activity_type == "meal" %}
+                        Makanan
+                      {% endif %}
+                    </td>
+                    <td>
+                      {{ activity.quantity|floatformat:2 }}
+                      {% if activity.activity_type == "car_travel" %}km{% elif activity.activity_type == "electricity" %}kWh{% elif activity.activity_type == "meal" %}porsi{% endif %}
+                    </td>
+                    <td><strong>{{ activity.emission_kg|floatformat:4 }} kg</strong></td>
+                    <td>
+                      <a class="history-edit" href="{% url 'tracker:edit' activity.pk %}#catat-cepat" aria-label="Edit aktivitas tanggal {{ activity.date|date:'d M Y' }}">Edit</a>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="6" class="history-empty">
+                      {% if request.user.is_authenticated %}
+                        Belum ada aktivitas tersimpan. Catat aktivitas pertamamu di formulir.
+                      {% else %}
+                        Silakan login untuk melihat riwayat aktivitasmu.
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </article>
       </section>
     </div>

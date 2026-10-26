@@ -6,4 +6,5 @@ app_name = "tracker"
 
 urlpatterns = [
     path("", views.index, name="index"),
+    path("<int:pk>/edit/", views.index, name="edit"),
 ]

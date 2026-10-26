@@ -5,16 +5,31 @@ from .models import CarbonActivity
 
 import requests
 from django.contrib import messages
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import CarbonActivityForm
 from .services import estimate_electricity
 
 
-def index(request):
+def index(request, pk=None):
+    editing_activity = None
+
+    if pk is not None:
+        if not request.user.is_authenticated:
+            messages.error(request, "Silakan login untuk mengedit aktivitas.")
+            return redirect("tracker:index")
+
+        editing_activity = get_object_or_404(
+            CarbonActivity,
+            pk=pk,
+            user=request.user,
+        )
+
     form = CarbonActivityForm(
-        request.POST if request.method == "POST" else None
+        request.POST if request.method == "POST" else None,
+        instance=editing_activity,
     )
+
     estimate = None
     saving = request.POST.get("action") == "save"
 
@@ -64,5 +79,6 @@ def index(request):
         "estimate": estimate,
         "activities": activities,
         "total_emissions": total_emissions,
+        "editing_activity": editing_activity,
     },
 )
