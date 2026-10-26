@@ -27,26 +27,26 @@
 
       <section class="tracker-summary" aria-label="Ringkasan emisi">
         <div class="seed-wrap">
-          <div class="seed" role="img" aria-label="42,6 kilogram CO2e minggu ini">
-            <span class="num">42,6</span>
+          <div class="seed" role="img" aria-label="{{ week_emissions|floatformat:2 }} kilogram CO2e dari Senin sampai hari ini">
+            <span class="num">{{ week_emissions|floatformat:1 }}</span>
             <span class="unit">kg CO₂e</span>
           </div>
           <div class="seed-text">
             <p class="eyebrow">Minggu ini</p>
-            <h2>Kamu lebih ringan dari minggu lalu.</h2>
-            <p class="delta">Turun 12%</p>
+            <h2>Jejak karbonmu minggu ini.</h2>
+            <p class="delta">Dari Senin hingga hari ini</p>
           </div>
         </div>
         <div class="stat-stack">
           <article class="card card--a stat stat--1">
             <p class="eyebrow">Hari ini</p>
-            <p class="val">5,8 <small>kg CO₂e</small></p>
-            <p class="note">Di bawah rata-rata harian</p>
+            <p class="val">{{ today_emissions|floatformat:2 }} <small>kg CO₂e</small></p>
+            <p class="note note--muted">Berdasarkan aktivitas tersimpan</p>
           </article>
           <article class="card card--c stat stat--2">
             <p class="eyebrow">Rata-rata harian</p>
-            <p class="val">6,1 <small>kg CO₂e</small></p>
-            <p class="note note--muted">7 hari terakhir</p>
+            <p class="val">{{ average_daily_emissions|floatformat:2 }} <small>kg CO₂e</small></p>
+            <p class="note note--muted">7 hari terakhir, termasuk hari tanpa aktivitas</p>
           </article>
         </div>
         <article class="card-dark top-source">
