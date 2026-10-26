@@ -59,9 +59,12 @@ def checkin(request, tantangan):
                 reason=f'Menyelesaikan "{tantangan.title}"',
             )
             if tantangan.badge:
-                UserBadge.objects.get_or_create(user=request.user, badge=tantangan.badge)
+                UserBadge.objects.get_or_create(
+                    user=request.user, badge=tantangan.badge
+                )
             messages.success(
-                request, f'Selamat, "{tantangan.title}" selesai! +{tantangan.points} poin.'
+                request,
+                f'Selamat, "{tantangan.title}" selesai! +{tantangan.points} poin.',
             )
         else:
             messages.success(request, "Check-in hari ini tercatat.")
@@ -100,7 +103,9 @@ def daftar_tantangan(request):
             messages.error(request, "Aksi tidak dikenal.")
         else:
             try:
-                tantangan = get_object_or_404(Challenge, pk=request.POST.get("tantangan_id"))
+                tantangan = get_object_or_404(
+                    Challenge, pk=request.POST.get("tantangan_id")
+                )
             except ValidationError:
                 raise Http404("Tantangan tidak ditemukan.")
             aksi(request, tantangan)

@@ -7,7 +7,7 @@ class CarbonActivityForm(forms.ModelForm):
         choices=[
             ("car_travel", "Mobil"),
             ("electricity", "Listrik"),
-            #Gunakan kode LPG yang sama dengan pilihan pada model.
+            # Gunakan kode LPG yang sama dengan pilihan pada model.
             ("lpg", "Gas LPG"),
         ],
         widget=forms.RadioSelect(attrs={"class": "sr-only"}),
@@ -25,9 +25,7 @@ class CarbonActivityForm(forms.ModelForm):
             "description": forms.TextInput(
                 attrs={"placeholder": "Contoh: perjalanan ke kampus"}
             ),
-            "date": forms.DateInput(
-                format="%Y-%m-%d", attrs={"type": "date"}
-            ),
+            "date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
         }
 
     def clean_quantity(self):

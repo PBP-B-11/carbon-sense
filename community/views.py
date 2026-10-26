@@ -10,12 +10,9 @@ from .news import fetch_news, find_article
 
 
 def index(request):
-    posts = (
-        Post.objects.select_related("author")
-        .annotate(
-            like_count=Count("likes", distinct=True),
-            comment_count=Count("comments", distinct=True),
-        )
+    posts = Post.objects.select_related("author").annotate(
+        like_count=Count("likes", distinct=True),
+        comment_count=Count("comments", distinct=True),
     )
     if request.user.is_authenticated:
         posts = posts.annotate(

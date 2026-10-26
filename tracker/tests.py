@@ -11,7 +11,7 @@ from .models import CarbonActivity
 from .services import LPG_FACTOR_ID, estimate_lpg
 
 
-#Gunakan hasil API tiruan agar pengujian tidak memakai kuota Climatiq.
+# Gunakan hasil API tiruan agar pengujian tidak memakai kuota Climatiq.
 LPG_RESULT = {"co2e": 0.293936095, "co2e_unit": "kg"}
 
 
@@ -24,21 +24,24 @@ class LPGServiceTests(SimpleTestCase):
         result = estimate_lpg(Decimal("0.10"))
 
         post.return_value.raise_for_status.assert_called_once()
-        self.assertEqual(post.call_args.kwargs["json"], {
-            "emission_factor": {"id": LPG_FACTOR_ID},
-            "parameters": {"weight": 0.1, "weight_unit": "kg"},
-        })
+        self.assertEqual(
+            post.call_args.kwargs["json"],
+            {
+                "emission_factor": {"id": LPG_FACTOR_ID},
+                "parameters": {"weight": 0.1, "weight_unit": "kg"},
+            },
+        )
         self.assertEqual(result, LPG_RESULT)
 
 
-#TestCase menggunakan database pengujian yang terpisah dari data pengguna.
+# TestCase menggunakan database pengujian yang terpisah dari data pengguna.
 class LPGTrackerTests(TestCase):
     def setUp(self):
         self.owner = get_user_model().objects.create_user(username="lpg-owner")
         self.other = get_user_model().objects.create_user(username="lpg-other")
         self.index_url = reverse("tracker:index")
 
-    #Kuantitas formulir adalah berat gas yang dikonsumsi dalam kg.
+    # Kuantitas formulir adalah berat gas yang dikonsumsi dalam kg.
     def payload(self, **changes):
         data = {
             "activity_type": "lpg",
@@ -52,8 +55,10 @@ class LPGTrackerTests(TestCase):
 
     def create_activity(self, **changes):
         data = {
-            "user": self.owner, "activity_type": "lpg",
-            "quantity": Decimal("0.10"), "emission_kg": Decimal("0.2939"),
+            "user": self.owner,
+            "activity_type": "lpg",
+            "quantity": Decimal("0.10"),
+            "emission_kg": Decimal("0.2939"),
             "date": timezone.localdate(),
         }
         data.update(changes)
@@ -138,7 +143,9 @@ class LPGTrackerTests(TestCase):
         for route in ("tracker:edit", "tracker:delete"):
             url = reverse(route, args=[activity.pk])
             self.assertEqual(self.client.get(url).status_code, 404)
-            self.assertEqual(self.client.post(url, self.payload(action="save")).status_code, 404)
+            self.assertEqual(
+                self.client.post(url, self.payload(action="save")).status_code, 404
+            )
 
         self.assertTrue(CarbonActivity.objects.filter(pk=activity.pk).exists())
         estimate.assert_not_called()
@@ -147,7 +154,9 @@ class LPGTrackerTests(TestCase):
     def test_invalid_quantities_and_retired_food_choice_are_rejected(self, estimate):
         for quantity in ("0", "-0.10"):
             with self.subTest(quantity=quantity):
-                response = self.client.post(self.index_url, self.payload(quantity=quantity))
+                response = self.client.post(
+                    self.index_url, self.payload(quantity=quantity)
+                )
                 self.assertIn("quantity", response.context["form"].errors)
 
         response = self.client.post(self.index_url, self.payload(activity_type="meal"))
@@ -176,10 +185,13 @@ class LPGTrackerTests(TestCase):
     @patch("tracker.views.estimate_car_travel", return_value={"co2e": 2.78283915682})
     @patch("tracker.views.estimate_electricity", return_value={"co2e": 6.8025})
     @patch("tracker.views.estimate_lpg")
-    def test_car_and_electricity_keep_their_own_calculators(self, lpg, electricity, car):
+    def test_car_and_electricity_keep_their_own_calculators(
+        self, lpg, electricity, car
+    ):
         for activity_type, quantity in (("car_travel", "15"), ("electricity", "10")):
             response = self.client.post(
-                self.index_url, self.payload(activity_type=activity_type, quantity=quantity)
+                self.index_url,
+                self.payload(activity_type=activity_type, quantity=quantity),
             )
             self.assertEqual(response.status_code, 200)
             self.assertIsNotNone(response.context["estimate"])

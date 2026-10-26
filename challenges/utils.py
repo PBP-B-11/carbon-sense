@@ -8,7 +8,9 @@ from .models import Badge, CheckIn, Participation, PointEntry, UserBadge
 
 def total_poin(user):
     """Total poin = jumlah seluruh PointEntry milik pengguna."""
-    return PointEntry.objects.filter(user=user).aggregate(total=Sum("delta"))["total"] or 0
+    return (
+        PointEntry.objects.filter(user=user).aggregate(total=Sum("delta"))["total"] or 0
+    )
 
 
 def ringkasan_pengguna(user):

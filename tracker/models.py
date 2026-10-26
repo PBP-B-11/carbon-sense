@@ -7,7 +7,7 @@ class CarbonActivity(models.Model):
     ACTIVITY_CHOICES = [
         ("car_travel", "Car travel (km)"),
         ("electricity", "Electricity (kWh)"),
-        #Kuantitas LPG adalah berat gas yang dikonsumsi dalam kilogram.
+        # Kuantitas LPG adalah berat gas yang dikonsumsi dalam kilogram.
         ("lpg", "Cooking gas LPG (kg)"),
     ]
 
