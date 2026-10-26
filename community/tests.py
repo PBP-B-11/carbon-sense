@@ -490,3 +490,27 @@ class LikeRedirectTests(TestCase):
         target = reverse("community:post_detail", args=[self.post.pk])
         res = self.client.post(self.url, {"next": target})
         self.assertRedirects(res, target)
+
+
+class DetailLikeTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("me", password="x")
+        self.post = Post.objects.create(author=self.user, content="halo")
+        self.url = reverse("community:post_detail", args=[self.post.pk])
+
+    def test_detail_has_like_button_with_count_and_state(self):
+        Like.objects.create(post=self.post, user=self.user)
+        self.client.force_login(self.user)
+        res = self.client.get(self.url)
+        self.assertContains(res, "js-like-form")
+        self.assertContains(res, 'aria-pressed="true"')
+        self.assertContains(res, '<span class="like-count">1</span>')
+
+    def test_detail_like_redirects_back_to_detail(self):
+        self.client.force_login(self.user)
+        res = self.client.post(reverse("community:toggle_like", args=[self.post.pk]), {"next": self.url})
+        self.assertRedirects(res, self.url)
+
+    def test_anonymous_sees_like_button_unpressed(self):
+        res = self.client.get(self.url)
+        self.assertContains(res, 'aria-pressed="false"')

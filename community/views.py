@@ -150,10 +150,7 @@ def toggle_like(request, pk):
 
 
 def post_detail(request, pk):
-    post = get_object_or_404(
-        Post.objects.select_related("author").annotate(like_count=Count("likes")),
-        pk=pk,
-    )
+    post = get_object_or_404(_feed_posts(request.user), pk=pk)
     comments = post.comments.select_related("author")
     return render(
         request,

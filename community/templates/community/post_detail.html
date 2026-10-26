@@ -7,7 +7,7 @@
 
 {% block content %}
     <div class="container">
-      <p><a href="{% url 'community:index' %}">&larr; Kembali ke feed</a></p>
+      <p class="back-link"><a href="{% url 'community:index' %}">&larr; Kembali ke feed</a></p>
       {% for message in messages %}
       <p class="card feed-note" role="alert">{{ message }}</p>
       {% endfor %}
@@ -25,7 +25,10 @@
           {% if post.news_snippet %}<small>{{ post.news_snippet }}</small>{% endif %}
         </a>
         {% endif %}
-        <footer class="post-foot"><span>{{ post.like_count }} suka</span><span><span id="comment-count">{{ comments|length }}</span> komentar</span></footer>
+        <footer class="post-foot">
+          {% include "community/_like_form.html" with next=request.path %}
+          <span><span id="comment-count">{{ comments|length }}</span> komentar</span>
+        </footer>
 
         <h2>Komentar</h2>
         <div id="comments">

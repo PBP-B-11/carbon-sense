@@ -2897,6 +2897,10 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
+.back-link {
+  margin-bottom: 12px;
+}
+
 .toast-region {
   position: fixed;
   right: 24px;
@@ -3186,6 +3190,14 @@ textarea:focus-visible {
   .copyright {
     position: static;
     padding-bottom: 0;
+  }
+
+  .footer-cols {
+    gap: 28px;
+  }
+
+  .footer-cols a {
+    white-space: nowrap;
   }
 }
 
