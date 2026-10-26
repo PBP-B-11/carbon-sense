@@ -16,32 +16,19 @@
     <article class="card card--a profile-card">
       <div class="profile-id">
         <span class="avatar" aria-hidden="true">{{ request.user.username|slice:":2"|upper }}</span>
-        <div><h2>{{ request.user.username }}</h2><p class="handle">@{{ request.user.username }} · {{ profile.city_name|default:"Kota belum dipilih" }}</p></div>
+        <div><h2>{{ request.user.username }}</h2><p class="handle">@{{ request.user.username }} · <span data-profile-city>{{ profile.city_name|default:"Kota belum dipilih" }}</span></p></div>
       </div>
       <p class="profile-bio">{{ profile.bio|default:"Belum ada bio. Tambahkan cerita singkat tentang diri Anda." }}</p>
       <dl class="profile-details">
         <div><dt>Email</dt><dd>{{ request.user.email }}</dd></div>
-        <div><dt>Kota domisili</dt><dd>{{ profile.city_name|default:"Belum dipilih" }}</dd></div>
+        <div><dt>Kota domisili</dt><dd data-profile-city>{{ profile.city_name|default:"Belum dipilih" }}</dd></div>
         <div><dt>Poin</dt><dd>{{ challenge_stats.poin }}</dd></div>
         <div><dt>Streak</dt><dd>{{ challenge_stats.streak }} hari</dd></div>
         <div><dt>Tantangan</dt><dd>{{ challenge_stats.diikuti }} diikuti, {{ challenge_stats.selesai }} selesai</dd></div>
         <div><dt>Lencana</dt><dd>{{ challenge_stats.lencana }} dari {{ challenge_stats.total_lencana }}</dd></div>
       </dl>
     </article>
-    <section class="profile-air" aria-label="Kondisi lingkungan saat ini">
-      <div class="profile-air-heading"><h2>Cuaca dan udara di {{ profile.city_name|default:"kota Anda" }}</h2><span>Sumber: Open-Meteo</span></div>
-      {% if snapshot %}
-        <div class="profile-air-metrics">
-          <div class="profile-air-metric"><span class="metric-label"><svg aria-hidden="true"><use href="#i-cloud-sun"/></svg>Suhu</span><strong>{{ snapshot.temperature_2m }}°C</strong><small>Saat ini</small></div>
-          <div class="profile-air-metric"><span class="metric-label"><svg aria-hidden="true"><use href="#i-droplets"/></svg>Kelembapan</span><strong>{{ snapshot.relative_humidity_2m }}%</strong><small>Relatif</small></div>
-          <div class="profile-air-metric"><span class="metric-label"><svg aria-hidden="true"><use href="#i-wind"/></svg>Angin</span><strong>{{ snapshot.wind_speed_10m }} <span>km/jam</span></strong><small>Kecepatan</small></div>
-          <div class="profile-air-metric" aria-label="US AQI estimate: {{ snapshot.us_aqi|floatformat:0 }}"><span class="metric-label">US AQI estimate</span><strong>{{ snapshot.us_aqi|floatformat:0 }}</strong><small>Perkiraan</small></div>
-        </div>
-        <p class="profile-air-note">Data kualitas udara merupakan estimasi model dari Open-Meteo dan CAMS.</p>
-      {% else %}
-        <p class="profile-air-note">Data lingkungan saat ini tidak tersedia.</p>
-      {% endif %}
-    </section>
+    {% include 'profil/_air.html' %}
   </section>
 
   <section class="profile-settings" aria-label="Pengaturan profil">
@@ -58,9 +45,10 @@
           <h3>Kota domisili</h3>
           <label class="profile-field" for="city-query">Cari kota Indonesia<input id="city-query" type="search" data-city-query autocomplete="off" minlength="2" placeholder="Cari nama kota"></label>
           <p class="profile-hint" data-city-status role="status" aria-live="polite">Ketik minimal 2 karakter untuk mencari.</p>
-          <form method="post" action="{% url 'profil:city' %}">{% csrf_token %}
+          <form method="post" action="{% url 'profil:city' %}" data-city-save-form>{% csrf_token %}
             <div class="profile-field"><label for="{{ city_form.city.id_for_label }}">Pilih kota</label>{{ city_form.city }}{{ city_form.city.errors }}</div>
             <button class="btn btn--primary" type="submit">Simpan kota</button>
+            <p class="profile-hint" data-city-save-status role="status" aria-live="polite" hidden></p>
           </form>
           <p class="profile-hint">Pencarian kota oleh GeoNames melalui Open-Meteo.</p>
         </div>

@@ -15,9 +15,13 @@ from .utils import hitung_progres, hitung_streak, proses_checkin, sudah_checkin_
 
 def ikuti(request, tantangan):
     """Mendaftarkan pengguna mengikuti tantangan baru jika belum memiliki tantangan aktif."""
-    partisipasi_aktif = Participation.objects.filter(
-        user=request.user, status=Participation.Status.ACTIVE
-    ).select_related("challenge").first()
+    partisipasi_aktif = (
+        Participation.objects.filter(
+            user=request.user, status=Participation.Status.ACTIVE
+        )
+        .select_related("challenge")
+        .first()
+    )
 
     if partisipasi_aktif:
         if partisipasi_aktif.challenge_id == tantangan.id:
@@ -26,7 +30,7 @@ def ikuti(request, tantangan):
             messages.warning(
                 request,
                 f'Kamu masih memiliki tantangan aktif: "{partisipasi_aktif.challenge.title}". '
-                "Selesaikan atau batalkan tantangan tersebut terlebih dahulu."
+                "Selesaikan atau batalkan tantangan tersebut terlebih dahulu.",
             )
         return
 
@@ -54,6 +58,7 @@ def checkin(request, tantangan):
         )
     else:
         messages.success(request, "Check-in hari ini tercatat.")
+
 
 
 def berhenti(request, tantangan):
@@ -168,7 +173,9 @@ def daftar_tantangan(request):
             messages.error(request, "Aksi tidak dikenal.")
         else:
             try:
-                tantangan = get_object_or_404(Challenge, pk=request.POST.get("tantangan_id"))
+                tantangan = get_object_or_404(
+                    Challenge, pk=request.POST.get("tantangan_id")
+                )
             except ValidationError:
                 raise Http404("Tantangan tidak ditemukan.")
             aksi(request, tantangan)

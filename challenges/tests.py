@@ -6,7 +6,14 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from challenges.models import Badge, Challenge, CheckIn, Participation, PointEntry, UserBadge
+from challenges.models import (
+    Badge,
+    Challenge,
+    CheckIn,
+    Participation,
+    PointEntry,
+    UserBadge,
+)
 from challenges.utils import (
     hitung_streak,
     periksa_lencana_streak,
@@ -53,7 +60,9 @@ class ChallengeModelTests(TestCase):
         )
         self.assertIn("active", str(partisipasi))
 
-        checkin = CheckIn.objects.create(participation=partisipasi, date=timezone.localdate())
+        checkin = CheckIn.objects.create(
+            participation=partisipasi, date=timezone.localdate()
+        )
         self.assertIn(str(timezone.localdate()), str(checkin))
 
         user_badge = UserBadge.objects.create(user=self.user, badge=self.badge)
@@ -69,7 +78,9 @@ class ChallengeModelTests(TestCase):
         )
         with self.assertRaises(IntegrityError):
             Participation.objects.create(
-                user=self.user, challenge=self.challenge, started_at=timezone.localdate()
+                user=self.user,
+                challenge=self.challenge,
+                started_at=timezone.localdate(),
             )
 
     def test_unique_check_in_per_day_constraint(self):
@@ -110,7 +121,9 @@ class ChallengeUtilsTests(TestCase):
             estimated_saving_kg="10.0",
         )
         self.partisipasi = Participation.objects.create(
-            user=self.user, challenge=self.challenge, started_at=timezone.localdate() - timedelta(days=35)
+            user=self.user,
+            challenge=self.challenge,
+            started_at=timezone.localdate() - timedelta(days=35),
         )
 
     def test_total_poin_and_ringkasan(self):
@@ -129,19 +142,25 @@ class ChallengeUtilsTests(TestCase):
     def test_sudah_checkin_hari_ini(self):
         """Memverifikasi fungsi pengecekan check-in hari ini."""
         self.assertFalse(sudah_checkin_hari_ini(self.user))
-        CheckIn.objects.create(participation=self.partisipasi, date=timezone.localdate())
+        CheckIn.objects.create(
+            participation=self.partisipasi, date=timezone.localdate()
+        )
         self.assertTrue(sudah_checkin_hari_ini(self.user))
 
     def test_hitung_streak_berturut_turut_dan_lencana(self):
         """Memverifikasi bahwa streak bertambah dengan check-in berturut-turut dan memicu lencana streak."""
         hari_ini = timezone.localdate()
         for i in range(7):
-            CheckIn.objects.create(participation=self.partisipasi, date=hari_ini - timedelta(days=6 - i))
+            CheckIn.objects.create(
+                participation=self.partisipasi, date=hari_ini - timedelta(days=6 - i)
+            )
 
         self.assertEqual(hitung_streak(self.user), 7)
         lencana_diberikan = periksa_lencana_streak(self.user)
         self.assertIn("Hijau 7 hari", lencana_diberikan)
-        self.assertTrue(UserBadge.objects.filter(user=self.user, badge=self.badge_7).exists())
+        self.assertTrue(
+            UserBadge.objects.filter(user=self.user, badge=self.badge_7).exists()
+        )
 
     def test_hitung_streak_masih_berjalan_sebelum_tengah_malam(self):
         """Memverifikasi bahwa streak tidak langsung reset jika hari ini belum check-in tapi kemarin check-in."""
@@ -210,7 +229,9 @@ class ChallengeViewsTests(TestCase):
     def test_daftar_tantangan_filter_kategori(self):
         """Memverifikasi filter kategori tantangan pada URL query."""
         self.client.force_login(self.user)
-        response = self.client.get(reverse("challenges:index") + "?kategori=transportasi")
+        response = self.client.get(
+            reverse("challenges:index") + "?kategori=transportasi"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Tantangan Transportasi")
         self.assertNotContains(response, "Tantangan Energi")
@@ -219,13 +240,28 @@ class ChallengeViewsTests(TestCase):
         """Memverifikasi penolakan form POST ikut tantangan jika pengguna sudah punya tantangan aktif."""
         self.client.force_login(self.user)
         # Ikuti tantangan pertama
-        self.client.post(reverse("challenges:index"), {"aksi": "ikut", "tantangan_id": str(self.challenge1.id)})
-        self.assertTrue(Participation.objects.filter(user=self.user, challenge=self.challenge1, status="active").exists())
+        self.client.post(
+            reverse("challenges:index"),
+            {"aksi": "ikut", "tantangan_id": str(self.challenge1.id)},
+        )
+        self.assertTrue(
+            Participation.objects.filter(
+                user=self.user, challenge=self.challenge1, status="active"
+            ).exists()
+        )
 
         # Mencoba mengikuti tantangan kedua saat yang pertama masih aktif
-        response = self.client.post(reverse("challenges:index"), {"aksi": "ikut", "tantangan_id": str(self.challenge2.id)}, follow=True)
+        response = self.client.post(
+            reverse("challenges:index"),
+            {"aksi": "ikut", "tantangan_id": str(self.challenge2.id)},
+            follow=True,
+        )
         self.assertContains(response, "Kamu masih memiliki tantangan aktif")
-        self.assertFalse(Participation.objects.filter(user=self.user, challenge=self.challenge2, status="active").exists())
+        self.assertFalse(
+            Participation.objects.filter(
+                user=self.user, challenge=self.challenge2, status="active"
+            ).exists()
+        )
 
     def test_tambah_tantangan_forbidden_untuk_user_biasa(self):
         """Memverifikasi bahwa pengguna biasa mendapat response 403 Forbidden pada halaman tambah tantangan."""
@@ -256,21 +292,29 @@ class ChallengeViewsTests(TestCase):
     def test_hapus_tantangan_forbidden_untuk_user_biasa(self):
         """Memverifikasi bahwa pengguna biasa mendapat response 403 Forbidden saat mencoba menghapus tantangan."""
         self.client.force_login(self.user)
-        response = self.client.get(reverse("challenges:hapus", kwargs={"id": self.challenge1.id}))
+        response = self.client.get(
+            reverse("challenges:hapus", kwargs={"id": self.challenge1.id})
+        )
         self.assertEqual(response.status_code, 403)
 
-        post_res = self.client.post(reverse("challenges:hapus", kwargs={"id": self.challenge1.id}))
+        post_res = self.client.post(
+            reverse("challenges:hapus", kwargs={"id": self.challenge1.id})
+        )
         self.assertEqual(post_res.status_code, 403)
         self.assertTrue(Challenge.objects.filter(id=self.challenge1.id).exists())
 
     def test_hapus_tantangan_bisa_diakses_superuser(self):
         """Memverifikasi bahwa superuser dapat melihat konfirmasi dan menghapus tantangan."""
         self.client.force_login(self.admin)
-        get_res = self.client.get(reverse("challenges:hapus", kwargs={"id": self.challenge1.id}))
+        get_res = self.client.get(
+            reverse("challenges:hapus", kwargs={"id": self.challenge1.id})
+        )
         self.assertEqual(get_res.status_code, 200)
         self.assertContains(get_res, self.challenge1.title)
 
-        post_res = self.client.post(reverse("challenges:hapus", kwargs={"id": self.challenge1.id}))
+        post_res = self.client.post(
+            reverse("challenges:hapus", kwargs={"id": self.challenge1.id})
+        )
         self.assertEqual(post_res.status_code, 302)
         self.assertFalse(Challenge.objects.filter(id=self.challenge1.id).exists())
 
@@ -419,9 +463,13 @@ class ChallengeAPITests(TestCase):
         """Memverifikasi penyelesaian tantangan via API memberikan poin dan lencana."""
         self.client.force_login(self.user)
         partisipasi = Participation.objects.create(
-            user=self.user, challenge=self.challenge, started_at=timezone.localdate() - timedelta(days=1)
+            user=self.user,
+            challenge=self.challenge,
+            started_at=timezone.localdate() - timedelta(days=1),
         )
-        CheckIn.objects.create(participation=partisipasi, date=timezone.localdate() - timedelta(days=1))
+        CheckIn.objects.create(
+            participation=partisipasi, date=timezone.localdate() - timedelta(days=1)
+        )
 
         url = reverse("challenges_api:checkin", kwargs={"id": self.challenge.id})
         res = self.client.post(url)
@@ -430,7 +478,9 @@ class ChallengeAPITests(TestCase):
         self.assertTrue(data["completed"])
         self.assertEqual(data["data"]["badge"], "Pesepeda")
         self.assertEqual(total_poin(self.user), 50)
-        self.assertTrue(UserBadge.objects.filter(user=self.user, badge=self.badge).exists())
+        self.assertTrue(
+            UserBadge.objects.filter(user=self.user, badge=self.badge).exists()
+        )
 
     def test_api_berhenti_success(self):
         """Memverifikasi endpoint berhenti dari tantangan aktif."""
