@@ -1,37 +1,74 @@
 /**
  * challenges.js
- * Menangani interaksi tombol Check-in, Ikuti, dan Berhenti secara asinkron (Fetch API).
+ * Menangani interaksi tombol Check-in, Ikuti, dan Berhenti secara asinkron (Fetch API)
+ * serta menampilkan notifikasi menggunakan komponen toast.
  */
 
+let toastTimer;
+
+function showToast(title, message, type = 'normal', duration = 3000) {
+  const toastComponent = document.getElementById('toast-component');
+  const toastTitle = document.getElementById('toast-title');
+  const toastMessage = document.getElementById('toast-message');
+
+  if (!toastComponent) return;
+
+  toastComponent.classList.remove('toast-success', 'toast-error', 'toast-normal');
+
+  if (type === 'success') {
+    toastComponent.classList.add('toast-success');
+  } else if (type === 'error') {
+    toastComponent.classList.add('toast-error');
+  } else {
+    toastComponent.classList.add('toast-normal');
+  }
+
+  toastTitle.textContent = title;
+  toastMessage.textContent = message;
+
+  clearTimeout(toastTimer);
+
+  if (typeof toastComponent.showPopover === 'function') {
+    if (!toastComponent.matches(':popover-open')) {
+      toastComponent.showPopover();
+      void toastComponent.offsetHeight;
+    }
+  } else {
+    toastComponent.style.display = 'flex';
+  }
+  toastComponent.classList.remove('toast-hidden');
+  toastComponent.classList.add('toast-show');
+
+  toastTimer = setTimeout(() => {
+    toastComponent.classList.remove('toast-show');
+    toastComponent.classList.add('toast-hidden');
+    toastTimer = setTimeout(() => {
+      if (typeof toastComponent.hidePopover === 'function') {
+        try {
+          toastComponent.hidePopover();
+        } catch (e) {
+          // ignore if already hidden
+        }
+      } else {
+        toastComponent.style.display = 'none';
+      }
+    }, 300);
+  }, duration);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  const pendingToast = sessionStorage.getItem('pending_toast');
+  if (pendingToast) {
+    sessionStorage.removeItem('pending_toast');
+    try {
+      const data = JSON.parse(pendingToast);
+      showToast(data.title, data.message, data.type);
+    } catch (e) {}
+  }
+
   function formatAngkaId(num) {
     if (typeof num !== 'number') return num;
     return num.toLocaleString('id-ID');
-  }
-
-  function tampilkanPesan(pesan, tipe = 'success') {
-    let alertContainer = document.querySelector('.container .alert-container');
-    if (!alertContainer) {
-      alertContainer = document.createElement('div');
-      alertContainer.className = 'alert-container';
-      const pageTitle = document.querySelector('.container .page-title');
-      if (pageTitle && pageTitle.nextSibling) {
-        pageTitle.parentNode.insertBefore(alertContainer, pageTitle.nextSibling);
-      }
-    }
-
-    const alertDiv = document.createElement('div');
-    alertDiv.className = 'alert';
-    alertDiv.setAttribute('role', 'status');
-    alertDiv.innerHTML = `
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-triangle-alert"/></svg>
-      <div><p>${pesan}</p></div>
-    `;
-
-    alertContainer.prepend(alertDiv);
-    setTimeout(() => {
-      alertDiv.remove();
-    }, 5000);
   }
 
   function bukaLencanaDiDOM(namaLencana) {
@@ -77,9 +114,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await response.json();
 
         if (response.ok) {
-          tampilkanPesan(data.message || 'Aksi berhasil dilakukan!');
-
           if (aksi === 'checkin') {
+            showToast('Berhasil', data.message || 'Check-in hari ini tercatat!', 'success');
+
             const btnText = form.querySelector('#btn-checkin-text');
             if (btnText) {
               btnText.textContent = data.completed ? 'Tantangan selesai' : 'Sudah check-in hari ini';
@@ -140,24 +177,30 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
           } else if (aksi === 'ikut' || aksi === 'berhenti') {
+            sessionStorage.setItem('pending_toast', JSON.stringify({
+              title: 'Berhasil',
+              message: data.message || 'Aksi berhasil dilakukan!',
+              type: 'success'
+            }));
+            showToast('Berhasil', data.message || 'Aksi berhasil dilakukan!', 'success');
             setTimeout(() => {
               window.location.reload();
             }, 600);
           }
         } else if (response.status === 409) {
-          tampilkanPesan(data.error || 'Kamu sudah check-in hari ini.', 'warning');
+          showToast('Perhatian', data.error || 'Kamu sudah check-in hari ini.', 'error');
           if (aksi === 'checkin' && submitButton) {
             submitButton.disabled = true;
           }
         } else {
-          tampilkanPesan(data.error || 'Terjadi kesalahan. Silakan coba lagi.', 'error');
+          showToast('Perhatian', data.error || 'Terjadi kesalahan. Silakan coba lagi.', 'error');
           if (submitButton) {
             submitButton.disabled = false;
           }
         }
       } catch (err) {
         console.error('Fetch error:', err);
-        tampilkanPesan('Gagal menghubungi server. Periksa koneksi internetmu.', 'error');
+        showToast('Koneksi Gagal', 'Gagal menghubungi server. Periksa koneksi internetmu.', 'error');
         if (submitButton) {
           submitButton.disabled = false;
         }
