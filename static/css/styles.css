@@ -2741,6 +2741,18 @@ main {
   color: inherit;
 }
 
+.post-foot button:hover,
+.post-foot a:hover {
+  text-decoration: underline;
+}
+
+.post-foot button:focus-visible,
+.post-foot a:focus-visible {
+  outline: 3px solid var(--color-secondary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
 .post-foot .edit {
   margin-left: auto;
   display: flex;
@@ -2758,6 +2770,7 @@ main {
 .post-news {
   display: block;
   margin-top: 14px;
+  text-decoration: none;
   padding: 14px 18px;
   border: 2px solid var(--color-secondary);
   border-radius: var(--radius-input);
@@ -2765,9 +2778,14 @@ main {
   color: var(--color-secondary-text);
 }
 
+.post-news:hover strong {
+  text-decoration: underline;
+}
+
 .post-news small {
   display: block;
   font-size: 13px;
+  line-height: 18px;
 }
 
 .post-news strong {
@@ -2778,6 +2796,7 @@ main {
 
 .cat-choice {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   margin-top: 14px;
@@ -2816,18 +2835,58 @@ main {
   background: rgb(0 0 0 / 0.4);
 }
 
+.edit-dialog h2 {
+  font-size: 24px;
+  line-height: 28px;
+}
+
+.edit-dialog #share-news-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text-secondary);
+}
+
 .edit-dialog textarea {
+  display: block;
   width: 100%;
   height: 120px;
+  margin-top: 16px;
   padding: 14px 18px;
   resize: vertical;
   border: var(--border-default);
   border-radius: var(--radius-input);
+  background: var(--color-bg-surface);
   font: 400 16px/22px var(--font-body);
+  color: var(--color-text-primary);
 }
 
 .edit-dialog .cat-choice .btn {
   margin-left: 0;
+}
+
+.edit-dialog form > .cat-choice:last-child {
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.edit-dialog .btn {
+  height: 44px;
+  padding: 0 22px;
+}
+
+.edit-dialog .btn--primary:active {
+  transform: translateY(4px);
+  box-shadow: none;
+}
+
+textarea:focus-visible {
+  outline: 3px solid var(--color-secondary);
+  outline-offset: 2px;
 }
 
 .feed-note {
@@ -2839,8 +2898,36 @@ main {
   border-top: var(--border-default);
 }
 
+.comment p {
+  margin-top: 6px;
+  font-size: 16px;
+  line-height: 24px;
+}
+
 .comment small {
   color: var(--color-text-secondary);
+}
+
+.post h2 {
+  margin-top: 24px;
+  font-size: 22px;
+}
+
+.post > form textarea {
+  display: block;
+  width: 100%;
+  height: 96px;
+  margin: 16px 0 12px;
+  padding: 14px 18px;
+  resize: vertical;
+  border: var(--border-default);
+  border-radius: var(--radius-input);
+  font: 400 16px/22px var(--font-body);
+}
+
+.post > form .btn {
+  margin-left: auto;
+  display: flex;
 }
 
 .side-news {
@@ -2870,6 +2957,35 @@ main {
 .side-news .news-item h3 {
   font-size: 17px;
   line-height: 21px;
+}
+
+.side-news .news-item h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.side-news .news-item h3 a:hover {
+  text-decoration: underline;
+}
+
+.side-news .news-item button {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 700 14px/18px var(--font-body);
+  color: var(--color-secondary);
+  cursor: pointer;
+}
+
+.side-news .news-item button:hover {
+  text-decoration: underline;
+}
+
+.side-news .news-item button:focus-visible {
+  outline: 3px solid var(--color-secondary);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 .community-main {
