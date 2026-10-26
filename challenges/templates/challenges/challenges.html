@@ -67,9 +67,9 @@
           <ul class="badge-row">
             {% for lencana in badges %}
             {% if lencana.id in owned_badge_ids %}
-            <li class="badge"><span class="disc tone-{{ lencana.tone }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-{{ lencana.icon }}"/></svg></span>{{ lencana.name }}</li>
+            <li class="badge" title="Lencana diperoleh: {{ lencana.requirement }}" aria-label="{{ lencana.name }} (diperoleh). {{ lencana.requirement }}"><span class="disc tone-{{ lencana.tone }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-{{ lencana.icon }}"/></svg></span>{{ lencana.name }}</li>
             {% else %}
-            <li class="badge badge--locked"><span class="disc"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-lock"/></svg></span>{{ lencana.name }}</li>
+            <li class="badge badge--locked" title="Terkunci: {{ lencana.requirement }}" aria-label="{{ lencana.name }} (terkunci). Syarat: {{ lencana.requirement }}"><span class="disc"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-lock"/></svg></span>{{ lencana.name }}</li>
             {% endif %}
             {% endfor %}
           </ul>
