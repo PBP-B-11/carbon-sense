@@ -16,15 +16,18 @@
           <h1 class="hl-gap-15">Dashboard <span class="hl">emisi</span></h1>
         </div>
         <div class="page-tools">
-          <div class="chips" role="group" aria-label="Rentang waktu">
+          <div class="chips" data-period-filters role="group" aria-label="Rentang waktu">
             {#Kirim pilihan periode melalui URL dan tandai pilihan yang aktif.#}
-            <a class="chip{% if period == 'week' %} chip--active{% endif %}" href="?period=week"{% if period == 'week' %} aria-current="true"{% endif %}>Minggu ini</a>
-            <a class="chip{% if period == 'month' %} chip--active{% endif %}" href="?period=month"{% if period == 'month' %} aria-current="true"{% endif %}>Bulan ini</a>
-            <a class="chip{% if period == 'year' %} chip--active{% endif %}" href="?period=year"{% if period == 'year' %} aria-current="true"{% endif %}>Tahun ini</a>
+            <a class="chip{% if period == 'week' %} chip--active{% endif %}" data-period-filter href="?period=week"{% if period == 'week' %} aria-current="true"{% endif %}>Minggu ini</a>
+            <a class="chip{% if period == 'month' %} chip--active{% endif %}" data-period-filter href="?period=month"{% if period == 'month' %} aria-current="true"{% endif %}>Bulan ini</a>
+            <a class="chip{% if period == 'year' %} chip--active{% endif %}" data-period-filter href="?period=year"{% if period == 'year' %} aria-current="true"{% endif %}>Tahun ini</a>
           </div>
           <a class="btn btn--primary" href="{% url 'tracker:index' %}?period={{ period }}#catat-cepat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>Tambah aktivitas</a>
         </div>
       </div>
+
+      {#Umumkan proses dan kegagalan filter tanpa menghapus isian aktivitas.#}
+      <p class="hint" id="period-status" role="status" hidden></p>
 
       <section class="tracker-summary" aria-label="Ringkasan emisi">
         <div class="seed-wrap">
@@ -278,6 +281,7 @@
       <div data-edit-content></div>
     </dialog>
     <script src="{% static 'js/tracker-dashboard.js' %}" defer></script>
+    <script src="{% static 'js/tracker-filters.js' %}" defer></script>
     <script src="{% static 'js/tracker-form.js' %}" defer></script>
     <script src="{% static 'js/tracker-preview.js' %}" defer></script>
     <script src="{% static 'js/tracker-delete.js' %}" defer></script>
