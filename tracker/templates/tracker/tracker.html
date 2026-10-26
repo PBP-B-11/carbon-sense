@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static l10n %}
 
 {% block title %}Carbon Sense: {% if editing_activity %}Edit Aktivitas{% else %}Carbon Tracker{% endif %}{% endblock %}
 
@@ -51,9 +51,16 @@
         </div>
         <article class="card-dark top-source">
           <p class="eyebrow">Sumber terbesar minggu ini</p>
-          <h2><span class="hl">Transportasi,</span> hampir separuh jejakmu.</h2>
-          <p class="meta">20,4 kg CO₂e, 48% dari total</p>
-          <a class="btn btn--lichen" href="#catat-cepat">Lihat saran</a>
+          {#Tampilkan kategori terbesar hanya jika ada emisi minggu ini.#}
+          {% if top_category %}
+            <h2><span class="hl">{{ top_category.label }}</span> sumber emisi terbesar.</h2>
+            <p class="meta">{{ top_category.emissions|floatformat:2 }} kg CO₂e, {{ top_category.percentage|floatformat:1 }}% dari total minggu ini</p>
+            <a class="btn btn--lichen" href="#riwayat-aktivitas">Lihat riwayat</a>
+          {% else %}
+            <h2>Belum ada <span class="hl">emisi minggu ini.</span></h2>
+            <p class="meta">Mulai dengan mencatat aktivitas harianmu.</p>
+            <a class="btn btn--lichen" href="{% url 'tracker:index' %}#catat-cepat">Catat aktivitas</a>
+          {% endif %}
         </article>
       </section>
 
@@ -80,19 +87,26 @@
 
         <article class="card breakdown" aria-labelledby="judul-rincian">
           <h2 class="card-title" id="judul-rincian">Rincian kategori</h2>
+          <p class="hint">Minggu ini</p>
+          {#Gunakan total, ikon, dan persentase kategori dari view.#}
           <ul>
-            <li>
-              <div class="row"><span class="name"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-car"/></svg>Transportasi</span><span class="kg">20,4 kg</span></div>
-              <div class="progress" role="img" aria-label="48% dari total"><i class="w-48"></i></div>
-            </li>
-            <li>
-              <div class="row"><span class="name"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-zap"/></svg>Listrik</span><span class="kg">13,2 kg</span></div>
-              <div class="progress" role="img" aria-label="31% dari total"><i class="w-31 fill-moss-mid"></i></div>
-            </li>
-            <li>
-              <div class="row"><span class="name"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-utensils"/></svg>Makanan</span><span class="kg">9,0 kg</span></div>
-              <div class="progress" role="img" aria-label="21% dari total"><i class="w-21 fill-moss-light"></i></div>
-            </li>
+            {% for category in category_breakdown %}
+              <li>
+                <div class="row">
+                  <span class="name">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#{{ category.icon }}"/></svg>
+                    {{ category.label }}
+                  </span>
+                  <span class="kg">{{ category.emissions|floatformat:2 }} kg</span>
+                </div>
+                <div class="progress" role="img" aria-label="{{ category.label }}: {{ category.percentage|floatformat:1 }}% dari total emisi minggu ini">
+                  {#Persentase CSS memakai titik desimal; kategori nol tidak diisi.#}
+                  {% if category.emissions %}
+                    <i class="{% if category.icon == 'i-zap' %}fill-moss-mid{% elif category.icon == 'i-utensils' %}fill-moss-light{% endif %}" style="width: {{ category.percentage|unlocalize }}%"></i>
+                  {% endif %}
+                </div>
+              </li>
+            {% endfor %}
           </ul>
         </article>
       </section>

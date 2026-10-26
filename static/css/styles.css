@@ -1070,8 +1070,9 @@ main {
   height: 140px;
 }
 
+/*Biarkan teks kategori dan total dinamis tetap berada di dalam kartu.*/
 .top-source {
-  height: 312px;
+  min-height: 312px;
   padding: 32px 40px;
 }
 
@@ -1207,8 +1208,8 @@ main {
 }
 
 .breakdown {
-  height: 327px;
-  padding: 30px 32px 0;
+  min-height: 327px;
+  padding: 30px 32px;
   border-radius: 59px 47px 71px 27px / 46px 37px 56px 21px;
 }
 
