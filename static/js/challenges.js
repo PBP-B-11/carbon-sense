@@ -4,6 +4,11 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  function formatAngkaId(num) {
+    if (typeof num !== 'number') return num;
+    return num.toLocaleString('id-ID');
+  }
+
   function tampilkanPesan(pesan, tipe = 'success') {
     let alertContainer = document.querySelector('.container .alert-container');
     if (!alertContainer) {
@@ -27,6 +32,23 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       alertDiv.remove();
     }, 5000);
+  }
+
+  function bukaLencanaDiDOM(namaLencana) {
+    if (!namaLencana) return;
+    const badgeEl = document.querySelector(`.badge[data-badge-name="${namaLencana}"]`);
+    if (badgeEl && badgeEl.classList.contains('badge--locked')) {
+      const tone = badgeEl.getAttribute('data-badge-tone') || 'amber';
+      const icon = badgeEl.getAttribute('data-badge-icon') || 'award';
+      badgeEl.className = 'badge';
+      badgeEl.innerHTML = `<span class="disc tone-${tone}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-${icon}"/></svg></span>${namaLencana}`;
+
+      const countEl = document.getElementById('badge-owned-count');
+      if (countEl) {
+        const saatIni = parseInt(countEl.textContent, 10) || 0;
+        countEl.textContent = saatIni + 1;
+      }
+    }
   }
 
   document.querySelectorAll('form[data-challenge-form]').forEach((form) => {
@@ -60,26 +82,67 @@ document.addEventListener('DOMContentLoaded', () => {
           if (aksi === 'checkin') {
             const btnText = form.querySelector('#btn-checkin-text');
             if (btnText) {
-              btnText.textContent = 'Sudah check-in hari ini';
+              btnText.textContent = data.completed ? 'Tantangan selesai' : 'Sudah check-in hari ini';
             }
             if (submitButton) {
               submitButton.disabled = true;
             }
 
-            if (data.data && typeof data.data.streak !== 'undefined') {
-              const streakPill = document.querySelector('.pill--streak');
-              if (streakPill) {
-                streakPill.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-flame"/></svg>Streak ${data.data.streak} hari`;
+            if (data.data) {
+              const headerPoints = document.getElementById('header-points');
+              if (headerPoints && typeof data.data.total_points !== 'undefined') {
+                headerPoints.textContent = formatAngkaId(data.data.total_points);
+              }
+
+              const headerStreak = document.getElementById('header-streak-text');
+              if (headerStreak && typeof data.data.streak !== 'undefined') {
+                headerStreak.textContent = `Streak ${data.data.streak} hari`;
+              }
+
+              const doneDaysEl = document.getElementById('active-done-days');
+              if (doneDaysEl && typeof data.data.done_days !== 'undefined') {
+                doneDaysEl.textContent = data.data.done_days;
+              }
+
+              const percentEl = document.getElementById('active-percent');
+              if (percentEl && typeof data.data.percent !== 'undefined') {
+                percentEl.textContent = `${data.data.percent}%`;
+              }
+
+              const sisaEl = document.getElementById('active-sisa');
+              if (sisaEl) {
+                const sisa = data.data.total_days - data.data.done_days;
+                sisaEl.textContent = sisa > 0 ? `${sisa} hari lagi` : 'Selesai';
+              }
+
+              const dotsContainer = document.getElementById('active-dots');
+              if (dotsContainer && typeof data.data.total_days !== 'undefined') {
+                dotsContainer.innerHTML = '';
+                for (let i = 0; i < data.data.total_days; i++) {
+                  const dot = document.createElement('i');
+                  if (i >= data.data.done_days) {
+                    dot.className = 'todo';
+                  }
+                  dotsContainer.appendChild(dot);
+                }
+              }
+
+              const riskAlert = document.getElementById('alert-streak-risk');
+              if (riskAlert) {
+                riskAlert.remove();
+              }
+
+              if (data.data.badge) {
+                bukaLencanaDiDOM(data.data.badge);
+              }
+              if (Array.isArray(data.data.streak_badges)) {
+                data.data.streak_badges.forEach(bukaLencanaDiDOM);
               }
             }
-
-            setTimeout(() => {
-              window.location.reload();
-            }, data.completed ? 1200 : 1000);
           } else if (aksi === 'ikut' || aksi === 'berhenti') {
             setTimeout(() => {
               window.location.reload();
-            }, 800);
+            }, 600);
           }
         } else if (response.status === 409) {
           tampilkanPesan(data.error || 'Kamu sudah check-in hari ini.', 'warning');
