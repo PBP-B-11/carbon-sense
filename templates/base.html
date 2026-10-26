@@ -44,13 +44,16 @@
     <a class="brand" href="{% url 'home:index' %}" aria-label="Carbon Sense, ke beranda"><span class="brand-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-sprout"/></svg></span>Carbon Sense</a>
     <nav class="nav-modul" aria-label="Modul">
       <a href="{% url 'tracker:index' %}"{% if request.resolver_match.app_name == 'tracker' %} aria-current="page"{% endif %}>Carbon Tracker</a>
-      <a href="{% url 'profil:index' %}"{% if request.resolver_match.app_name == 'profil' %} aria-current="page"{% endif %}>Profil dan Udara</a>
+      <a href="{% url 'profil:index' %}"{% if request.resolver_match.app_name == 'profil' and request.resolver_match.url_name == 'index' %} aria-current="page"{% endif %}>Profil dan Udara</a>
       <a href="{% url 'challenges:index' %}"{% if request.resolver_match.app_name == 'challenges' %} aria-current="page"{% endif %}>Eco-Challenges</a>
       <a href="{% url 'community:index' %}"{% if request.resolver_match.app_name == 'community' %} aria-current="page"{% endif %}>Green Community</a>
     </nav>
     <div class="akun">
-      <button class="icon-btn" type="button" aria-label="Notifikasi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-bell"/></svg></button>
-      <button class="avatar avatar--48" type="button" aria-label="Akun saya">NP</button>
+      {% if request.user.is_authenticated %}
+        <a class="avatar avatar--48" href="{% url 'profil:index' %}" aria-label="Profil saya">{{ request.user.username|first|upper }}</a>
+      {% else %}
+        <a class="btn" href="{% url 'profil:login' %}">Masuk</a>
+      {% endif %}
     </div>
   </div>
 </header>
@@ -88,5 +91,6 @@
 </footer>
 
 </div>
+{% block scripts %}{% endblock %}
 </body>
 </html>

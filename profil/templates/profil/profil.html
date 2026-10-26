@@ -1,109 +1,80 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Carbon Sense: Profil dan Udara{% endblock %}
 
-{% block blobs %}
-  <i class="blob blob--profile-1" aria-hidden="true"></i>
-  <i class="blob blob--profile-2" aria-hidden="true"></i>
-{% endblock %}
+{% block blobs %}<div class="blob blob--profile-1" aria-hidden="true"></div><div class="blob blob--profile-2" aria-hidden="true"></div>{% endblock %}
 
 {% block content %}
-    <div class="container">
-      <div class="page-title">
-        <div>
-          <span class="eyebrow t-teal">Modul 2, Profil dan Udara</span>
-          <h1 class="hl-gap-6">Halo, <span class="hl hl--teal">[NAMA]</span></h1>
+<div class="container profile-page">
+  <div class="page-title profile-heading">
+    <div><span class="eyebrow t-teal">Modul 2, Profil dan Udara</span><h1>Profil dan lingkungan</h1></div>
+    <form method="post" action="{% url 'profil:logout' %}">{% csrf_token %}<button class="btn" type="submit">Keluar</button></form>
+  </div>
+
+  <section class="profile-top" aria-label="Profil dan kualitas udara">
+    <article class="card card--a profile-card">
+      <div class="profile-id">
+        <span class="avatar" aria-hidden="true">{{ request.user.username|slice:":2"|upper }}</span>
+        <div><h2>{{ request.user.username }}</h2><p class="handle">@{{ request.user.username }} · {{ profile.city_name|default:"Kota belum dipilih" }}</p></div>
+      </div>
+      <p class="profile-bio">{{ profile.bio|default:"Belum ada bio. Tambahkan cerita singkat tentang diri Anda." }}</p>
+      <dl class="profile-details">
+        <div><dt>Email</dt><dd>{{ request.user.email }}</dd></div>
+        <div><dt>Kota domisili</dt><dd>{{ profile.city_name|default:"Belum dipilih" }}</dd></div>
+        <div><dt>Poin</dt><dd>{{ challenge_stats.poin }}</dd></div>
+        <div><dt>Streak</dt><dd>{{ challenge_stats.streak }} hari</dd></div>
+        <div><dt>Tantangan</dt><dd>{{ challenge_stats.diikuti }} diikuti, {{ challenge_stats.selesai }} selesai</dd></div>
+        <div><dt>Lencana</dt><dd>{{ challenge_stats.lencana }} dari {{ challenge_stats.total_lencana }}</dd></div>
+      </dl>
+    </article>
+    <section class="profile-air" aria-label="Kondisi lingkungan saat ini">
+      <div class="profile-air-heading"><h2>Cuaca dan udara di {{ profile.city_name|default:"kota Anda" }}</h2><span>Sumber: Open-Meteo</span></div>
+      {% if snapshot %}
+        <div class="profile-air-metrics">
+          <div class="profile-air-metric"><span class="metric-label"><svg aria-hidden="true"><use href="#i-cloud-sun"/></svg>Suhu</span><strong>{{ snapshot.temperature_2m }}°C</strong><small>Saat ini</small></div>
+          <div class="profile-air-metric"><span class="metric-label"><svg aria-hidden="true"><use href="#i-droplets"/></svg>Kelembapan</span><strong>{{ snapshot.relative_humidity_2m }}%</strong><small>Relatif</small></div>
+          <div class="profile-air-metric"><span class="metric-label"><svg aria-hidden="true"><use href="#i-wind"/></svg>Angin</span><strong>{{ snapshot.wind_speed_10m }} <span>km/jam</span></strong><small>Kecepatan</small></div>
+          <div class="profile-air-metric" aria-label="US AQI estimate: {{ snapshot.us_aqi|floatformat:0 }}"><span class="metric-label">US AQI estimate</span><strong>{{ snapshot.us_aqi|floatformat:0 }}</strong><small>Perkiraan</small></div>
+        </div>
+        <p class="profile-air-note">Data kualitas udara merupakan estimasi model dari Open-Meteo dan CAMS.</p>
+      {% else %}
+        <p class="profile-air-note">Data lingkungan saat ini tidak tersedia.</p>
+      {% endif %}
+    </section>
+  </section>
+
+  <section class="profile-settings" aria-label="Pengaturan profil">
+    <section class="card card--b profile-edit">
+      <h2>Ubah profil</h2>
+      <div class="profile-edit-grid">
+        <form class="profile-edit-form" method="post" action="{% url 'profil:update' %}">
+          {% csrf_token %}
+          <div class="profile-field"><label for="{{ email_form.email.id_for_label }}">Email</label>{{ email_form.email }}{{ email_form.email.errors }}</div>
+          <div class="profile-field"><label for="{{ profile_form.bio.id_for_label }}">Bio</label>{{ profile_form.bio }}{{ profile_form.bio.errors }}</div>
+          <button class="btn btn--primary" type="submit">Simpan perubahan</button>
+        </form>
+        <div class="profile-city" data-city-picker data-city-url="{% url 'profil:cities' %}">
+          <h3>Kota domisili</h3>
+          <label class="profile-field" for="city-query">Cari kota Indonesia<input id="city-query" type="search" data-city-query autocomplete="off" minlength="2" placeholder="Cari nama kota"></label>
+          <p class="profile-hint" data-city-status role="status" aria-live="polite">Ketik minimal 2 karakter untuk mencari.</p>
+          <form method="post" action="{% url 'profil:city' %}">{% csrf_token %}
+            <div class="profile-field"><label for="{{ city_form.city.id_for_label }}">Pilih kota</label>{{ city_form.city }}{{ city_form.city.errors }}</div>
+            <button class="btn btn--primary" type="submit">Simpan kota</button>
+          </form>
+          <p class="profile-hint">Pencarian kota oleh GeoNames melalui Open-Meteo.</p>
         </div>
       </div>
+      <a class="profile-password" href="{% url 'profil:password' %}">Ubah kata sandi <span aria-hidden="true">→</span></a>
+    </section>
 
-      <section class="profile-top" aria-label="Profil dan kualitas udara">
-        <article class="card card--a profile-card" aria-labelledby="nama-profil">
-          <div class="profile-id">
-            <div class="avatar" aria-hidden="true">NP</div>
-            <div>
-              <h2 id="nama-profil">[NAMA PENGGUNA]</h2>
-              <p class="handle">@[username], bergabung [TANGGAL]</p>
-              <span class="pill pill--moss"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-train-front"/></svg>Pengguna KRL setia</span>
-            </div>
-          </div>
-          <div class="profile-stats">
-            <div>
-              <p class="lbl t-amber"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-star"/></svg>Poin</p>
-              <p class="v">1.240</p>
-            </div>
-            <div>
-              <p class="lbl"><span class="t-accent"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-flame"/></svg></span>Streak</p>
-              <p class="v">12 hari</p>
-            </div>
-            <div>
-              <p class="lbl"><span class="t-moss"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-award"/></svg></span>Tantangan</p>
-              <p class="v">7</p>
-            </div>
-          </div>
-          <div class="weekly">
-            <div class="row"><span>Target mingguan</span><span class="serif">42,6 dari 50 kg</span></div>
-            <div class="progress" role="img" aria-label="85% dari target mingguan"><i class="w-85"></i></div>
-            <p class="hint">Masih ada ruang 7,4 kg sampai Minggu.</p>
-          </div>
-        </article>
-
-        <div class="air-col">
-          <p class="air-city"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-map-pin"/></svg>[KOTA]</p>
-          <section class="card-dark air" aria-label="Kualitas udara hari ini">
-            <p class="eyebrow">Udara di [KOTA] hari ini</p>
-            <p class="big">78</p>
-            <p class="big-note">indeks kualitas udara</p>
-            <span class="level level--medium">Sedang</span>
-            <p class="metrics">
-              <span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-sun"/></svg>31°C, cerah</span>
-              <span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-wind"/></svg>12 km/jam</span>
-              <span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-droplets"/></svg>70%</span>
-            </p>
-            <p class="src">Sumber Open-Meteo, diperbarui [WAKTU]</p>
-          </section>
-        </div>
-      </section>
-
-      <section class="profile-settings">
-        <form class="card card--b edit-form" aria-labelledby="judul-ubah">
-          <h2 class="card-title" id="judul-ubah">Ubah profil</h2>
-          <div class="form-grid">
-            <label class="field">Nama
-              <span class="input"><input type="text" value="[NAMA PENGGUNA]" autocomplete="name"></span>
-            </label>
-            <label class="field">Email
-              <span class="input"><input type="email" value="[EMAIL]" autocomplete="email"></span>
-            </label>
-            <label class="field">Kota
-              <span class="input"><input type="text" value="[KOTA]" autocomplete="address-level2"><span class="pin"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-map-pin"/></svg></span></span>
-            </label>
-            <label class="field">Target emisi mingguan
-              <span class="input"><input type="text" inputmode="numeric" value="50"><span class="input-suffix">kg CO₂e</span></span>
-              <span class="hint">Rata-rata mingguanmu sekarang 44,1 kg.</span>
-            </label>
-          </div>
-          <div class="vehicle">
-            <p class="vehicle-label" id="label-kendaraan">Kendaraan utama</p>
-            <div class="chips" role="group" aria-labelledby="label-kendaraan">
-              <button class="chip chip--select" type="button" aria-pressed="true">KRL</button>
-              <button class="chip" type="button" aria-pressed="false">Motor</button>
-              <button class="chip" type="button" aria-pressed="false">Mobil</button>
-              <button class="chip" type="button" aria-pressed="false">Sepeda</button>
-              <button class="chip" type="button" aria-pressed="false">Jalan kaki</button>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button class="btn" type="button">Batal</button>
-            <button class="btn btn--info" type="submit">Simpan perubahan</button>
-          </div>
-        </form>
-
-        <section class="danger" aria-labelledby="judul-bahaya">
-          <span class="icon-disc"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-triangle-alert"/></svg></span>
-          <h2 id="judul-bahaya">Zona berbahaya</h2>
-          <p>Menghapus akun akan menghapus semua riwayat aktivitas, poin, dan postinganmu. Ini tidak bisa dibatalkan.</p>
-          <button class="btn btn--danger" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash-2"/></svg>Hapus akun</button>
-        </section>
-      </section>
-    </div>
+    <section class="danger profile-danger" aria-label="Zona berbahaya">
+      <h2>Zona berbahaya</h2>
+      <p>Menghapus akun akan menghapus semua log, tantangan, dan postinganmu secara permanen.</p>
+      <a class="btn btn--danger" href="{% url 'profil:delete' %}">Hapus akun</a>
+    </section>
+  </section>
+</div>
 {% endblock %}
+
+{% block scripts %}<script src="{% static 'js/city-search.js' %}" defer></script>{% endblock %}

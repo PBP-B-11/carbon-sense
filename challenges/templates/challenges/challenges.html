@@ -15,34 +15,62 @@
           <h1 class="hl-gap-18">Tantangan <span class="hl">minggu ini</span></h1>
         </div>
         <div class="page-tools page-tools--tight">
-          <span class="pill pill--amber"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-star"/></svg>1.240 poin</span>
-          <span class="pill pill--streak"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-flame"/></svg>Streak 12 hari</span>
+          <span class="pill pill--amber"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-star"/></svg>{{ total_points }} poin</span>
+          <span class="pill pill--streak"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-flame"/></svg>Streak {{ streak }} hari</span>
+          <a class="btn btn--primary" href="{% url 'challenges:tambah' %}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>Tambah tantangan</a>
         </div>
       </div>
 
+      {% for message in messages %}
+      <div class="alert" role="status">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-triangle-alert"/></svg>
+        <div><p>{{ message }}</p></div>
+      </div>
+      {% endfor %}
+
       <section class="challenge-top">
         <article class="card-dark active-challenge" aria-labelledby="judul-aktif">
+          {% if active %}
           <p class="eyebrow">Sedang kamu ikuti</p>
-          <h2 id="judul-aktif">Seminggu tanpa <span class="hl">motor</span></h2>
-          <div class="progress-line"><span>4 dari 7 hari</span><span class="serif">57%</span></div>
-          <div class="dots" role="img" aria-label="4 dari 7 hari selesai">
-            <i></i><i></i><i></i><i></i><i class="today"></i><i class="todo"></i><i class="todo"></i>
+          <h2 id="judul-aktif">{{ active.challenge.title }}</h2>
+          <div class="progress-line"><span>{{ active.done_days }} dari {{ active.total_days }} hari</span><span class="serif">{{ active.percent }}%</span></div>
+          <div class="dots" role="img" aria-label="{{ active.done_days }} dari {{ active.total_days }} hari selesai">
+            {% for titik in active.dots %}<i{% if titik == "today" %} class="today"{% elif titik == "todo" %} class="todo"{% endif %}></i>{% endfor %}
           </div>
-          <p class="desc">Sejauh ini kamu hemat sekitar 3,6 kg CO₂e. Tiga hari lagi, dapat 50 poin dan lencana Pejalan KRL.</p>
+          <p class="desc">{{ active.challenge.description }} {% if active.sisa_hari %}{{ active.sisa_hari }} hari lagi{% else %}Selesai{% endif %}, dapat {{ active.challenge.points }} poin{% if active.challenge.badge %} dan lencana {{ active.challenge.badge.name }}{% endif %}.</p>
           <div class="actions">
-            <button class="btn btn--lichen" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Check-in hari ini</button>
-            <button class="stop" type="button">Berhenti</button>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="aksi" value="checkin">
+              <input type="hidden" name="tantangan_id" value="{{ active.challenge.id }}">
+              <button class="btn btn--lichen" type="submit"{% if active.checked_today %} disabled{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>{% if active.checked_today %}Sudah check-in hari ini{% else %}Check-in hari ini{% endif %}</button>
+            </form>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="aksi" value="berhenti">
+              <input type="hidden" name="tantangan_id" value="{{ active.challenge.id }}">
+              <button class="stop" type="submit">Berhenti</button>
+            </form>
           </div>
+          {% else %}
+          <p class="eyebrow">Sedang kamu ikuti</p>
+          <h2 id="judul-aktif">Belum ada <span class="hl">tantangan</span></h2>
+          <p class="desc">Pilih satu tantangan di bawah untuk mulai mengumpulkan poin dan lencana.</p>
+          {% endif %}
         </article>
 
         <section class="card card--b badges" aria-labelledby="judul-lencana">
-          <div class="badges-head"><h2 class="card-title" id="judul-lencana">Lencana</h2><span class="count">3 dari 8</span></div>
+          <div class="badges-head"><h2 class="card-title" id="judul-lencana">Lencana</h2><span class="count">{{ owned_badge_count }} dari {{ badges|length }}</span></div>
           <ul class="badge-row">
-            <li class="badge"><span class="disc tone-amber"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-train-front"/></svg></span>Pejalan KRL</li>
-            <li class="badge"><span class="disc tone-moss"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-leaf"/></svg></span>Hijau 7 hari</li>
-            <li class="badge"><span class="disc tone-teal"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-zap"/></svg></span>Hemat listrik</li>
-            <li class="badge badge--locked"><span class="disc"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-lock"/></svg></span>Pesepeda</li>
+            {% for lencana in badges|slice:":4" %}
+            {% if lencana.id in owned_badge_ids %}
+            <li class="badge"><span class="disc tone-{{ lencana.tone }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-{{ lencana.icon }}"/></svg></span>{{ lencana.name }}</li>
+            {% else %}
+            <li class="badge badge--locked"><span class="disc"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-lock"/></svg></span>{{ lencana.name }}</li>
+            {% endif %}
+            {% endfor %}
           </ul>
+          {% if streak_at_risk %}
           <div class="alert" role="status">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-triangle-alert"/></svg>
             <div>
@@ -50,6 +78,7 @@
               <p>Check-in sebelum pukul 23.59 supaya streak tetap jalan.</p>
             </div>
           </div>
+          {% endif %}
         </section>
       </section>
 
@@ -57,49 +86,34 @@
         <div class="list-head">
           <h2 class="sec-title" id="judul-daftar">Pilih tantangan <span class="hl">berikutnya</span></h2>
           <div class="chips" role="group" aria-label="Filter kategori">
-            <button class="chip" type="button" aria-pressed="true">Semua</button>
-            <button class="chip" type="button" aria-pressed="false">Transportasi</button>
-            <button class="chip" type="button" aria-pressed="false">Energi</button>
-            <button class="chip" type="button" aria-pressed="false">Makanan</button>
+            <a class="chip{% if not selected_category %} chip--active{% endif %}" href="{% url 'challenges:index' %}">Semua</a>
+            {% for nilai, nama in categories %}
+            <a class="chip{% if selected_category == nilai %} chip--active{% endif %}" href="?kategori={{ nilai }}">{{ nama }}</a>
+            {% endfor %}
           </div>
         </div>
         <ul class="challenge-grid">
-          <li class="card card--a challenge">
-            <div class="top"><span class="icon-disc tone-amber"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-bike"/></svg></span><span class="pill pill--amber">+50 poin</span></div>
-            <h3>Sepeda ke kampus</h3>
-            <p>Ganti tiga perjalanan motor dengan sepeda minggu ini.</p>
-            <div class="foot"><small>7 hari, 212 peserta</small><button class="join" type="button">Ikuti</button></div>
+          {% for tantangan in challenges %}
+          <li class="card card--{% cycle 'a' 'b' 'c' 'd' %}{% if tantangan.id in joined_ids %} card--emphasis{% endif %} challenge">
+            <div class="top"><span class="icon-disc tone-{{ tantangan.tone }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-{{ tantangan.icon }}"/></svg></span><span class="pill pill--amber">+{{ tantangan.points }} poin</span></div>
+            <h3>{{ tantangan.title }}</h3>
+            <p>{{ tantangan.description }}</p>
+            <div class="foot"><small>{{ tantangan.duration_days }} hari, {{ tantangan.participants }} peserta</small>
+              {% if tantangan.id in joined_ids %}
+              <span class="join join--on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Diikuti</span>
+              {% else %}
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="aksi" value="ikut">
+                <input type="hidden" name="tantangan_id" value="{{ tantangan.id }}">
+                <button class="join" type="submit">Ikuti</button>
+              </form>
+              {% endif %}
+            </div>
           </li>
-          <li class="card card--b challenge">
-            <div class="top"><span class="icon-disc tone-teal"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-zap"/></svg></span><span class="pill pill--amber">+30 poin</span></div>
-            <h3>AC mati jam 22.00</h3>
-            <p>Matikan AC mulai pukul 22.00 selama lima malam.</p>
-            <div class="foot"><small>5 hari, 148 peserta</small><button class="join" type="button">Ikuti</button></div>
-          </li>
-          <li class="card card--c card--emphasis challenge">
-            <div class="top"><span class="icon-disc tone-moss"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-utensils"/></svg></span><span class="pill pill--amber">+40 poin</span></div>
-            <h3>Senin tanpa daging</h3>
-            <p>Makan tanpa daging merah setiap Senin selama sebulan.</p>
-            <div class="foot"><small>4 minggu, 96 peserta</small><span class="join join--on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Diikuti</span></div>
-          </li>
-          <li class="card card--d challenge">
-            <div class="top"><span class="icon-disc tone-amber"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-train-front"/></svg></span><span class="pill pill--amber">+50 poin</span></div>
-            <h3>Seminggu tanpa motor</h3>
-            <p>Pakai KRL, bus, atau jalan kaki selama tujuh hari.</p>
-            <div class="foot"><small>7 hari, 305 peserta</small><span class="join join--on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Diikuti</span></div>
-          </li>
-          <li class="card card--a challenge">
-            <div class="top"><span class="icon-disc tone-teal"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-sun"/></svg></span><span class="pill pill--amber">+20 poin</span></div>
-            <h3>Jemur, bukan pengering</h3>
-            <p>Keringkan cucian di bawah matahari tiga kali.</p>
-            <div class="foot"><small>7 hari, 74 peserta</small><button class="join" type="button">Ikuti</button></div>
-          </li>
-          <li class="card card--b challenge">
-            <div class="top"><span class="icon-disc tone-moss"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-sprout"/></svg></span><span class="pill pill--amber">+30 poin</span></div>
-            <h3>Bawa botol sendiri</h3>
-            <p>Tanpa air minum kemasan selama lima hari kuliah.</p>
-            <div class="foot"><small>5 hari, 181 peserta</small><button class="join" type="button">Ikuti</button></div>
-          </li>
+          {% empty %}
+          <li class="card card--a challenge"><p>Belum ada tantangan di kategori ini.</p></li>
+          {% endfor %}
         </ul>
       </section>
     </div>

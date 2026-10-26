@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load community_tags %}
+
+{% block title %}Carbon Sense: Postingan{% endblock %}
+
+{% block main_attrs %} class="community-main"{% endblock %}
+
+{% block content %}
+    <div class="container">
+      <p><a href="{% url 'community:index' %}">&larr; Kembali ke feed</a></p>
+      <article class="card post">
+        <header class="post-head">
+          <span class="avatar avatar--46" aria-hidden="true">{{ post.author.username|slice:":2"|upper }}</span>
+          <div class="who"><strong>{{ post.author.username }}</strong><small>{{ post.created_at|ago }}</small></div>
+          <span class="pill {% if post.category == 'tips' %}pill--moss{% elif post.category == 'diskusi' %}pill--teal{% else %}pill--amber{% endif %}">{{ post.get_category_display }}</span>
+        </header>
+        <p>{{ post.content|linebreaksbr }}</p>
+        {% if post.has_news %}
+        <a class="post-news" href="{{ post.news_url }}" target="_blank" rel="noopener noreferrer">
+          <small>{{ post.news_source }}</small>
+          <strong>{{ post.news_title }}</strong>
+          {% if post.news_snippet %}<small>{{ post.news_snippet }}</small>{% endif %}
+        </a>
+        {% endif %}
+        <footer class="post-foot"><span>{{ post.like_count }} suka</span><span>{{ comments|length }} komentar</span></footer>
+
+        <h2>Komentar</h2>
+        {% for comment in comments %}
+        <div class="comment">
+          <strong>{{ comment.author.username }}</strong> <small>{{ comment.created_at|ago }}</small>
+          <p>{{ comment.content|linebreaksbr }}</p>
+        </div>
+        {% empty %}
+        <p>Belum ada komentar.</p>
+        {% endfor %}
+
+        {% if user.is_authenticated %}
+        <form method="post" action="{% url 'community:add_comment' post.pk %}">
+          {% csrf_token %}
+          <textarea name="content" aria-label="Tulis komentar" required></textarea>
+          <button class="btn btn--primary" type="submit">Kirim</button>
+        </form>
+        {% else %}
+        <p>Masuk untuk berkomentar.</p>
+        {% endif %}
+      </article>
+    </div>
+{% endblock %}
