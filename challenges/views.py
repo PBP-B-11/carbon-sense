@@ -107,6 +107,21 @@ def tambah_tantangan(request):
 
 
 @login_required
+def ubah_tantangan(request, id):
+    """Halaman ubah tantangan, dibatasi khusus untuk superuser."""
+    if not request.user.is_superuser:
+        raise PermissionDenied("Hanya superuser yang dapat mengubah tantangan.")
+
+    tantangan = get_object_or_404(Challenge, pk=id)
+    form = TantanganForm(request.POST or None, instance=tantangan)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, f'Tantangan "{tantangan.title}" berhasil diperbarui.')
+        return redirect("challenges:index")
+    return render(request, "challenges/ubah.html", {"form": form, "challenge": tantangan})
+
+
+@login_required
 def hapus_tantangan(request, id):
     """Menghapus tantangan dari katalog, dibatasi khusus untuk superuser."""
     if not request.user.is_superuser:

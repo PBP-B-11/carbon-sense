@@ -262,6 +262,43 @@ class ChallengeViewsTests(TestCase):
         self.assertEqual(post_res.status_code, 302)
         self.assertFalse(Challenge.objects.filter(id=self.challenge1.id).exists())
 
+    def test_ubah_tantangan_forbidden_untuk_user_biasa(self):
+        """Memverifikasi bahwa pengguna biasa mendapat response 403 Forbidden saat mencoba mengubah tantangan."""
+        self.client.force_login(self.user)
+        get_res = self.client.get(reverse("challenges:ubah", kwargs={"id": self.challenge1.id}))
+        self.assertEqual(get_res.status_code, 403)
+
+        post_res = self.client.post(
+            reverse("challenges:ubah", kwargs={"id": self.challenge1.id}),
+            {"title": "Diubah Hacker"},
+        )
+        self.assertEqual(post_res.status_code, 403)
+
+    def test_ubah_tantangan_bisa_diakses_superuser(self):
+        """Memverifikasi bahwa superuser dapat melihat form dan memperbarui data tantangan."""
+        self.client.force_login(self.admin)
+        get_res = self.client.get(reverse("challenges:ubah", kwargs={"id": self.challenge1.id}))
+        self.assertEqual(get_res.status_code, 200)
+        self.assertContains(get_res, "Perbarui detail tantangan")
+
+        post_data = {
+            "title": "Tantangan Transportasi Diperbarui",
+            "description": "Deskripsi transportasi baru",
+            "category": Challenge.Category.TRANSPORT,
+            "duration_days": 10,
+            "points": 75,
+            "estimated_saving_kg": "3.5",
+            "icon": "bike",
+            "tone": "amber",
+        }
+        post_res = self.client.post(
+            reverse("challenges:ubah", kwargs={"id": self.challenge1.id}), post_data
+        )
+        self.assertEqual(post_res.status_code, 302)
+        self.challenge1.refresh_from_db()
+        self.assertEqual(self.challenge1.title, "Tantangan Transportasi Diperbarui")
+        self.assertEqual(self.challenge1.points, 75)
+
 
 class ChallengeAPITests(TestCase):
     """Pengujian seluruh endpoint JSON API tantangan (/api/tantangan/)."""

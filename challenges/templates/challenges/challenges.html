@@ -111,6 +111,9 @@
               <div style="display: flex; gap: 8px; align-items: center;">
                 <span class="pill pill--amber">+{{ tantangan.points|intcomma }} poin</span>
                 {% if request.user.is_superuser %}
+                <a class="btn-edit" href="{% url 'challenges:ubah' tantangan.id %}" title="Ubah tantangan" style="color: var(--color-stone-text-subtle); display: inline-flex; align-items: center; padding: 4px;" aria-label="Ubah tantangan {{ tantangan.title }}">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-pencil"/></svg>
+                </a>
                 <a class="btn-delete" href="{% url 'challenges:hapus' tantangan.id %}" title="Hapus tantangan" style="color: var(--color-error-text); display: inline-flex; align-items: center; padding: 4px;" aria-label="Hapus tantangan {{ tantangan.title }}">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash-2"/></svg>
                 </a>
