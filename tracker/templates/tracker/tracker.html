@@ -61,24 +61,21 @@
         <article class="card card--b chart-card" aria-labelledby="judul-grafik">
           <div class="chart-head">
             <h2 class="card-title" id="judul-grafik">Emisi harian</h2>
-            <ul class="legend" aria-label="Level emisi">
-              <li><span><i class="bg-low"></i>Rendah</span></li>
-              <li><span><i class="bg-medium"></i>Sedang</span></li>
-              <li><span><i class="bg-high"></i>Tinggi</span></li>
-              <li><span><i class="bg-very-high"></i>Sangat tinggi</span></li>
-            </ul>
+            <p class="hint">Minggu ini · kg CO₂e</p>
           </div>
-          <div class="bars" role="img" aria-label="Emisi harian: Sen 4,2; Sel 7,9; Rab 5,1; Kam 10,8; Jum 8,8; Sab 5,8; Min 0 kg CO2e">
-            <span class="bar bar--low h-76"><b>4,2</b></span>
-            <span class="bar bar--medium h-142"><b>7,9</b></span>
-            <span class="bar bar--low h-92"><b>5,1</b></span>
-            <span class="bar bar--very-high h-190"><b>10,8</b></span>
-            <span class="bar bar--high h-160"><b>8,8</b></span>
-            <span class="bar bar--low h-104"><b>5,8</b></span>
-            <span class="bar bar--zero h-4"><b>0</b></span>
+          {#Render saved daily totals with heights calculated by the view.#}
+          <div class="bars" role="img" aria-describedby="chart-note" aria-label="Emisi harian minggu ini: {% for day in daily_chart %}{{ day.label }}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO2e{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}">
+            {% for day in daily_chart %}
+              <span class="bar {% if day.emissions %}bar--recorded{% else %}bar--zero{% endif %}" style="height: {{ day.height }}px" title="{{ day.date|date:'d M Y' }}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO₂e{% endif %}">
+                <b>{% if day.is_future %}—{% else %}{{ day.emissions|floatformat:1 }}{% endif %}</b>
+              </span>
+            {% endfor %}
           </div>
-          <div class="days" aria-hidden="true"><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span></div>
-          <p class="chart-foot">Faktor emisi dari Climatiq. Hari Minggu belum ada aktivitas.</p>
+          {#Keep weekday labels aligned with the seven chart bars.#}
+          <div class="days" aria-hidden="true">
+            {% for day in daily_chart %}<span>{{ day.label }}</span>{% endfor %}
+          </div>
+          <p class="chart-foot" id="chart-note">Total emisi tersimpan per hari, Senin hingga hari ini. Tinggi batang mengikuti total terbesar minggu ini; — menandai hari yang belum berlangsung.</p>
         </article>
 
         <article class="card breakdown" aria-labelledby="judul-rincian">

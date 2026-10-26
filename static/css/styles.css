@@ -1177,6 +1177,11 @@ main {
   color: var(--color-text-primary);
 }
 
+/*Use one color for recorded emissions until level thresholds are defined.*/
+.bar--recorded {
+  background: var(--chart-low);
+}
+
 .bar--zero {
   border-radius: 4px 4px 0 0;
   background: var(--color-bg-sunken);
