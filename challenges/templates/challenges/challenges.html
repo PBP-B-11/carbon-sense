@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Carbon Sense: Eco-Challenges{% endblock %}
 
@@ -21,12 +22,14 @@
         </div>
       </div>
 
-      {% for message in messages %}
-      <div class="alert" role="status">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-triangle-alert"/></svg>
-        <div><p>{{ message }}</p></div>
+      <div class="alert-container">
+        {% for message in messages %}
+        <div class="alert" role="status">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-triangle-alert"/></svg>
+          <div><p>{{ message }}</p></div>
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
 
       <section class="challenge-top">
         <article class="card-dark active-challenge" aria-labelledby="judul-aktif">
@@ -37,15 +40,15 @@
           <div class="dots" role="img" aria-label="{{ active.done_days }} dari {{ active.total_days }} hari selesai">
             {% for titik in active.dots %}<i{% if titik == "today" %} class="today"{% elif titik == "todo" %} class="todo"{% endif %}></i>{% endfor %}
           </div>
-          <p class="desc">{{ active.challenge.description }} {% if active.sisa_hari %}{{ active.sisa_hari }} hari lagi{% else %}Selesai{% endif %}, dapat {{ active.challenge.points }} poin{% if active.challenge.badge %} dan lencana {{ active.challenge.badge.name }}{% endif %}.</p>
+          <p class="desc">{{ active.challenge.description }} {% if active.sisa_hari %}{{ active.sisa_hari }} hari lagi{% else %}Selesai{% endif %}, hemat ~{{ active.challenge.estimated_saving_kg }} kg CO₂e, dapat {{ active.challenge.points }} poin{% if active.challenge.badge %} dan lencana {{ active.challenge.badge.name }}{% endif %}.</p>
           <div class="actions">
-            <form method="post">
+            <form method="post" data-challenge-form="checkin" data-challenge-id="{{ active.challenge.id }}">
               {% csrf_token %}
               <input type="hidden" name="aksi" value="checkin">
               <input type="hidden" name="tantangan_id" value="{{ active.challenge.id }}">
-              <button class="btn btn--lichen" type="submit"{% if active.checked_today %} disabled{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>{% if active.checked_today %}Sudah check-in hari ini{% else %}Check-in hari ini{% endif %}</button>
+              <button class="btn btn--lichen" type="submit"{% if active.checked_today %} disabled{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg><span id="btn-checkin-text">{% if active.checked_today %}Sudah check-in hari ini{% else %}Check-in hari ini{% endif %}</span></button>
             </form>
-            <form method="post">
+            <form method="post" data-challenge-form="berhenti" data-challenge-id="{{ active.challenge.id }}">
               {% csrf_token %}
               <input type="hidden" name="aksi" value="berhenti">
               <input type="hidden" name="tantangan_id" value="{{ active.challenge.id }}">
@@ -62,7 +65,7 @@
         <section class="card card--b badges" aria-labelledby="judul-lencana">
           <div class="badges-head"><h2 class="card-title" id="judul-lencana">Lencana</h2><span class="count">{{ owned_badge_count }} dari {{ badges|length }}</span></div>
           <ul class="badge-row">
-            {% for lencana in badges|slice:":4" %}
+            {% for lencana in badges %}
             {% if lencana.id in owned_badge_ids %}
             <li class="badge"><span class="disc tone-{{ lencana.tone }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-{{ lencana.icon }}"/></svg></span>{{ lencana.name }}</li>
             {% else %}
@@ -102,7 +105,7 @@
               {% if tantangan.id in joined_ids %}
               <span class="join join--on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Diikuti</span>
               {% else %}
-              <form method="post">
+              <form method="post" data-challenge-form="ikut" data-challenge-id="{{ tantangan.id }}">
                 {% csrf_token %}
                 <input type="hidden" name="aksi" value="ikut">
                 <input type="hidden" name="tantangan_id" value="{{ tantangan.id }}">
@@ -117,4 +120,8 @@
         </ul>
       </section>
     </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'js/challenges.js' %}" defer></script>
 {% endblock %}

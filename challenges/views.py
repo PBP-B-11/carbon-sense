@@ -36,6 +36,7 @@ def ikuti(request, tantangan):
 
 
 def checkin(request, tantangan):
+    """Mencatat check-in harian untuk tantangan aktif melalui form submission."""
     partisipasi = Participation.objects.filter(
         user=request.user, challenge=tantangan, status=Participation.Status.ACTIVE
     ).first()
@@ -44,8 +45,8 @@ def checkin(request, tantangan):
         return
 
     with transaction.atomic():
-        _, dibuat = partisipasi.check_ins.get_or_create(date=timezone.localdate())
-        if not dibuat:
+        checkin_objek, baru_dibuat = partisipasi.check_ins.get_or_create(date=timezone.localdate())
+        if not baru_dibuat:
             messages.warning(request, "Kamu sudah check-in hari ini.")
             return
 
