@@ -178,9 +178,9 @@ def index(request, pk=None):
             "is_future": day > today,
         })
 
-    #Jumlahkan emisi minggu ini 
+    #Jumlahkan emisi sesual pilihan
     category_totals = (
-        activities.filter(date__range=(week_start, today))
+        period_activities
         .order_by()
         .values("activity_type")
         .annotate(total=Sum("emission_kg"))
@@ -206,8 +206,8 @@ def index(request, pk=None):
             Decimal("0"),
         )
         percentage = (
-            emissions / week_emissions * Decimal("100")
-            if week_emissions
+            emissions / period_emissions * Decimal("100")
+            if period_emissions
             else Decimal("0")
         )
 
@@ -221,10 +221,10 @@ def index(request, pk=None):
     #Pilih kategori dengan emisi 
     top_category = (
         max(category_breakdown, key=lambda category: category["emissions"])
-        if week_emissions
+        if period_emissions
         else None
     )
-    
+        
     #Pass form
     return render(
     request,
