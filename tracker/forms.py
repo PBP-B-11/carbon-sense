@@ -7,7 +7,7 @@ class CarbonActivityForm(forms.ModelForm):
         choices=[
             ("car_travel", "Mobil"),
             ("electricity", "Listrik"),
-            #Jenis daging menentukan faktor emisi, sementara kuantitas memakai gram.
+            # Jenis daging menentukan faktor emisi, sementara kuantitas memakai gram.
             ("chicken", "Ayam"),
             ("beef", "Daging sapi"),
         ],
@@ -26,9 +26,7 @@ class CarbonActivityForm(forms.ModelForm):
             "description": forms.TextInput(
                 attrs={"placeholder": "Contoh: perjalanan ke kampus"}
             ),
-            "date": forms.DateInput(
-                format="%Y-%m-%d", attrs={"type": "date"}
-            ),
+            "date": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
         }
 
     def clean_quantity(self):

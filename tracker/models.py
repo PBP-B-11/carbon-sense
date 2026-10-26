@@ -7,7 +7,7 @@ class CarbonActivity(models.Model):
     ACTIVITY_CHOICES = [
         ("car_travel", "Car travel (km)"),
         ("electricity", "Electricity (kWh)"),
-        #Catat jenis daging secara terpisah dengan perkiraan berat mentah dalam gram.
+        # Catat jenis daging secara terpisah dengan perkiraan berat mentah dalam gram.
         ("chicken", "Chicken meat (g)"),
         ("beef", "Beef (g)"),
     ]

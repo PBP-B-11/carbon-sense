@@ -24,9 +24,13 @@ def hitung_progres(partisipasi):
 
 def ikuti(request, tantangan):
     """Mendaftarkan pengguna mengikuti tantangan baru jika belum memiliki tantangan aktif."""
-    partisipasi_aktif = Participation.objects.filter(
-        user=request.user, status=Participation.Status.ACTIVE
-    ).select_related("challenge").first()
+    partisipasi_aktif = (
+        Participation.objects.filter(
+            user=request.user, status=Participation.Status.ACTIVE
+        )
+        .select_related("challenge")
+        .first()
+    )
 
     if partisipasi_aktif:
         if partisipasi_aktif.challenge_id == tantangan.id:
@@ -35,7 +39,7 @@ def ikuti(request, tantangan):
             messages.warning(
                 request,
                 f'Kamu masih memiliki tantangan aktif: "{partisipasi_aktif.challenge.title}". '
-                "Selesaikan atau batalkan tantangan tersebut terlebih dahulu."
+                "Selesaikan atau batalkan tantangan tersebut terlebih dahulu.",
             )
         return
 
@@ -55,7 +59,9 @@ def checkin(request, tantangan):
         return
 
     with transaction.atomic():
-        checkin_objek, baru_dibuat = partisipasi.check_ins.get_or_create(date=timezone.localdate())
+        checkin_objek, baru_dibuat = partisipasi.check_ins.get_or_create(
+            date=timezone.localdate()
+        )
         if not baru_dibuat:
             messages.warning(request, "Kamu sudah check-in hari ini.")
             return
@@ -70,9 +76,12 @@ def checkin(request, tantangan):
                 reason=f'Menyelesaikan "{tantangan.title}"',
             )
             if tantangan.badge:
-                UserBadge.objects.get_or_create(user=request.user, badge=tantangan.badge)
+                UserBadge.objects.get_or_create(
+                    user=request.user, badge=tantangan.badge
+                )
             messages.success(
-                request, f'Selamat, "{tantangan.title}" selesai! +{tantangan.points} poin.'
+                request,
+                f'Selamat, "{tantangan.title}" selesai! +{tantangan.points} poin.',
             )
         else:
             messages.success(request, "Check-in hari ini tercatat.")
@@ -131,7 +140,9 @@ def daftar_tantangan(request):
             messages.error(request, "Aksi tidak dikenal.")
         else:
             try:
-                tantangan = get_object_or_404(Challenge, pk=request.POST.get("tantangan_id"))
+                tantangan = get_object_or_404(
+                    Challenge, pk=request.POST.get("tantangan_id")
+                )
             except ValidationError:
                 raise Http404("Tantangan tidak ditemukan.")
             aksi(request, tantangan)
