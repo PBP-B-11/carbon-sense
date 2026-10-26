@@ -5,6 +5,7 @@ from django.db import transaction
 from django.db.models import Count
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from .forms import TantanganForm
@@ -137,11 +138,13 @@ def hapus_tantangan(request, id):
     return render(request, "challenges/hapus.html", {"challenge": tantangan})
 
 
-@login_required
 def daftar_tantangan(request):
+    """Menampilkan katalog tantangan publik dan progres pribadi pengguna terautentikasi."""
     user = request.user
 
     if request.method == "POST":
+        if not user.is_authenticated:
+            return redirect(f"{reverse('profil:login')}?next={request.path}")
         aksi = AKSI.get(request.POST.get("aksi"))
         if aksi is None:
             messages.error(request, "Aksi tidak dikenal.")
@@ -160,49 +163,59 @@ def daftar_tantangan(request):
     if kategori in Challenge.Category.values:
         tantangan = tantangan.filter(category=kategori)
 
-    aktif = (
-        Participation.objects.filter(user=user, status=Participation.Status.ACTIVE)
-        .select_related("challenge")
-        .order_by("-started_at")
-    )
-    lencana_dimiliki = set(
-        UserBadge.objects.filter(user=user).values_list("badge_id", flat=True)
-    )
-    streak = hitung_streak(user)
-    hari_ini = timezone.localdate()
-    ada_checkin_hari_ini = CheckIn.objects.filter(
-        participation__user=user, date=hari_ini
-    ).exists()
-
     kartu_aktif = None
-    pertama = aktif.first()
-    if pertama:
-        progres = hitung_progres(pertama)
-        sudah_checkin_partisipasi = pertama.check_ins.filter(date=hari_ini).exists()
-        titik = ["done"] * progres["done_days"]
-        if progres["done_days"] < progres["total_days"]:
-            titik.append("todo" if sudah_checkin_partisipasi else "today")
-        titik += ["todo"] * (progres["total_days"] - len(titik))
-        kartu_aktif = {
-            "participation": pertama,
-            "challenge": pertama.challenge,
-            "checked_today": sudah_checkin_partisipasi,
-            "dots": titik,
-            "sisa_hari": progres["total_days"] - progres["done_days"],
-            **progres,
-        }
+    joined_ids = set()
+    lencana_dimiliki = set()
+    streak = 0
+    streak_at_risk = False
+    poin_total = 0
+
+    if user.is_authenticated:
+        aktif = (
+            Participation.objects.filter(user=user, status=Participation.Status.ACTIVE)
+            .select_related("challenge")
+            .order_by("-started_at")
+        )
+        lencana_dimiliki = set(
+            UserBadge.objects.filter(user=user).values_list("badge_id", flat=True)
+        )
+        streak = hitung_streak(user)
+        hari_ini = timezone.localdate()
+        ada_checkin_hari_ini = CheckIn.objects.filter(
+            participation__user=user, date=hari_ini
+        ).exists()
+
+        pertama = aktif.first()
+        if pertama:
+            progres = hitung_progres(pertama)
+            sudah_checkin_partisipasi = pertama.check_ins.filter(date=hari_ini).exists()
+            titik = ["done"] * progres["done_days"]
+            if progres["done_days"] < progres["total_days"]:
+                titik.append("todo" if sudah_checkin_partisipasi else "today")
+            titik += ["todo"] * (progres["total_days"] - len(titik))
+            kartu_aktif = {
+                "participation": pertama,
+                "challenge": pertama.challenge,
+                "checked_today": sudah_checkin_partisipasi,
+                "dots": titik,
+                "sisa_hari": progres["total_days"] - progres["done_days"],
+                **progres,
+            }
+        joined_ids = set(aktif.values_list("challenge_id", flat=True))
+        streak_at_risk = streak > 0 and not ada_checkin_hari_ini
+        poin_total = total_poin(user)
 
     context = {
         "challenges": tantangan,
         "categories": Challenge.Category.choices,
         "selected_category": kategori,
-        "joined_ids": set(aktif.values_list("challenge_id", flat=True)),
+        "joined_ids": joined_ids,
         "badges": Badge.objects.all(),
         "owned_badge_ids": lencana_dimiliki,
         "owned_badge_count": len(lencana_dimiliki),
-        "total_points": total_poin(user),
+        "total_points": poin_total,
         "streak": streak,
-        "streak_at_risk": streak > 0 and not ada_checkin_hari_ini,
+        "streak_at_risk": streak_at_risk,
         "active": kartu_aktif,
     }
     return render(request, "challenges/challenges.html", context)

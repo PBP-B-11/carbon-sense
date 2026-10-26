@@ -182,10 +182,22 @@ class ChallengeViewsTests(TestCase):
             points=30,
         )
 
-    def test_daftar_tantangan_login_required(self):
-        """Memverifikasi redirect ke halaman login untuk user yang belum terautentikasi."""
+    def test_daftar_tantangan_public_catalog_untuk_guest(self):
+        """Memverifikasi bahwa katalog publik dapat dilihat oleh guest tetapi data pribadi disembunyikan."""
         response = self.client.get(reverse("challenges:index"))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tantangan Transportasi")
+        self.assertContains(response, "Masuk akun")
+        self.assertIsNone(response.context["active"])
+        self.assertEqual(response.context["total_points"], 0)
+
+        # POST aksi oleh guest wajib diredirect ke login
+        post_response = self.client.post(
+            reverse("challenges:index"),
+            {"aksi": "ikut", "tantangan_id": str(self.challenge1.id)},
+        )
+        self.assertEqual(post_response.status_code, 302)
+        self.assertIn(reverse("profil:login"), post_response.url)
 
     def test_daftar_tantangan_get_authenticated(self):
         """Memverifikasi halaman daftar tantangan berhasil dirender untuk user terautentikasi."""
