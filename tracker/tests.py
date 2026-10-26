@@ -1,5 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import requests
@@ -9,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .dashboard import build_emissions_chart
+from .assets import tracker_asset_version
 from .models import CarbonActivity
 from .services import MEAT_FACTOR_IDS, estimate_meat
 
@@ -16,6 +19,20 @@ from .services import MEAT_FACTOR_IDS, estimate_meat
 #Gunakan respons tiruan agar pengujian tidak memakai kuota Climatiq.
 CHICKEN_RESULT = {"co2e": 0.420022996, "co2e_unit": "kg"}
 BEEF_RESULT = {"co2e": 7.085123047, "co2e_unit": "kg"}
+
+
+class TrackerAssetTests(SimpleTestCase):
+    #Perubahan isi JavaScript harus menghasilkan URL versi baru meski nama tetap sama.
+    def test_version_changes_when_script_content_changes(self):
+        with TemporaryDirectory() as directory, override_settings(BASE_DIR=Path(directory)):
+            scripts = Path(directory) / "static" / "js"
+            scripts.mkdir(parents=True)
+            script = scripts / "tracker-form.js"
+            script.write_text("old script", encoding="utf-8")
+            previous = tracker_asset_version()
+            self.assertEqual(tracker_asset_version(), previous)
+            script.write_text("new script", encoding="utf-8")
+            self.assertNotEqual(tracker_asset_version(), previous)
 
 
 @override_settings(CLIMATIQ_API_KEY="test-key")
@@ -79,6 +96,10 @@ class MeatTrackerTests(TestCase):
         self.assertContains(response, 'id="quantity-unit" data-quantity-unit>g</span>')
         self.assertContains(response, "Prancis 2024")
         self.assertContains(response, 'data-meat-grams="150"')
+        self.assertContains(
+            response,
+            f'js/tracker-form.js?v={response.context["tracker_asset_version"]}',
+        )
         #Pastikan formulir hanya menyediakan empat aktivitas yang didukung.
         self.assertEqual(
             list(response.context["form"].fields["activity_type"].choices),
