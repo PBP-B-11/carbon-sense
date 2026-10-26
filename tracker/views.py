@@ -90,7 +90,15 @@ def delete_activity(request, pk):
     )
 
     if request.method == "POST":
+        activity_id = activity.pk
         activity.delete()
+
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({
+                "activity_id": activity_id,
+                "message": "Aktivitas berhasil dihapus.",
+            })
+
         messages.success(request, "Aktivitas berhasil dihapus.")
         return redirect("tracker:index")
 
