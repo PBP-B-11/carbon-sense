@@ -5,6 +5,7 @@ from django.db.models import Count, Exists, OuterRef
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .forms import COMMENT_MAX_LENGTH, POST_MAX_LENGTH, CommentForm, PostForm
@@ -140,7 +141,12 @@ def toggle_like(request, pk):
 
     if _is_ajax(request):
         return JsonResponse({"liked": created, "count": post.likes.count()})
-    return redirect(request.POST.get("next") or "community:index")
+    next_url = request.POST.get("next", "")
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return redirect(next_url)
+    return redirect("community:index")
 
 
 def post_detail(request, pk):

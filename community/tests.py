@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .models import Comment, Like, Post
@@ -422,3 +422,71 @@ class FeedFilterPaginationTests(TestCase):
         res = self.client.get(self.url, {"category": "hack"})
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.content.decode().count('<article class="card post"'), 10)
+
+
+@override_settings(GNEWS_API_KEY="test-key")
+class NewsClientTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+
+    @staticmethod
+    def _response(articles):
+        class Resp:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"articles": articles}
+
+        return Resp()
+
+    def test_failure_is_cached_so_api_is_not_hammered(self):
+        import requests
+        from unittest.mock import patch
+
+        from .news import fetch_news
+
+        with patch("community.news.requests.get", side_effect=requests.ConnectionError) as get:
+            self.assertEqual(fetch_news(), [])
+            self.assertEqual(fetch_news(), [])
+        self.assertEqual(get.call_count, 1)
+
+    def test_only_http_urls_are_kept(self):
+        from unittest.mock import patch
+
+        from .news import fetch_news
+
+        good = {"title": "A", "url": "https://e.com/a", "source": {"name": "M"}}
+        bad = {"title": "B", "url": "javascript:alert(1)", "source": {"name": "M"}}
+        with patch("community.news.requests.get", return_value=self._response([good, bad])):
+            urls = [a["url"] for a in fetch_news()]
+        self.assertEqual(urls, ["https://e.com/a"])
+
+    def test_find_article_refetches_when_cache_expired(self):
+        from unittest.mock import patch
+
+        from .news import find_article
+
+        art = {"title": "A", "url": "https://e.com/a", "source": {"name": "M"}}
+        with patch("community.news.requests.get", return_value=self._response([art])):
+            found = find_article("https://e.com/a")
+        self.assertEqual(found["title"], "A")
+
+
+class LikeRedirectTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("me", password="x")
+        self.client.force_login(self.user)
+        self.post = Post.objects.create(author=self.user, content="halo")
+        self.url = reverse("community:toggle_like", args=[self.post.pk])
+
+    def test_external_next_is_ignored(self):
+        res = self.client.post(self.url, {"next": "https://evil.test/"})
+        self.assertRedirects(res, reverse("community:index"))
+
+    def test_internal_next_is_followed(self):
+        target = reverse("community:post_detail", args=[self.post.pk])
+        res = self.client.post(self.url, {"next": target})
+        self.assertRedirects(res, target)
