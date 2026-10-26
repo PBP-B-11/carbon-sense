@@ -11,7 +11,7 @@ CACHE_KEY = "community:gnews"
 CACHE_SECONDS = 10 * 60
 
 
-def fetch_news(limit=3):
+def fetch_news(limit=5):
     """Berita lingkungan terbaru dari GNews. Mengembalikan [] jika gagal."""
     articles = cache.get(CACHE_KEY)
     if articles is not None:
