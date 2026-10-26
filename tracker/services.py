@@ -39,7 +39,7 @@ def find_electricity_factors():
     response.raise_for_status()
     return response.json()["results"]
 
-# Indonesia electricity production mix Ember, 2024.
+# Indonesia electricity production mix Ember, 2024
 ELECTRICITY_FACTOR_ID = "b51303e8-8cb4-8fce-be63-ff652cdec052"
 
 
@@ -47,4 +47,37 @@ def estimate_electricity(kwh):
     return estimate_emissions(
         ELECTRICITY_FACTOR_ID,
         {"energy": float(kwh), "energy_unit": "kWh"},
+    )
+
+#Cari faktor emisi mobil
+def find_car_factors():
+    response = requests.get(
+        "https://api.climatiq.io/data/v1/search",
+        headers={
+            "Authorization": f"Bearer {settings.CLIMATIQ_API_KEY}",
+        },
+        params={
+            "query": "passenger car",
+            "unit_type": "Distance",
+            "access_type": "public",
+            "data_version": "^37",
+        },
+        timeout=10,
+    )
+
+    response.raise_for_status()
+    return response.json()["results"]
+
+#Faktor mobil 
+CAR_FACTOR_ID = "81caf960-fc4d-4a7b-8da2-85076a152774"
+
+
+#Hitung emisi perjalanan mobil menggunakan jarak kilometer
+def estimate_car_travel(km):
+    return estimate_emissions(
+        CAR_FACTOR_ID,
+        {
+            "distance": float(km),
+            "distance_unit": "km",
+        },
     )
