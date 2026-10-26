@@ -67,6 +67,8 @@
       </div>
     </div>
 
+    <div class="toast-region" id="toast-region" role="status" aria-live="polite"></div>
+
     <dialog class="edit-dialog" id="edit-dialog" aria-labelledby="edit-title">
       <form method="post" id="edit-form" class="js-edit-form">
         {% csrf_token %}
@@ -108,6 +110,19 @@
             headers: AJAX,
             credentials: 'same-origin'
           });
+        }
+
+        var toastRegion = document.getElementById('toast-region');
+
+        function toast(text, type) {
+          var el = document.createElement('div');
+          el.className = 'toast toast--' + type;
+          el.textContent = text;
+          toastRegion.appendChild(el);
+          setTimeout(function () {
+            el.classList.add('toast--out');
+            setTimeout(function () { el.remove(); }, 300);
+          }, 3000);
         }
 
         function showNote(text) {
@@ -164,6 +179,7 @@
               if (res.redirected) { window.location.href = res.url; return; }
               if (!res.ok) throw new Error('delete failed');
               f.closest('article.post').remove();
+              toast('Postingan dihapus.', 'danger');
               if (!feed.querySelector('article.post') && !feed.querySelector('.feed-empty')) {
                 var note = document.createElement('p');
                 note.className = 'card feed-note feed-empty';
@@ -191,6 +207,7 @@
               if (empty) empty.remove();
               f.after(htmlToCard(result.data.html));
               f.elements.content.value = '';
+              toast('Postingan berhasil dibagikan.', 'success');
             }).catch(function () {
               f.submit();
             }).finally(function () {
@@ -228,6 +245,7 @@
             clearNote();
             editingCard.replaceWith(htmlToCard(result.data.html));
             editDialog.close();
+            toast('Postingan berhasil diperbarui.', 'info');
           }).catch(function () {
             editForm.submit();
           }).finally(function () {
@@ -261,6 +279,7 @@
             if (empty) empty.remove();
             feed.querySelector('.js-compose-form').after(htmlToCard(result.data.html));
             shareDialog.close();
+            toast('Berita berhasil dibagikan ke feed.', 'success');
           }).catch(function () {
             shareForm.submit();
           }).finally(function () {
