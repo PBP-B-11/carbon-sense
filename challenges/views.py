@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from .forms import TantanganForm
 from .models import Badge, Challenge, Participation, PointEntry, UserBadge
-from .utils import hitung_streak, sudah_checkin_hari_ini, total_poin
+from .utils import hitung_streak, periksa_lencana_streak, sudah_checkin_hari_ini, total_poin
 
 
 def hitung_progres(partisipasi):
@@ -60,6 +60,7 @@ def checkin(request, tantangan):
             messages.warning(request, "Kamu sudah check-in hari ini.")
             return
 
+        periksa_lencana_streak(request.user)
         progres = hitung_progres(partisipasi)
         if progres["done_days"] >= progres["total_days"]:
             partisipasi.status = Participation.Status.COMPLETED

@@ -175,3 +175,27 @@ def api_berhenti(request, id):
         },
         status=200,
     )
+
+
+@require_POST
+def api_hapus(request, id):
+    """Endpoint JSON untuk menghapus tantangan dari katalog (khusus superuser)."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Autentikasi diperlukan."}, status=401)
+    if not request.user.is_superuser:
+        return JsonResponse({"error": "Hanya superuser yang dapat menghapus tantangan."}, status=403)
+
+    challenge = _ambil_tantangan_atau_none(id)
+    if challenge is None:
+        return JsonResponse({"error": "Tantangan tidak ditemukan."}, status=404)
+
+    judul = challenge.title
+    challenge.delete()
+    return JsonResponse(
+        {
+            "status": "success",
+            "message": f'Tantangan "{judul}" berhasil dihapus.',
+        },
+        status=200,
+    )
+

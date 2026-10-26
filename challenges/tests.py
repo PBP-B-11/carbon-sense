@@ -364,3 +364,23 @@ class ChallengeAPITests(TestCase):
         self.assertEqual(res.status_code, 200)
         partisipasi.refresh_from_db()
         self.assertEqual(partisipasi.status, Participation.Status.STOPPED)
+
+    def test_api_hapus_forbidden_untuk_user_biasa(self):
+        """Memverifikasi bahwa API hapus mengembalikan 403 untuk user biasa."""
+        self.client.force_login(self.user)
+        url = reverse("challenges_api:hapus", kwargs={"id": self.challenge.id})
+        res = self.client.post(url)
+        self.assertEqual(res.status_code, 403)
+        self.assertTrue(Challenge.objects.filter(id=self.challenge.id).exists())
+
+    def test_api_hapus_success_untuk_superuser(self):
+        """Memverifikasi bahwa API hapus berhasil menghapus tantangan untuk superuser."""
+        admin = User.objects.create_superuser(
+            username="admin_api", email="admin_api@example.com", password="password123"
+        )
+        self.client.force_login(admin)
+        url = reverse("challenges_api:hapus", kwargs={"id": self.challenge.id})
+        res = self.client.post(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["status"], "success")
+        self.assertFalse(Challenge.objects.filter(id=self.challenge.id).exists())
