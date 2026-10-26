@@ -105,6 +105,9 @@
           <p class="eyebrow">Catat cepat</p>
           <h2 id="judul-catat">Apa aktivitasmu tadi?</h2>
           {% csrf_token %}
+          {% for message in messages %}
+            <p class="hint" role="status">{{ message }}</p>
+          {% endfor %}
           {{ form.non_field_errors }}
           <fieldset class="chips">
             <legend class="sr-only">{{ form.activity_type.label }}</legend>
@@ -146,7 +149,14 @@
               <strong>{{ estimate.co2e|floatformat:4 }} kg CO₂e</strong>
             </p>
           {% endif %}
-          <div class="actions"><button class="btn btn--primary" type="submit">Hitung emisi</button></div>
+          <div class="actions">
+            <button class="btn" type="submit" name="action" value="estimate">
+              Hitung emisi
+            </button>
+            <button class="btn btn--primary" type="submit" name="action" value="save">
+              Simpan aktivitas
+            </button>
+          </div>
         </form>
 
         <article class="card card--a history" aria-labelledby="judul-riwayat">
