@@ -25,8 +25,11 @@ def ringkasan_pengguna(user):
 
 
 def sudah_checkin_hari_ini(user):
+    """Memeriksa apakah pengguna sudah check-in pada partisipasi aktif hari ini."""
     return CheckIn.objects.filter(
-        participation__user=user, date=timezone.localdate()
+        participation__user=user,
+        participation__status=Participation.Status.ACTIVE,
+        date=timezone.localdate(),
     ).exists()
 
 

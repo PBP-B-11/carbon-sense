@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from .forms import TantanganForm
-from .models import Badge, Challenge, Participation, PointEntry, UserBadge
+from .models import Badge, Challenge, CheckIn, Participation, PointEntry, UserBadge
 from .utils import hitung_streak, periksa_lencana_streak, sudah_checkin_hari_ini, total_poin
 
 
@@ -154,20 +154,24 @@ def daftar_tantangan(request):
         UserBadge.objects.filter(user=user).values_list("badge_id", flat=True)
     )
     streak = hitung_streak(user)
-    sudah_checkin_sekarang = sudah_checkin_hari_ini(user)
+    hari_ini = timezone.localdate()
+    ada_checkin_hari_ini = CheckIn.objects.filter(
+        participation__user=user, date=hari_ini
+    ).exists()
 
     kartu_aktif = None
     pertama = aktif.first()
     if pertama:
         progres = hitung_progres(pertama)
+        sudah_checkin_partisipasi = pertama.check_ins.filter(date=hari_ini).exists()
         titik = ["done"] * progres["done_days"]
         if progres["done_days"] < progres["total_days"]:
-            titik.append("todo" if sudah_checkin_sekarang else "today")
+            titik.append("todo" if sudah_checkin_partisipasi else "today")
         titik += ["todo"] * (progres["total_days"] - len(titik))
         kartu_aktif = {
             "participation": pertama,
             "challenge": pertama.challenge,
-            "checked_today": sudah_checkin_sekarang,
+            "checked_today": sudah_checkin_partisipasi,
             "dots": titik,
             "sisa_hari": progres["total_days"] - progres["done_days"],
             **progres,
@@ -183,7 +187,7 @@ def daftar_tantangan(request):
         "owned_badge_count": len(lencana_dimiliki),
         "total_points": total_poin(user),
         "streak": streak,
-        "streak_at_risk": streak > 0 and not sudah_checkin_sekarang,
+        "streak_at_risk": streak > 0 and not ada_checkin_hari_ini,
         "active": kartu_aktif,
     }
     return render(request, "challenges/challenges.html", context)

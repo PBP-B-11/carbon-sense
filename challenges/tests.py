@@ -384,3 +384,33 @@ class ChallengeAPITests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["status"], "success")
         self.assertFalse(Challenge.objects.filter(id=self.challenge.id).exists())
+
+    def test_berhenti_lalu_ikut_kembali_dapat_checkin(self):
+        """Memverifikasi bahwa peserta yang berhenti dan ikut kembali di hari yang sama dapat melakukan check-in."""
+        self.client.force_login(self.user)
+
+        p1 = Participation.objects.create(
+            user=self.user, challenge=self.challenge, started_at=timezone.localdate()
+        )
+        CheckIn.objects.create(participation=p1, date=timezone.localdate())
+
+        p1.status = Participation.Status.STOPPED
+        p1.save()
+
+        p2 = Participation.objects.create(
+            user=self.user, challenge=self.challenge, started_at=timezone.localdate()
+        )
+
+        self.assertFalse(sudah_checkin_hari_ini(self.user))
+
+        res_page = self.client.get(reverse("challenges:index"))
+        self.assertEqual(res_page.status_code, 200)
+        self.assertFalse(res_page.context["active"]["checked_today"])
+        self.assertNotContains(res_page, 'disabled aria-disabled="true"')
+
+        res_checkin = self.client.post(
+            reverse("challenges:index"),
+            {"aksi": "checkin", "tantangan_id": str(self.challenge.id)},
+        )
+        self.assertEqual(res_checkin.status_code, 302)
+        self.assertEqual(p2.check_ins.count(), 1)
