@@ -86,11 +86,7 @@
               <h3><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">{{ article.title }}</a></h3>
               <p>{{ article.source }}{% if article.published_at %}, {{ article.published_at|ago }}{% endif %}</p>
               {% if user.is_authenticated %}
-              <form method="post" action="{% url 'community:share_news' %}">
-                {% csrf_token %}
-                <input type="hidden" name="url" value="{{ article.url }}">
-                <button type="submit">Bagikan ke feed</button>
-              </form>
+              <button type="button" class="js-share" data-url="{{ article.url }}" data-title="{{ article.title }}">Bagikan ke feed</button>
               {% endif %}
             </li>
             {% empty %}
@@ -116,6 +112,20 @@
       </form>
     </dialog>
 
+    <dialog class="edit-dialog" id="share-dialog" aria-labelledby="share-title">
+      <form method="post" action="{% url 'community:share_news' %}">
+        {% csrf_token %}
+        <h2 id="share-title">Bagikan berita</h2>
+        <p id="share-news-title"></p>
+        <input type="hidden" name="url">
+        <textarea name="content" aria-label="Caption" placeholder="Tambahkan caption (opsional)"></textarea>
+        <div class="cat-choice">
+          <button class="btn btn--primary" type="submit">Bagikan</button>
+          <button class="btn" type="button" id="share-cancel">Batal</button>
+        </div>
+      </form>
+    </dialog>
+
     <script>
       (function () {
         var dialog = document.getElementById('edit-dialog');
@@ -131,6 +141,18 @@
           });
         });
         document.getElementById('edit-cancel').addEventListener('click', function () { dialog.close(); });
+
+        var shareDialog = document.getElementById('share-dialog');
+        var shareForm = shareDialog.querySelector('form');
+        document.querySelectorAll('.js-share').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            shareForm.elements.url.value = btn.dataset.url;
+            shareForm.elements.content.value = '';
+            document.getElementById('share-news-title').textContent = btn.dataset.title;
+            shareDialog.showModal();
+          });
+        });
+        document.getElementById('share-cancel').addEventListener('click', function () { shareDialog.close(); });
       })();
     </script>
 {% endblock %}
