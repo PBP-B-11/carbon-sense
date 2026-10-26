@@ -28,13 +28,23 @@ def api_ikuti(request, id):
     if challenge is None:
         return JsonResponse({"error": "Tantangan tidak ditemukan."}, status=404)
 
-    sudah_ikut = Participation.objects.filter(
+    partisipasi_aktif = Participation.objects.filter(
         user=request.user,
-        challenge=challenge,
         status=Participation.Status.ACTIVE
-    ).exists()
-    if sudah_ikut:
-        return JsonResponse({"error": "Tantangan ini sudah kamu ikuti."}, status=400)
+    ).select_related("challenge").first()
+
+    if partisipasi_aktif:
+        if partisipasi_aktif.challenge_id == challenge.id:
+            return JsonResponse({"error": "Tantangan ini sudah kamu ikuti."}, status=400)
+        return JsonResponse(
+            {
+                "error": (
+                    f'Kamu masih memiliki tantangan aktif: "{partisipasi_aktif.challenge.title}". '
+                    "Selesaikan atau batalkan tantangan tersebut terlebih dahulu."
+                )
+            },
+            status=400,
+        )
 
     partisipasi = Participation.objects.create(
         user=request.user,
