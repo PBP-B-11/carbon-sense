@@ -247,7 +247,7 @@
                     <td>
                       <span class="acts">
                         <a class="history-edit" href="{% url 'tracker:edit' activity.pk %}?period={{ period }}#catat-cepat" aria-label="Edit aktivitas tanggal {{ activity.date|date:'d M Y' }}">Edit</a>
-                        <a href="{% url 'tracker:delete' activity.pk %}" aria-label="Hapus aktivitas tanggal {{ activity.date|date:'d M Y' }}">Hapus</a>
+                        <a class="history-delete" href="{% url 'tracker:delete' activity.pk %}?period={{ period }}" aria-label="Hapus aktivitas tanggal {{ activity.date|date:'d M Y' }}">Hapus</a>
                       </span>
                     </td>
                   </tr>
@@ -277,7 +277,9 @@
       <p class="hint" data-edit-status role="status" hidden></p>
       <div data-edit-content></div>
     </dialog>
+    <script src="{% static 'js/tracker-dashboard.js' %}" defer></script>
     <script src="{% static 'js/tracker-form.js' %}" defer></script>
     <script src="{% static 'js/tracker-preview.js' %}" defer></script>
+    <script src="{% static 'js/tracker-delete.js' %}" defer></script>
     <script src="{% static 'js/tracker-modal.js' %}" defer></script>
 {% endblock %}

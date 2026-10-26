@@ -90,9 +90,11 @@ def delete_activity(request, pk):
     )
 
     if request.method == "POST":
+        #Simpan ID sebelum Django mengosongkan pk setelah penghapusan.
         activity_id = activity.pk
         activity.delete()
 
+        #Kembalikan konfirmasi untuk AJAX tanpa mengubah alur formulir biasa.
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return JsonResponse({
                 "activity_id": activity_id,

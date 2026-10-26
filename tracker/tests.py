@@ -337,6 +337,52 @@ class MeatTrackerTests(TestCase):
         self.assertEqual(CarbonActivity.objects.count(), 1)
         self.assertEqual(response.context["total_emissions"], Decimal("7.0851"))
 
+    #GET tidak menghapus; POST AJAX mengembalikan ID asli dan memperbarui ringkasan.
+    def test_ajax_delete_returns_original_id_and_updates_dashboard(self):
+        activity = self.create_activity()
+        kept = self.create_activity(activity_type="beef", emission_kg=Decimal("7.0851"))
+        self.client.force_login(self.owner)
+        url = reverse("tracker:delete", args=[activity.pk])
+        response = self.client.get(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertContains(response, "data-delete-confirmation")
+        self.assertEqual(CarbonActivity.objects.count(), 2)
+        self.assertEqual(self.client.put(url).status_code, 405)
+        response = self.client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {
+            "activity_id": activity.pk,
+            "message": "Aktivitas berhasil dihapus.",
+        })
+        self.assertNotIn("Location", response.headers)
+        self.assertFalse(CarbonActivity.objects.filter(pk=activity.pk).exists())
+        self.assertTrue(CarbonActivity.objects.filter(pk=kept.pk).exists())
+        fresh = self.client.get(self.index_url, {"period": "year"})
+        self.assertEqual(fresh.context["total_emissions"], Decimal("7.0851"))
+        self.assertEqual(fresh.context["period_emissions"], Decimal("7.0851"))
+        self.assertEqual(self.client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest").status_code, 404)
+
+    #Header AJAX tidak boleh melewati login, kepemilikan, atau perlindungan CSRF.
+    def test_ajax_delete_requires_login_ownership_and_csrf(self):
+        activity = self.create_activity()
+        url = reverse("tracker:delete", args=[activity.pk])
+        response = self.client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/profil/login/", response.url)
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest").status_code, 404)
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.owner)
+        client.get(url)
+        self.assertEqual(client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest").status_code, 403)
+        self.assertTrue(CarbonActivity.objects.filter(pk=activity.pk).exists())
+        response = client.post(
+            url, {"csrfmiddlewaretoken": client.cookies["csrftoken"].value},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(CarbonActivity.objects.filter(pk=activity.pk).exists())
+
     def test_weekly_meat_category_excludes_other_users_and_dates(self):
         today = timezone.localdate()
         self.create_activity(emission_kg=Decimal("2"))

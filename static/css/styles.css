@@ -1316,7 +1316,8 @@ main {
   margin: 24px;
 }
 
-.tracker-edit-dialog .quick {
+.tracker-edit-dialog .quick,
+.tracker-edit-dialog .activity-confirm {
   min-height: 0;
   padding: 24px;
   border: 0;
@@ -1498,6 +1499,10 @@ main {
 
 .activity-confirm .form-actions {
   flex-wrap: wrap;
+}
+
+.activity-confirm [data-delete-status] .btn {
+  margin-top: 12px;
 }
 
 .table {
