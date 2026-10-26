@@ -22,20 +22,19 @@
           {% if post.news_snippet %}<small>{{ post.news_snippet }}</small>{% endif %}
         </a>
         {% endif %}
-        <footer class="post-foot"><span>{{ post.like_count }} suka</span><span>{{ comments|length }} komentar</span></footer>
+        <footer class="post-foot"><span>{{ post.like_count }} suka</span><span><span id="comment-count">{{ comments|length }}</span> komentar</span></footer>
 
         <h2>Komentar</h2>
-        {% for comment in comments %}
-        <div class="comment">
-          <strong>{{ comment.author.username }}</strong> <small>{{ comment.created_at|ago }}</small>
-          <p>{{ comment.content|linebreaksbr }}</p>
+        <div id="comments">
+          {% for comment in comments %}
+          {% include "community/_comment.html" %}
+          {% empty %}
+          <p class="comment-empty">Belum ada komentar.</p>
+          {% endfor %}
         </div>
-        {% empty %}
-        <p>Belum ada komentar.</p>
-        {% endfor %}
 
         {% if user.is_authenticated %}
-        <form method="post" action="{% url 'community:add_comment' post.pk %}">
+        <form method="post" action="{% url 'community:add_comment' post.pk %}" id="comment-form">
           {% csrf_token %}
           <textarea name="content" aria-label="Tulis komentar" required></textarea>
           <button class="btn btn--primary" type="submit">Kirim</button>
@@ -45,4 +44,48 @@
         {% endif %}
       </article>
     </div>
+
+    <script>
+      (function () {
+        var form = document.getElementById('comment-form');
+        if (!form) return;
+        var list = document.getElementById('comments');
+        var counter = document.getElementById('comment-count');
+        var error = null;
+
+        form.addEventListener('submit', function (event) {
+          event.preventDefault();
+          var btn = form.querySelector('button[type=submit]');
+          btn.disabled = true;
+          fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            credentials: 'same-origin'
+          }).then(function (res) {
+            if (res.redirected) { window.location.href = res.url; return null; }
+            return res.json().then(function (data) { return {ok: res.ok, data: data}; });
+          }).then(function (result) {
+            if (!result) return;
+            if (error) { error.remove(); error = null; }
+            if (!result.ok) {
+              error = document.createElement('p');
+              error.setAttribute('role', 'alert');
+              error.textContent = result.data.error || 'Komentar tidak valid.';
+              form.before(error);
+              return;
+            }
+            var empty = list.querySelector('.comment-empty');
+            if (empty) empty.remove();
+            list.insertAdjacentHTML('beforeend', result.data.html);
+            counter.textContent = result.data.count;
+            form.elements.content.value = '';
+          }).catch(function () {
+            form.submit();
+          }).finally(function () {
+            btn.disabled = false;
+          });
+        });
+      })();
+    </script>
 {% endblock %}

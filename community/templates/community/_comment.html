@@ -1,0 +1,5 @@
+{% load community_tags %}
+<div class="comment">
+  <strong>{{ comment.author.username }}</strong> <small>{{ comment.created_at|ago }}</small>
+  <p>{{ comment.content|linebreaksbr }}</p>
+</div>

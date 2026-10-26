@@ -1,0 +1,32 @@
+{% load community_tags %}
+<article class="card post">
+  <header class="post-head">
+    <span class="avatar avatar--46" aria-hidden="true">{{ post.author.username|slice:":2"|upper }}</span>
+    <div class="who"><strong>{{ post.author.username }}</strong><small>{{ post.created_at|ago }}</small></div>
+    <span class="pill {% if post.category == 'tips' %}pill--moss{% elif post.category == 'diskusi' %}pill--teal{% else %}pill--amber{% endif %}">{{ post.get_category_display }}</span>
+  </header>
+  <p>{{ post.content|linebreaksbr }}</p>
+  {% if post.has_news %}
+  <a class="post-news" href="{{ post.news_url }}" target="_blank" rel="noopener noreferrer">
+    <small>{{ post.news_source }}</small>
+    <strong>{{ post.news_title }}</strong>
+    {% if post.news_snippet %}<small>{{ post.news_snippet }}</small>{% endif %}
+  </a>
+  {% endif %}
+  <footer class="post-foot">
+    <form method="post" action="{% url 'community:toggle_like' post.pk %}" class="js-like-form">
+      {% csrf_token %}
+      <button type="submit" aria-pressed="{% if post.is_liked %}true{% else %}false{% endif %}"{% if post.is_liked %} class="liked"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-leaf"/></svg><span class="like-count">{{ post.like_count }}</span> suka</button>
+    </form>
+    <a href="{% url 'community:post_detail' post.pk %}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-message-circle"/></svg>{{ post.comment_count }} komentar</a>
+    {% if post.author_id == user.id %}
+    <span class="edit">
+      <button type="button" class="js-edit" data-action="{% url 'community:edit_post' post.pk %}" data-category="{{ post.category }}" data-content="{{ post.content }}">Edit</button>
+      <form method="post" action="{% url 'community:delete_post' post.pk %}" class="js-delete-form">
+        {% csrf_token %}
+        <button type="submit">Hapus</button>
+      </form>
+    </span>
+    {% endif %}
+  </footer>
+</article>
