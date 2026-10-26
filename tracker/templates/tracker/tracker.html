@@ -125,7 +125,8 @@
           {% for message in messages %}
             <p class="hint" role="status">{{ message }}</p>
           {% endfor %}
-          {{ form.non_field_errors }}
+          {#Sediakan tempat tetap untuk kesalahan dari respons Django maupun AJAX.#}
+          <div data-form-errors="__all__" role="alert">{{ form.non_field_errors }}</div>
           <fieldset class="chips" aria-describedby="activity-factor-note">
             <legend class="sr-only">{{ form.activity_type.label }}</legend>
             {% for radio in form.activity_type %}
@@ -138,7 +139,7 @@
               </label>
             {% endfor %}
           </fieldset>
-          {{ form.activity_type.errors }}
+          <div data-form-errors="activity_type" role="alert">{{ form.activity_type.errors }}</div>
           {#Jelaskan sumber faktor sesuai aktivitas, termasuk sebelum JavaScript berjalan.#}
           <p class="hint activity-factor-note" id="activity-factor-note" aria-live="polite">
             {% if form.activity_type.value == "car_travel" %}
@@ -160,7 +161,7 @@
               {{ form.quantity }}
               <span class="input-suffix" id="quantity-unit">{% if form.activity_type.value == "chicken" or form.activity_type.value == "beef" %}g{% elif form.activity_type.value == "electricity" %}kWh{% else %}km{% endif %}</span>
             </span>
-            {{ form.quantity.errors }}
+            <div data-form-errors="quantity" role="alert">{{ form.quantity.errors }}</div>
             {#Pilihan cepat adalah perkiraan berat mentah, bukan ukuran porsi baku.#}
             <div class="meat-portions" id="meat-portions"{% if form.activity_type.value != "chicken" and form.activity_type.value != "beef" %} hidden{% endif %}>
               <p class="hint">Perkiraan berat mentah; sesuaikan dengan jumlah dagingmu.</p>
@@ -174,22 +175,22 @@
           <div class="field">
             <label for="{{ form.date.id_for_label }}">Tanggal</label>
             <span class="input">{{ form.date }}</span>
-            {{ form.date.errors }}
+            <div data-form-errors="date" role="alert">{{ form.date.errors }}</div>
           </div>
           <details class="activity-notes"{% if form.description.value or form.description.errors %} open{% endif %}>
             <summary>Tambah catatan (opsional)</summary>
             <div class="field">
               <label for="{{ form.description.id_for_label }}">Catatan</label>
               <span class="input">{{ form.description }}</span>
-              {{ form.description.errors }}
+              <div data-form-errors="description" role="alert">{{ form.description.errors }}</div>
             </div>
           </details>
-          {% if estimate %}
-            <p class="hint" role="status">
-              Estimasi emisi:
-              <strong>{{ estimate.co2e|floatformat:4 }} kg CO₂e</strong>
-            </p>
-          {% endif %}
+          {#Perbarui hasil dan status langsung tanpa memuat ulang halaman.#}
+          <p class="hint" id="preview-status" role="status" hidden></p>
+          <p class="hint" id="preview-result" role="status"{% if not estimate %} hidden{% endif %}>
+            Estimasi emisi:
+            <strong id="preview-value">{% if estimate %}{{ estimate.co2e|floatformat:4 }} kg CO₂e{% endif %}</strong>
+          </p>
           <div class="actions">
             {% if editing_activity %}
               <a class="btn" href="{% url 'tracker:index' %}#catat-cepat">Batal</a>
@@ -266,4 +267,5 @@
       </section>
     </div>
     <script src="{% static 'js/tracker-form.js' %}" defer></script>
+    <script src="{% static 'js/tracker-preview.js' %}" defer></script>
 {% endblock %}

@@ -91,6 +91,63 @@ class MeatTrackerTests(TestCase):
         )
         self.assertEqual(CarbonActivity.objects.count(), 0)
 
+    #Pratinjau AJAX mengembalikan JSON tanpa menyimpan atau menghitung ulang dashboard.
+    @patch("tracker.views.build_dashboard_context")
+    @patch("tracker.activity_actions.estimate_meat", return_value=CHICKEN_RESULT)
+    def test_ajax_preview_returns_json_without_saving(self, estimate, dashboard):
+        response = self.client.post(
+            self.index_url, self.payload(), HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"estimate": CHICKEN_RESULT, "errors": {}})
+        self.assertEqual(CarbonActivity.objects.count(), 0)
+        estimate.assert_called_once_with("chicken", Decimal("100"))
+        dashboard.assert_not_called()
+
+    @patch("tracker.activity_actions.estimate_meat")
+    def test_ajax_preview_returns_field_errors_for_invalid_data(self, estimate):
+        response = self.client.post(
+            self.index_url, self.payload(quantity="-100"),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIsNone(response.json()["estimate"])
+        self.assertIn("quantity", response.json()["errors"])
+        estimate.assert_not_called()
+
+    @patch("tracker.activity_actions.estimate_meat", side_effect=requests.Timeout)
+    def test_ajax_preview_api_failure_preserves_edited_activity(self, estimate):
+        activity = self.create_activity()
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("tracker:edit", args=[activity.pk]), self.payload(quantity="200"),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("__all__", response.json()["errors"])
+        activity.refresh_from_db()
+        self.assertEqual(activity.quantity, Decimal("100"))
+        self.assertEqual(activity.emission_kg, Decimal("0.4200"))
+
+    #AJAX tetap harus membawa token CSRF, sama seperti pengiriman formulir biasa.
+    @patch("tracker.activity_actions.estimate_meat", return_value=CHICKEN_RESULT)
+    def test_ajax_preview_requires_csrf_and_keeps_save_flow(self, estimate):
+        client = Client(enforce_csrf_checks=True)
+        self.assertEqual(client.post(
+            self.index_url, self.payload(), HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        ).status_code, 403)
+        estimate.assert_not_called()
+        client.get(self.index_url)
+        data = self.payload(csrfmiddlewaretoken=client.cookies["csrftoken"].value)
+        response = client.post(self.index_url, data, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(CarbonActivity.objects.count(), 0)
+        client.force_login(self.owner)
+        data["action"] = "save"
+        response = client.post(self.index_url, data)
+        self.assertRedirects(response, self.index_url)
+        self.assertEqual(CarbonActivity.objects.count(), 1)
+
     @patch("tracker.activity_actions.estimate_meat", side_effect=[CHICKEN_RESULT, BEEF_RESULT])
     def test_saved_meats_keep_separate_types_but_share_dashboard_category(self, estimate):
         self.client.force_login(self.owner)

@@ -9,9 +9,10 @@ from .dashboard import build_dashboard_context
 from .forms import CarbonActivityForm
 from .models import CarbonActivity
 
+from django.http import JsonResponse
 
 def index(request, pk=None):
-    #Ambil aktivitas edit hanya jika pengguna adalah pemiliknya.
+    #Ambil aktivitas edit hanya jika pengguna adalah pemiliknya
     editing_activity = None
     if pk is not None:
         if not request.user.is_authenticated:
@@ -21,28 +22,41 @@ def index(request, pk=None):
             CarbonActivity, pk=pk, user=request.user,
         )
 
-    #Siapkan formulir untuk aktivitas baru atau aktivitas yang sedang diedit.
+    #Siapkan formulir untuk aktivitas baru atau aktivitas yang sedang diedit
     form = CarbonActivityForm(
         request.POST if request.method == "POST" else None,
         instance=editing_activity,
     )
     estimate = None
 
-    #Serahkan validasi, estimasi, dan penyimpanan kepada fungsi khusus aktivitas.
+    #Serahkan validasi, estimasi, dan penyimpanan kepada fungsi khusus aktivitas
     if request.method == "POST":
         estimate, saved_activity = process_activity_form(
             form, request.user, saving=request.POST.get("action") == "save",
         )
+        #Kembalikan hasil pratinjau sebagai JSON untuk permintaan AJAX.
+        is_ajax = (
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        )
+        if is_ajax and request.POST.get("action") == "estimate":
+            errors = form.errors.get_json_data()
+            return JsonResponse(
+                {
+                    "estimate": estimate,
+                    "errors": errors,
+                },
+                status=400 if errors else 200,
+            )
         if saved_activity is not None:
             messages.success(request, "Aktivitas berhasil disimpan.")
             return redirect("tracker:index")
 
-    #Batasi riwayat dan seluruh perhitungan dashboard pada pengguna saat ini.
+    #Batasi riwayat dan seluruh perhitungan dashboard pada pengguna saat ini
     activities = CarbonActivity.objects.none()
     if request.user.is_authenticated:
         activities = CarbonActivity.objects.filter(user=request.user).order_by("-date", "-pk")
 
-    #Siapkan ringkasan, kategori, dan grafik melalui fungsi khusus dashboard.
+    #Siapkan ringkasan, kategori, dan grafik melalui fungsi khusus dashboar
     context = build_dashboard_context(
         activities, request.GET.get("period", "week"), timezone.localdate(),
     )
