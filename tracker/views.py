@@ -150,6 +150,48 @@ def index(request, pk=None):
             "height": height,
             "is_future": day > today,
         })
+
+    #Jumlahkan emisi minggu ini 
+    category_totals = (
+        activities.filter(date__range=(week_start, today))
+        .order_by()
+        .values("activity_type")
+        .annotate(total=Sum("emission_kg"))
+    )
+
+    totals_by_type = {
+        row["activity_type"]: row["total"]
+        for row in category_totals
+    }
+
+    categories = [
+        ("car_travel", "Transportasi", "i-car"),
+        ("electricity", "Listrik", "i-zap"),
+        ("meal", "Makanan", "i-utensils"),
+    ]
+    category_breakdown = []
+
+    for activity_type, label, icon in categories:
+        emissions = totals_by_type.get(activity_type, Decimal("0"))
+        percentage = (
+            emissions / week_emissions * Decimal("100")
+            if week_emissions
+            else Decimal("0")
+        )
+
+        category_breakdown.append({
+            "label": label,
+            "icon": icon,
+            "emissions": emissions,
+            "percentage": percentage,
+        })
+
+    #Pilih kategori dengan emisi 
+    top_category = (
+        max(category_breakdown, key=lambda category: category["emissions"])
+        if week_emissions
+        else None
+    )
     
     #Pass form
     return render(
@@ -165,6 +207,8 @@ def index(request, pk=None):
         "week_emissions": week_emissions,
         "average_daily_emissions": average_daily_emissions,
         "daily_chart": daily_chart,
+        "category_breakdown": category_breakdown,
+        "top_category": top_category,
     },
 )
 
