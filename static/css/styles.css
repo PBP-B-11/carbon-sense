@@ -2972,6 +2972,44 @@ textarea:focus-visible {
   color: var(--color-text-secondary);
 }
 
+.comment-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.comment-actions form {
+  display: contents;
+}
+
+.comment-actions button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.comment-actions button:hover {
+  text-decoration: underline;
+}
+
+.comment-actions button:focus-visible {
+  outline: 3px solid var(--color-secondary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.comment-actions .js-comment-edit {
+  color: var(--color-secondary);
+}
+
+.comment-actions form button {
+  color: var(--color-error);
+}
+
 .post h2 {
   margin-top: 24px;
   font-size: 22px;

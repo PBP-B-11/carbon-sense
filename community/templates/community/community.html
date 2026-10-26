@@ -30,7 +30,7 @@
             {% csrf_token %}
             <div class="row">
               <span class="avatar avatar--46" aria-hidden="true">{{ user.username|slice:":2"|upper }}</span>
-              <textarea name="content" aria-label="Tulis postingan" placeholder="Bagikan tips atau ceritamu minggu ini..." required></textarea>
+              <textarea name="content" aria-label="Tulis postingan" placeholder="Bagikan tips atau ceritamu minggu ini..." maxlength="{{ post_max }}" required></textarea>
             </div>
             <div class="cat-choice">
               {% include "community/_category_chips.html" with selected="tips" %}
@@ -73,7 +73,7 @@
       <form method="post" id="edit-form" class="js-edit-form">
         {% csrf_token %}
         <h2 id="edit-title">Edit postingan</h2>
-        <textarea name="content" aria-label="Isi postingan" required></textarea>
+        <textarea name="content" aria-label="Isi postingan" maxlength="{{ post_max }}" required></textarea>
         <div class="cat-choice">
           {% include "community/_category_chips.html" with selected="" %}
         </div>
@@ -101,7 +101,7 @@
         <h2 id="share-title">Bagikan berita</h2>
         <p id="share-news-title"></p>
         <input type="hidden" name="url">
-        <textarea name="content" aria-label="Caption" placeholder="Tambahkan caption (opsional)"></textarea>
+        <textarea name="content" aria-label="Caption" placeholder="Tambahkan caption (opsional)" maxlength="{{ post_max }}"></textarea>
         <div class="cat-choice">
           <button class="btn btn--primary" type="submit">Bagikan</button>
           <button class="btn" type="button" id="share-cancel">Batal</button>
@@ -253,9 +253,12 @@
           if (!btn) return;
           editingCard = btn.closest('article.post');
           editForm.action = btn.dataset.action;
+          var hasNews = btn.dataset.hasNews === '1';
           editForm.elements.content.value = btn.dataset.content;
+          editForm.elements.content.required = !hasNews;
           editForm.querySelectorAll('input[name=category]').forEach(function (r) {
             r.checked = r.value === btn.dataset.category;
+            r.disabled = hasNews;
           });
           editDialog.showModal();
         });

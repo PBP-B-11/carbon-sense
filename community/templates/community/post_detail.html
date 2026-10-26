@@ -8,6 +8,9 @@
 {% block content %}
     <div class="container">
       <p><a href="{% url 'community:index' %}">&larr; Kembali ke feed</a></p>
+      {% for message in messages %}
+      <p class="card feed-note" role="alert">{{ message }}</p>
+      {% endfor %}
       <article class="card post">
         <header class="post-head">
           <span class="avatar avatar--46" aria-hidden="true">{{ post.author.username|slice:":2"|upper }}</span>
@@ -36,7 +39,7 @@
         {% if user.is_authenticated %}
         <form method="post" action="{% url 'community:add_comment' post.pk %}" id="comment-form">
           {% csrf_token %}
-          <textarea name="content" aria-label="Tulis komentar" required></textarea>
+          <textarea name="content" aria-label="Tulis komentar" maxlength="{{ comment_max }}" required></textarea>
           <button class="btn btn--primary" type="submit">Kirim</button>
         </form>
         {% else %}
@@ -45,46 +48,166 @@
       </article>
     </div>
 
+    <dialog class="edit-dialog" id="comment-edit-dialog" aria-labelledby="comment-edit-title">
+      <form method="post" id="comment-edit-form">
+        {% csrf_token %}
+        <h2 id="comment-edit-title">Edit komentar</h2>
+        <textarea name="content" aria-label="Isi komentar" maxlength="{{ comment_max }}" required></textarea>
+        <div class="cat-choice">
+          <button class="btn btn--primary" type="submit">Simpan</button>
+          <button class="btn" type="button" id="comment-edit-cancel">Batal</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="edit-dialog" id="comment-delete-dialog" aria-labelledby="comment-delete-title">
+      <form id="comment-delete-confirm">
+        <h2 id="comment-delete-title">Hapus komentar?</h2>
+        <p>Komentar ini akan dihapus dan tidak bisa dikembalikan.</p>
+        <div class="cat-choice">
+          <button class="btn btn--danger" type="submit">Hapus</button>
+          <button class="btn" type="button" id="comment-delete-cancel">Batal</button>
+        </div>
+      </form>
+    </dialog>
+
     <script>
       (function () {
-        var form = document.getElementById('comment-form');
-        if (!form) return;
+        var AJAX = {'X-Requested-With': 'XMLHttpRequest'};
         var list = document.getElementById('comments');
         var counter = document.getElementById('comment-count');
+        var form = document.getElementById('comment-form');
         var error = null;
 
-        form.addEventListener('submit', function (event) {
-          event.preventDefault();
-          var btn = form.querySelector('button[type=submit]');
-          btn.disabled = true;
-          fetch(form.action, {
+        function send(f) {
+          return fetch(f.action, {
             method: 'POST',
-            body: new FormData(form),
-            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            body: new FormData(f),
+            headers: AJAX,
             credentials: 'same-origin'
-          }).then(function (res) {
-            if (res.redirected) { window.location.href = res.url; return null; }
-            return res.json().then(function (data) { return {ok: res.ok, data: data}; });
-          }).then(function (result) {
+          });
+        }
+
+        function parse(res) {
+          if (res.redirected) { window.location.href = res.url; return null; }
+          return res.json().then(function (data) { return {ok: res.ok, data: data}; });
+        }
+
+        function clearError() {
+          if (error) { error.remove(); error = null; }
+        }
+
+        function showError(text) {
+          clearError();
+          error = document.createElement('p');
+          error.setAttribute('role', 'alert');
+          error.textContent = text;
+          (form || list).before(error);
+        }
+
+        function htmlToEl(html) {
+          var tpl = document.createElement('template');
+          tpl.innerHTML = html.trim();
+          return tpl.content.firstElementChild;
+        }
+
+        function showEmptyIfNeeded() {
+          if (!list.querySelector('.comment') && !list.querySelector('.comment-empty')) {
+            var p = document.createElement('p');
+            p.className = 'comment-empty';
+            p.textContent = 'Belum ada komentar.';
+            list.appendChild(p);
+          }
+        }
+
+        if (form) {
+          form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            var btn = form.querySelector('button[type=submit]');
+            btn.disabled = true;
+            send(form).then(parse).then(function (result) {
+              if (!result) return;
+              if (!result.ok) { showError(result.data.error || 'Komentar tidak valid.'); return; }
+              clearError();
+              var empty = list.querySelector('.comment-empty');
+              if (empty) empty.remove();
+              list.appendChild(htmlToEl(result.data.html));
+              counter.textContent = result.data.count;
+              form.elements.content.value = '';
+            }).catch(function () {
+              form.submit();
+            }).finally(function () {
+              btn.disabled = false;
+            });
+          });
+        }
+
+        var editDialog = document.getElementById('comment-edit-dialog');
+        var editForm = document.getElementById('comment-edit-form');
+        var editingComment = null;
+
+        list.addEventListener('click', function (event) {
+          var btn = event.target.closest('.js-comment-edit');
+          if (!btn) return;
+          editingComment = btn.closest('.comment');
+          editForm.action = btn.dataset.action;
+          editForm.elements.content.value = btn.dataset.content;
+          editDialog.showModal();
+        });
+
+        editForm.addEventListener('submit', function (event) {
+          event.preventDefault();
+          var btn = editForm.querySelector('button[type=submit]');
+          btn.disabled = true;
+          send(editForm).then(parse).then(function (result) {
             if (!result) return;
-            if (error) { error.remove(); error = null; }
-            if (!result.ok) {
-              error = document.createElement('p');
-              error.setAttribute('role', 'alert');
-              error.textContent = result.data.error || 'Komentar tidak valid.';
-              form.before(error);
-              return;
-            }
-            var empty = list.querySelector('.comment-empty');
-            if (empty) empty.remove();
-            list.insertAdjacentHTML('beforeend', result.data.html);
-            counter.textContent = result.data.count;
-            form.elements.content.value = '';
+            if (!result.ok) { showError(result.data.error || 'Komentar tidak valid.'); editDialog.close(); return; }
+            clearError();
+            editingComment.replaceWith(htmlToEl(result.data.html));
+            editDialog.close();
           }).catch(function () {
-            form.submit();
+            editForm.submit();
           }).finally(function () {
             btn.disabled = false;
           });
+        });
+        document.getElementById('comment-edit-cancel').addEventListener('click', function () { editDialog.close(); });
+
+        var deleteDialog = document.getElementById('comment-delete-dialog');
+        var deleteConfirm = document.getElementById('comment-delete-confirm');
+        var pendingDelete = null;
+
+        list.addEventListener('submit', function (event) {
+          var f = event.target;
+          if (!f.matches('.js-comment-delete-form')) return;
+          event.preventDefault();
+          pendingDelete = f;
+          deleteDialog.showModal();
+        });
+
+        deleteConfirm.addEventListener('submit', function (event) {
+          event.preventDefault();
+          var f = pendingDelete;
+          if (!f) return;
+          var btn = deleteConfirm.querySelector('button[type=submit]');
+          btn.disabled = true;
+          send(f).then(parse).then(function (result) {
+            if (!result) return;
+            if (!result.ok) { showError('Komentar gagal dihapus.'); deleteDialog.close(); return; }
+            f.closest('.comment').remove();
+            counter.textContent = result.data.count;
+            showEmptyIfNeeded();
+            deleteDialog.close();
+          }).catch(function () {
+            f.submit();
+          }).finally(function () {
+            btn.disabled = false;
+            pendingDelete = null;
+          });
+        });
+        document.getElementById('comment-delete-cancel').addEventListener('click', function () {
+          pendingDelete = null;
+          deleteDialog.close();
         });
       })();
     </script>

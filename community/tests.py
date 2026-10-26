@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Like, Post
+from .models import Comment, Like, Post
 
 
 class CommunityFlowTests(TestCase):
@@ -236,3 +236,150 @@ class AjaxCommentTests(TestCase):
         res = self.client.get(reverse("community:post_detail", args=[self.post.pk]))
         self.assertContains(res, "terlihat")
         self.assertContains(res, 'id="comment-count"')
+
+
+class ValidationTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user("me", password="x")
+        self.client.force_login(self.user)
+        self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+    def test_post_too_long_is_rejected_with_message(self):
+        from .forms import POST_MAX_LENGTH
+
+        res = self.client.post(
+            reverse("community:create_post"),
+            {"content": "a" * (POST_MAX_LENGTH + 1), "category": "tips"},
+            **self.ajax,
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertTrue(res.json()["error"])
+        self.assertFalse(Post.objects.exists())
+
+    def test_whitespace_only_post_is_rejected(self):
+        res = self.client.post(
+            reverse("community:create_post"), {"content": "   ", "category": "tips"}, **self.ajax
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_invalid_category_is_rejected(self):
+        res = self.client.post(
+            reverse("community:create_post"), {"content": "x", "category": "hack"}, **self.ajax
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_comment_too_long_is_rejected(self):
+        from .forms import COMMENT_MAX_LENGTH
+
+        post = Post.objects.create(author=self.user, content="halo")
+        res = self.client.post(
+            reverse("community:add_comment", args=[post.pk]),
+            {"content": "a" * (COMMENT_MAX_LENGTH + 1)},
+            **self.ajax,
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(post.comments.exists())
+
+    def test_share_caption_too_long_is_rejected(self):
+        from django.core.cache import cache
+
+        from .forms import POST_MAX_LENGTH
+
+        cache.set("community:gnews", [{"title": "J", "snippet": "", "url": "https://e.com/a", "source": "M", "published_at": None}])
+        res = self.client.post(
+            reverse("community:share_news"),
+            {"url": "https://e.com/a", "content": "a" * (POST_MAX_LENGTH + 1)},
+            **self.ajax,
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(Post.objects.exists())
+
+
+class NewsPostEditTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("me", password="x")
+        self.client.force_login(self.user)
+        self.post = Post.objects.create(
+            author=self.user,
+            category="berita",
+            content="",
+            news_title="Judul",
+            news_source="Media",
+            news_url="https://e.com/a",
+        )
+        self.url = reverse("community:edit_post", args=[self.post.pk])
+        self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+    def test_news_post_can_be_edited_without_caption(self):
+        res = self.client.post(self.url, {"content": ""}, **self.ajax)
+        self.assertEqual(res.status_code, 200)
+
+    def test_news_post_category_cannot_change(self):
+        self.client.post(self.url, {"content": "caption baru", "category": "tips"}, **self.ajax)
+        self.post.refresh_from_db()
+        self.assertEqual(self.post.category, "berita")
+        self.assertEqual(self.post.content, "caption baru")
+
+    def test_regular_post_still_requires_content(self):
+        plain = Post.objects.create(author=self.user, content="isi", category="tips")
+        res = self.client.post(
+            reverse("community:edit_post", args=[plain.pk]), {"content": "", "category": "tips"}, **self.ajax
+        )
+        self.assertEqual(res.status_code, 400)
+
+
+class CommentCrudTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.owner = User.objects.create_user("owner", password="x")
+        self.other = User.objects.create_user("other", password="x")
+        self.post = Post.objects.create(author=self.owner, content="halo")
+        self.comment = Comment.objects.create(post=self.post, author=self.owner, content="lama")
+        self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+    def test_owner_can_edit_comment(self):
+        self.client.force_login(self.owner)
+        res = self.client.post(
+            reverse("community:edit_comment", args=[self.comment.pk]), {"content": "baru"}, **self.ajax
+        )
+        self.assertIn("baru", res.json()["html"])
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.content, "baru")
+
+    def test_edit_comment_with_empty_content_is_400(self):
+        self.client.force_login(self.owner)
+        res = self.client.post(
+            reverse("community:edit_comment", args=[self.comment.pk]), {"content": ""}, **self.ajax
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_non_owner_cannot_edit_or_delete_comment(self):
+        self.client.force_login(self.other)
+        res = self.client.post(
+            reverse("community:edit_comment", args=[self.comment.pk]), {"content": "x"}, **self.ajax
+        )
+        self.assertEqual(res.status_code, 404)
+        res = self.client.post(reverse("community:delete_comment", args=[self.comment.pk]), **self.ajax)
+        self.assertEqual(res.status_code, 404)
+        self.assertTrue(Comment.objects.filter(pk=self.comment.pk).exists())
+
+    def test_owner_can_delete_comment_and_get_count(self):
+        Comment.objects.create(post=self.post, author=self.other, content="lain")
+        self.client.force_login(self.owner)
+        res = self.client.post(reverse("community:delete_comment", args=[self.comment.pk]), **self.ajax)
+        self.assertEqual(res.json(), {"deleted": True, "count": 1})
+
+    def test_plain_delete_comment_redirects_to_detail(self):
+        self.client.force_login(self.owner)
+        res = self.client.post(reverse("community:delete_comment", args=[self.comment.pk]))
+        self.assertRedirects(res, reverse("community:post_detail", args=[self.post.pk]))
+
+    def test_detail_shows_actions_only_for_own_comments(self):
+        edit_url = reverse("community:edit_comment", args=[self.comment.pk])
+        self.client.force_login(self.other)
+        res = self.client.get(reverse("community:post_detail", args=[self.post.pk]))
+        self.assertNotContains(res, edit_url)
+        self.client.force_login(self.owner)
+        res = self.client.get(reverse("community:post_detail", args=[self.post.pk]))
+        self.assertContains(res, edit_url)

@@ -6,13 +6,25 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
-from .forms import CommentForm, PostForm
-from .models import Like, Post
+from .forms import COMMENT_MAX_LENGTH, POST_MAX_LENGTH, CommentForm, PostForm
+from .models import Comment, Like, Post
 from .news import fetch_news, find_article
 
 
 def _is_ajax(request):
     return request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+
+def _fail(request, message, to="community:index", **kwargs):
+    if _is_ajax(request):
+        return JsonResponse({"error": message}, status=400)
+    messages.error(request, message)
+    return redirect(to, **kwargs)
+
+
+def _form_error(form, default):
+    errors = [e for field_errors in form.errors.values() for e in field_errors]
+    return errors[0] if errors else default
 
 
 def _feed_posts(user):
@@ -39,7 +51,7 @@ def index(request):
     return render(
         request,
         "community/community.html",
-        {"posts": posts, "form": PostForm(), "news": fetch_news()},
+        {"posts": posts, "form": PostForm(), "news": fetch_news(), "post_max": POST_MAX_LENGTH},
     )
 
 
@@ -53,11 +65,8 @@ def create_post(request):
         post.save()
         if _is_ajax(request):
             return _post_card_json(request, post)
-    elif _is_ajax(request):
-        return JsonResponse({"error": "Postingan tidak valid."}, status=400)
-    else:
-        messages.error(request, "Postingan tidak valid.")
-    return redirect("community:index")
+        return redirect("community:index")
+    return _fail(request, _form_error(form, "Postingan tidak valid."))
 
 
 @login_required
@@ -69,11 +78,8 @@ def edit_post(request, pk):
         form.save()
         if _is_ajax(request):
             return _post_card_json(request, post)
-    elif _is_ajax(request):
-        return JsonResponse({"error": "Perubahan tidak valid."}, status=400)
-    else:
-        messages.error(request, "Perubahan tidak valid.")
-    return redirect("community:index")
+        return redirect("community:index")
+    return _fail(request, _form_error(form, "Perubahan tidak valid."))
 
 
 @login_required
@@ -109,7 +115,12 @@ def post_detail(request, pk):
     return render(
         request,
         "community/post_detail.html",
-        {"post": post, "comments": comments, "form": CommentForm()},
+        {
+            "post": post,
+            "comments": comments,
+            "form": CommentForm(),
+            "comment_max": COMMENT_MAX_LENGTH,
+        },
     )
 
 
@@ -128,9 +139,41 @@ def add_comment(request, pk):
                 "community/_comment.html", {"comment": comment}, request=request
             )
             return JsonResponse({"html": html, "count": post.comments.count()})
-    elif _is_ajax(request):
-        return JsonResponse({"error": "Komentar tidak valid."}, status=400)
-    return redirect("community:post_detail", pk=post.pk)
+        return redirect("community:post_detail", pk=post.pk)
+    return _fail(
+        request, _form_error(form, "Komentar tidak valid."), "community:post_detail", pk=post.pk
+    )
+
+
+@login_required
+@require_POST
+def edit_comment(request, pk):
+    comment = get_object_or_404(Comment, pk=pk, author=request.user)
+    form = CommentForm(request.POST, instance=comment)
+    if not form.is_valid():
+        return _fail(
+            request,
+            _form_error(form, "Komentar tidak valid."),
+            "community:post_detail",
+            pk=comment.post_id,
+        )
+    form.save()
+    if _is_ajax(request):
+        html = render_to_string("community/_comment.html", {"comment": comment}, request=request)
+        return JsonResponse({"html": html})
+    return redirect("community:post_detail", pk=comment.post_id)
+
+
+@login_required
+@require_POST
+def delete_comment(request, pk):
+    comment = get_object_or_404(Comment, pk=pk, author=request.user)
+    post_id = comment.post_id
+    comment.delete()
+    if _is_ajax(request):
+        count = Comment.objects.filter(post_id=post_id).count()
+        return JsonResponse({"deleted": True, "count": count})
+    return redirect("community:post_detail", pk=post_id)
 
 
 @login_required
@@ -138,15 +181,16 @@ def add_comment(request, pk):
 def share_news(request):
     article = find_article(request.POST.get("url", ""))
     if article is None:
-        if _is_ajax(request):
-            return JsonResponse({"error": "Berita tidak ditemukan atau sudah kedaluwarsa."}, status=400)
-        messages.error(request, "Berita tidak ditemukan atau sudah kedaluwarsa.")
-        return redirect("community:index")
+        return _fail(request, "Berita tidak ditemukan atau sudah kedaluwarsa.")
+
+    content = request.POST.get("content", "").strip()
+    if len(content) > POST_MAX_LENGTH:
+        return _fail(request, f"Caption maksimal {POST_MAX_LENGTH} karakter.")
 
     post = Post.objects.create(
         author=request.user,
         category="berita",
-        content=request.POST.get("content", "").strip(),
+        content=content,
         news_title=article["title"][:255],
         news_source=article["source"][:100],
         news_url=article["url"],
