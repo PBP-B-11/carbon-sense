@@ -1,5 +1,5 @@
 {% load community_tags %}
-<article class="card post">
+<article class="card post" data-category="{{ post.category }}">
   <header class="post-head">
     <span class="avatar avatar--46" aria-hidden="true">{{ post.author.username|slice:":2"|upper }}</span>
     <div class="who"><strong>{{ post.author.username }}</strong><small>{{ post.created_at|ago }}</small></div>

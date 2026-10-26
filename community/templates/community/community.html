@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load community_tags %}
+{% load community_tags static %}
 
 {% block title %}Carbon Sense: Green Community{% endblock %}
 
@@ -41,11 +41,24 @@
           <p class="card card--a feed-note">Masuk untuk membuat postingan, menyukai, dan berkomentar.</p>
           {% endif %}
 
-          {% for post in posts %}
-          {% include "community/_post_card.html" %}
-          {% empty %}
-          <p class="card feed-note feed-empty">Belum ada postingan. Jadilah yang pertama bercerita.</p>
-          {% endfor %}
+          <nav class="feed-filter" aria-label="Filter kategori">
+            <a class="chip js-filter{% if not category %} chip--active{% endif %}" href="{% url 'community:index' %}" data-category=""{% if not category %} aria-current="true"{% endif %}>Semua</a>
+            {% for value, label in categories %}
+            <a class="chip js-filter{% if category == value %} chip--active{% endif %}" href="?category={{ value }}" data-category="{{ value }}"{% if category == value %} aria-current="true"{% endif %}>{{ label }}</a>
+            {% endfor %}
+          </nav>
+
+          <div class="post-list" id="post-list" data-category="{{ category }}">
+            {% include "community/_post_list.html" %}
+          </div>
+
+          <div class="load-more" id="load-more-wrap"{% if not page.has_next %} hidden{% endif %}>
+            {% if page.has_next %}
+            <a class="btn js-load-more" href="?page={{ page.next_page_number }}{% if category %}&category={{ category }}{% endif %}" data-next-page="{{ page.next_page_number }}">Muat lebih banyak</a>
+            {% else %}
+            <a class="btn js-load-more" href="#" data-next-page="">Muat lebih banyak</a>
+            {% endif %}
+          </div>
         </div>
 
         <aside class="card card--a side-news" aria-labelledby="judul-berita">
@@ -109,215 +122,5 @@
       </form>
     </dialog>
 
-    <script>
-      (function () {
-        var feed = document.querySelector('.feed');
-        var AJAX = {'X-Requested-With': 'XMLHttpRequest'};
-
-        function send(form) {
-          return fetch(form.action, {
-            method: 'POST',
-            body: new FormData(form),
-            headers: AJAX,
-            credentials: 'same-origin'
-          });
-        }
-
-        var deleteDialog = document.getElementById('delete-dialog');
-        var deleteConfirmForm = document.getElementById('delete-confirm-form');
-        var pendingDelete = null;
-        var toastRegion = document.getElementById('toast-region');
-
-        function toast(text, type) {
-          var el = document.createElement('div');
-          el.className = 'toast toast--' + type;
-          el.textContent = text;
-          toastRegion.appendChild(el);
-          setTimeout(function () {
-            el.classList.add('toast--out');
-            setTimeout(function () { el.remove(); }, 300);
-          }, 3000);
-        }
-
-        function showNote(text) {
-          var note = feed.querySelector('.feed-error');
-          if (!note) {
-            note = document.createElement('p');
-            note.className = 'card feed-note feed-error';
-            note.setAttribute('role', 'alert');
-            feed.prepend(note);
-          }
-          note.textContent = text;
-        }
-
-        function clearNote() {
-          var note = feed.querySelector('.feed-error');
-          if (note) note.remove();
-        }
-
-        function htmlToCard(html) {
-          var tpl = document.createElement('template');
-          tpl.innerHTML = html.trim();
-          return tpl.content.firstElementChild;
-        }
-
-        feed.addEventListener('submit', function (event) {
-          var f = event.target;
-
-          if (f.matches('.js-like-form')) {
-            event.preventDefault();
-            var likeBtn = f.querySelector('button');
-            likeBtn.disabled = true;
-            send(f).then(function (res) {
-              if (res.redirected) { window.location.href = res.url; return null; }
-              if (!res.ok) throw new Error('like failed');
-              return res.json();
-            }).then(function (data) {
-              if (!data) return;
-              likeBtn.classList.toggle('liked', data.liked);
-              likeBtn.setAttribute('aria-pressed', data.liked);
-              f.querySelector('.like-count').textContent = data.count;
-            }).catch(function () {
-              f.submit();
-            }).finally(function () {
-              likeBtn.disabled = false;
-            });
-          }
-
-          if (f.matches('.js-delete-form')) {
-            event.preventDefault();
-            pendingDelete = f;
-            deleteDialog.showModal();
-          }
-
-          if (f.matches('.js-compose-form')) {
-            event.preventDefault();
-            var postBtn = f.querySelector('button[type=submit]');
-            postBtn.disabled = true;
-            send(f).then(function (res) {
-              if (res.redirected) { window.location.href = res.url; return null; }
-              return res.json().then(function (data) { return {ok: res.ok, data: data}; });
-            }).then(function (result) {
-              if (!result) return;
-              if (!result.ok) { showNote(result.data.error || 'Postingan tidak valid.'); return; }
-              clearNote();
-              var empty = feed.querySelector('.feed-empty');
-              if (empty) empty.remove();
-              f.after(htmlToCard(result.data.html));
-              f.elements.content.value = '';
-              toast('Postingan berhasil dibagikan.', 'success');
-            }).catch(function () {
-              f.submit();
-            }).finally(function () {
-              postBtn.disabled = false;
-            });
-          }
-        });
-
-        deleteConfirmForm.addEventListener('submit', function (event) {
-          event.preventDefault();
-          var f = pendingDelete;
-          if (!f) return;
-          var confirmBtn = deleteConfirmForm.querySelector('button[type=submit]');
-          confirmBtn.disabled = true;
-          send(f).then(function (res) {
-            if (res.redirected) { window.location.href = res.url; return; }
-            if (!res.ok) throw new Error('delete failed');
-            f.closest('article.post').remove();
-            deleteDialog.close();
-            toast('Postingan dihapus.', 'danger');
-            if (!feed.querySelector('article.post') && !feed.querySelector('.feed-empty')) {
-              var note = document.createElement('p');
-              note.className = 'card feed-note feed-empty';
-              note.textContent = 'Belum ada postingan. Jadilah yang pertama bercerita.';
-              feed.appendChild(note);
-            }
-          }).catch(function () {
-            f.submit();
-          }).finally(function () {
-            confirmBtn.disabled = false;
-            pendingDelete = null;
-          });
-        });
-        document.getElementById('delete-cancel').addEventListener('click', function () {
-          pendingDelete = null;
-          deleteDialog.close();
-        });
-
-        var editDialog = document.getElementById('edit-dialog');
-        var editForm = document.getElementById('edit-form');
-        var editingCard = null;
-
-        feed.addEventListener('click', function (event) {
-          var btn = event.target.closest('.js-edit');
-          if (!btn) return;
-          editingCard = btn.closest('article.post');
-          editForm.action = btn.dataset.action;
-          var hasNews = btn.dataset.hasNews === '1';
-          editForm.elements.content.value = btn.dataset.content;
-          editForm.elements.content.required = !hasNews;
-          editForm.querySelectorAll('input[name=category]').forEach(function (r) {
-            r.checked = r.value === btn.dataset.category;
-            r.disabled = hasNews;
-          });
-          editDialog.showModal();
-        });
-
-        editForm.addEventListener('submit', function (event) {
-          event.preventDefault();
-          var saveBtn = editForm.querySelector('button[type=submit]');
-          saveBtn.disabled = true;
-          send(editForm).then(function (res) {
-            if (res.redirected) { window.location.href = res.url; return null; }
-            return res.json().then(function (data) { return {ok: res.ok, data: data}; });
-          }).then(function (result) {
-            if (!result) return;
-            if (!result.ok) { showNote(result.data.error || 'Perubahan tidak valid.'); editDialog.close(); return; }
-            clearNote();
-            editingCard.replaceWith(htmlToCard(result.data.html));
-            editDialog.close();
-            toast('Postingan berhasil diperbarui.', 'info');
-          }).catch(function () {
-            editForm.submit();
-          }).finally(function () {
-            saveBtn.disabled = false;
-          });
-        });
-        document.getElementById('edit-cancel').addEventListener('click', function () { editDialog.close(); });
-
-        var shareDialog = document.getElementById('share-dialog');
-        var shareForm = shareDialog.querySelector('form');
-        document.querySelectorAll('.js-share').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            shareForm.elements.url.value = btn.dataset.url;
-            shareForm.elements.content.value = '';
-            document.getElementById('share-news-title').textContent = btn.dataset.title;
-            shareDialog.showModal();
-          });
-        });
-        shareForm.addEventListener('submit', function (event) {
-          event.preventDefault();
-          var shareBtn = shareForm.querySelector('button[type=submit]');
-          shareBtn.disabled = true;
-          send(shareForm).then(function (res) {
-            if (res.redirected) { window.location.href = res.url; return null; }
-            return res.json().then(function (data) { return {ok: res.ok, data: data}; });
-          }).then(function (result) {
-            if (!result) return;
-            if (!result.ok) { showNote(result.data.error || 'Berita tidak valid.'); shareDialog.close(); return; }
-            clearNote();
-            var empty = feed.querySelector('.feed-empty');
-            if (empty) empty.remove();
-            feed.querySelector('.js-compose-form').after(htmlToCard(result.data.html));
-            shareDialog.close();
-            toast('Berita berhasil dibagikan ke feed.', 'success');
-          }).catch(function () {
-            shareForm.submit();
-          }).finally(function () {
-            shareBtn.disabled = false;
-          });
-        });
-        document.getElementById('share-cancel').addEventListener('click', function () { shareDialog.close(); });
-      })();
-    </script>
+    <script type="module" src="{% static 'js/community/feed-page.js' %}"></script>
 {% endblock %}

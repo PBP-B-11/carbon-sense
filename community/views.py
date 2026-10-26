@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db.models import Count, Exists, OuterRef
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -9,6 +10,10 @@ from django.views.decorators.http import require_POST
 from .forms import COMMENT_MAX_LENGTH, POST_MAX_LENGTH, CommentForm, PostForm
 from .models import Comment, Like, Post
 from .news import fetch_news, find_article
+
+
+PAGE_SIZE = 10
+CATEGORIES = {value for value, _ in Post.CATEGORY_CHOICES}
 
 
 def _is_ajax(request):
@@ -46,12 +51,44 @@ def _post_card_json(request, post):
 
 
 def index(request):
-    posts = _feed_posts(request.user)
+    category = request.GET.get("category", "")
+    if category not in CATEGORIES:
+        category = ""
 
+    posts = _feed_posts(request.user)
+    if category:
+        posts = posts.filter(category=category)
+    paginator = Paginator(posts, PAGE_SIZE)
+
+    if _is_ajax(request):
+        try:
+            page = paginator.page(request.GET.get("page", 1))
+        except (EmptyPage, PageNotAnInteger):
+            return JsonResponse({"html": "", "has_next": False, "next_page": None})
+        html = render_to_string(
+            "community/_post_list.html", {"posts": page, "category": category}, request=request
+        )
+        return JsonResponse(
+            {
+                "html": html,
+                "has_next": page.has_next(),
+                "next_page": page.next_page_number() if page.has_next() else None,
+            }
+        )
+
+    page = paginator.get_page(request.GET.get("page"))
     return render(
         request,
         "community/community.html",
-        {"posts": posts, "form": PostForm(), "news": fetch_news(), "post_max": POST_MAX_LENGTH},
+        {
+            "posts": page,
+            "page": page,
+            "category": category,
+            "categories": Post.CATEGORY_CHOICES,
+            "form": PostForm(),
+            "news": fetch_news(),
+            "post_max": POST_MAX_LENGTH,
+        },
     )
 
 

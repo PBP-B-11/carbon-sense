@@ -2953,6 +2953,40 @@ textarea:focus-visible {
   }
 }
 
+.feed-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.feed-filter .chip {
+  text-decoration: none;
+}
+
+.post-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.post-list[aria-busy="true"] {
+  opacity: 0.5;
+}
+
+.load-more {
+  display: flex;
+  justify-content: center;
+}
+
+.load-more[hidden] {
+  display: none;
+}
+
+.load-more .btn[aria-disabled="true"] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .feed-note {
   padding: 20px 32px;
 }

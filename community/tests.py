@@ -383,3 +383,42 @@ class CommentCrudTests(TestCase):
         self.client.force_login(self.owner)
         res = self.client.get(reverse("community:post_detail", args=[self.post.pk]))
         self.assertContains(res, edit_url)
+
+
+class FeedFilterPaginationTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("me", password="x")
+        for i in range(12):
+            Post.objects.create(author=self.user, category="tips", content=f"tips {i}")
+        Post.objects.create(author=self.user, category="diskusi", content="satu diskusi")
+        self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+        self.url = reverse("community:index")
+
+    def test_first_page_has_page_size_cards_and_load_more(self):
+        res = self.client.get(self.url)
+        self.assertEqual(res.content.decode().count('<article class="card post"'), 10)
+        self.assertContains(res, "js-load-more")
+
+    def test_ajax_second_page_returns_remaining_and_no_next(self):
+        data = self.client.get(self.url, {"page": 2}, **self.ajax).json()
+        self.assertEqual(data["html"].count("<article"), 3)
+        self.assertFalse(data["has_next"])
+
+    def test_ajax_page_out_of_range_is_empty(self):
+        data = self.client.get(self.url, {"page": 99}, **self.ajax).json()
+        self.assertEqual(data, {"html": "", "has_next": False, "next_page": None})
+
+    def test_category_filter(self):
+        data = self.client.get(self.url, {"category": "diskusi"}, **self.ajax).json()
+        self.assertEqual(data["html"].count("<article"), 1)
+        self.assertIn("satu diskusi", data["html"])
+        self.assertFalse(data["has_next"])
+
+    def test_filter_with_no_results_shows_note(self):
+        data = self.client.get(self.url, {"category": "berita"}, **self.ajax).json()
+        self.assertIn("kategori ini", data["html"])
+
+    def test_unknown_category_is_ignored(self):
+        res = self.client.get(self.url, {"category": "hack"})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.content.decode().count('<article class="card post"'), 10)
