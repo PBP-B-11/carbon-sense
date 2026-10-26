@@ -23,5 +23,6 @@ urlpatterns = [
     path('profil/', include('profil.urls')),
     path('challenges/', include('challenges.urls')),
     path('community/', include('community.urls')),
+    path('api/tantangan/', include('challenges.api_urls')),
     path('', include('home.urls')),
 ]

@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Count
 from django.http import Http404
@@ -23,12 +23,22 @@ def hitung_progres(partisipasi):
 
 
 def ikuti(request, tantangan):
-    sudah_ikut = Participation.objects.filter(
-        user=request.user, challenge=tantangan, status=Participation.Status.ACTIVE
-    ).exists()
-    if sudah_ikut:
-        messages.warning(request, "Tantangan ini sudah kamu ikuti.")
+    """Mendaftarkan pengguna mengikuti tantangan baru jika belum memiliki tantangan aktif."""
+    partisipasi_aktif = Participation.objects.filter(
+        user=request.user, status=Participation.Status.ACTIVE
+    ).select_related("challenge").first()
+
+    if partisipasi_aktif:
+        if partisipasi_aktif.challenge_id == tantangan.id:
+            messages.warning(request, "Tantangan ini sudah kamu ikuti.")
+        else:
+            messages.warning(
+                request,
+                f'Kamu masih memiliki tantangan aktif: "{partisipasi_aktif.challenge.title}". '
+                "Selesaikan atau batalkan tantangan tersebut terlebih dahulu."
+            )
         return
+
     Participation.objects.create(
         user=request.user, challenge=tantangan, started_at=timezone.localdate()
     )
@@ -36,6 +46,7 @@ def ikuti(request, tantangan):
 
 
 def checkin(request, tantangan):
+    """Mencatat check-in harian untuk tantangan aktif melalui form submission."""
     partisipasi = Participation.objects.filter(
         user=request.user, challenge=tantangan, status=Participation.Status.ACTIVE
     ).first()
@@ -44,8 +55,8 @@ def checkin(request, tantangan):
         return
 
     with transaction.atomic():
-        _, dibuat = partisipasi.check_ins.get_or_create(date=timezone.localdate())
-        if not dibuat:
+        checkin_objek, baru_dibuat = partisipasi.check_ins.get_or_create(date=timezone.localdate())
+        if not baru_dibuat:
             messages.warning(request, "Kamu sudah check-in hari ini.")
             return
 
@@ -82,12 +93,32 @@ AKSI = {"ikut": ikuti, "checkin": checkin, "berhenti": berhenti}
 
 @login_required
 def tambah_tantangan(request):
+    """Halaman tambah tantangan, dibatasi khusus untuk superuser."""
+    if not request.user.is_superuser:
+        raise PermissionDenied("Hanya superuser yang dapat menambahkan tantangan baru.")
+
     form = TantanganForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         tantangan = form.save()
         messages.success(request, f'Tantangan "{tantangan.title}" ditambahkan.')
         return redirect("challenges:index")
     return render(request, "challenges/tambah.html", {"form": form})
+
+
+@login_required
+def hapus_tantangan(request, id):
+    """Menghapus tantangan dari katalog, dibatasi khusus untuk superuser."""
+    if not request.user.is_superuser:
+        raise PermissionDenied("Hanya superuser yang dapat menghapus tantangan.")
+
+    tantangan = get_object_or_404(Challenge, pk=id)
+    if request.method == "POST":
+        judul = tantangan.title
+        tantangan.delete()
+        messages.success(request, f'Tantangan "{judul}" berhasil dihapus.')
+        return redirect("challenges:index")
+
+    return render(request, "challenges/hapus.html", {"challenge": tantangan})
 
 
 @login_required
