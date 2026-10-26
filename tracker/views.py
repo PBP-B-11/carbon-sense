@@ -13,6 +13,9 @@ from .services import estimate_electricity
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 
+from datetime import timedelta
+from django.utils import timezone
+
 def index(request, pk=None):
     editing_activity = None
 
@@ -72,6 +75,29 @@ def index(request, pk=None):
     total_emissions = activities.aggregate(
         total=Sum("emission_kg", default=Decimal("0"))
     )["total"]
+
+    today = timezone.localdate()
+
+    week_start = today - timedelta(days=today.weekday())
+    seven_days_start = today - timedelta(days=6)
+
+    today_emissions = activities.filter(date=today).aggregate(
+        total=Sum("emission_kg", default=Decimal("0"))
+    )["total"]
+
+    week_emissions = activities.filter(
+        date__range=(week_start, today)
+    ).aggregate(
+        total=Sum("emission_kg", default=Decimal("0"))
+    )["total"]
+
+    seven_days_emissions = activities.filter(
+        date__range=(seven_days_start, today)
+    ).aggregate(
+        total=Sum("emission_kg", default=Decimal("0"))
+    )["total"]
+
+    average_daily_emissions = seven_days_emissions / Decimal("7")
     
     return render(
     request,
@@ -82,6 +108,9 @@ def index(request, pk=None):
         "activities": activities,
         "total_emissions": total_emissions,
         "editing_activity": editing_activity,
+        "today_emissions": today_emissions,
+        "week_emissions": week_emissions,
+        "average_daily_emissions": average_daily_emissions,
     },
 )
 
