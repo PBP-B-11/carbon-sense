@@ -84,6 +84,17 @@
       </form>
     </dialog>
 
+    <dialog class="edit-dialog" id="delete-dialog" aria-labelledby="delete-title">
+      <form id="delete-confirm-form">
+        <h2 id="delete-title">Hapus postingan?</h2>
+        <p>Postingan ini akan dihapus beserta likes dan komentarnya. Tindakan ini tidak bisa dibatalkan.</p>
+        <div class="cat-choice">
+          <button class="btn btn--danger" type="submit">Hapus</button>
+          <button class="btn" type="button" id="delete-cancel">Batal</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog class="edit-dialog" id="share-dialog" aria-labelledby="share-title">
       <form method="post" action="{% url 'community:share_news' %}">
         {% csrf_token %}
@@ -112,6 +123,9 @@
           });
         }
 
+        var deleteDialog = document.getElementById('delete-dialog');
+        var deleteConfirmForm = document.getElementById('delete-confirm-form');
+        var pendingDelete = null;
         var toastRegion = document.getElementById('toast-region');
 
         function toast(text, type) {
@@ -172,24 +186,8 @@
 
           if (f.matches('.js-delete-form')) {
             event.preventDefault();
-            if (!confirm('Hapus postingan ini?')) return;
-            var delBtn = f.querySelector('button');
-            delBtn.disabled = true;
-            send(f).then(function (res) {
-              if (res.redirected) { window.location.href = res.url; return; }
-              if (!res.ok) throw new Error('delete failed');
-              f.closest('article.post').remove();
-              toast('Postingan dihapus.', 'danger');
-              if (!feed.querySelector('article.post') && !feed.querySelector('.feed-empty')) {
-                var note = document.createElement('p');
-                note.className = 'card feed-note feed-empty';
-                note.textContent = 'Belum ada postingan. Jadilah yang pertama bercerita.';
-                feed.appendChild(note);
-              }
-            }).catch(function () {
-              delBtn.disabled = false;
-              f.submit();
-            });
+            pendingDelete = f;
+            deleteDialog.showModal();
           }
 
           if (f.matches('.js-compose-form')) {
@@ -214,6 +212,36 @@
               postBtn.disabled = false;
             });
           }
+        });
+
+        deleteConfirmForm.addEventListener('submit', function (event) {
+          event.preventDefault();
+          var f = pendingDelete;
+          if (!f) return;
+          var confirmBtn = deleteConfirmForm.querySelector('button[type=submit]');
+          confirmBtn.disabled = true;
+          send(f).then(function (res) {
+            if (res.redirected) { window.location.href = res.url; return; }
+            if (!res.ok) throw new Error('delete failed');
+            f.closest('article.post').remove();
+            deleteDialog.close();
+            toast('Postingan dihapus.', 'danger');
+            if (!feed.querySelector('article.post') && !feed.querySelector('.feed-empty')) {
+              var note = document.createElement('p');
+              note.className = 'card feed-note feed-empty';
+              note.textContent = 'Belum ada postingan. Jadilah yang pertama bercerita.';
+              feed.appendChild(note);
+            }
+          }).catch(function () {
+            f.submit();
+          }).finally(function () {
+            confirmBtn.disabled = false;
+            pendingDelete = null;
+          });
+        });
+        document.getElementById('delete-cancel').addEventListener('click', function () {
+          pendingDelete = null;
+          deleteDialog.close();
         });
 
         var editDialog = document.getElementById('edit-dialog');

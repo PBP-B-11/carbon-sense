@@ -2840,6 +2840,13 @@ main {
   line-height: 28px;
 }
 
+.edit-dialog form > p:not(#share-news-title) {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--color-text-secondary);
+}
+
 .edit-dialog #share-news-title {
   display: -webkit-box;
   -webkit-line-clamp: 2;
