@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import CarbonActivityForm
-from .services import estimate_electricity
+from .services import estimate_car_travel, estimate_electricity
 
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
@@ -45,17 +45,23 @@ def index(request, pk=None):
     if request.method == "POST" and form.is_valid():
         if saving and not request.user.is_authenticated:
             form.add_error(None, "Silakan login untuk menyimpan aktivitas.")
-        elif form.cleaned_data["activity_type"] != "electricity":
+#Izinkan aktivitas yang sudah memiliki kalkulasi.
+        elif form.cleaned_data["activity_type"] not in (
+            "electricity", "car_travel"
+        ):
             form.add_error(
                 "activity_type",
-                "Saat ini perhitungan tersedia untuk listrik saja.",
+                "Perhitungan makanan belum tersedia.",
             )
         else:
-            #Request electricity emissions dari climatiq
+            #Request emissions dari climatiq
             try:
-                estimate = estimate_electricity(
-                    form.cleaned_data["quantity"]
-                )
+                quantity = form.cleaned_data["quantity"]
+
+                if form.cleaned_data["activity_type"] == "electricity":
+                    estimate = estimate_electricity(quantity)
+                else:
+                    estimate = estimate_car_travel(quantity)
             except (requests.RequestException, ValueError):
                 form.add_error(None, "Gagal menghitung emisi. Coba lagi.")
             else:
