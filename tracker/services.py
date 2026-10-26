@@ -87,13 +87,19 @@ def estimate_car_travel(km):
     )
 
 
-# Faktor pembakaran stasioner LPG UK Government 2025, bukan emisi produksi gas.
-LPG_FACTOR_ID = "62685eb5-8636-8aa1-8858-c4889af4e184"
+# Gunakan faktor total CONCITO/2-0 LCA 2024 wilayah Prancis, bukan satu tahap saja.
+MEAT_FACTOR_IDS = {
+    "chicken": "dd080bc1-e4bb-8e97-823d-0b913a97041a",
+    "beef": "a18cd59d-69b2-8e51-a296-c8c49901ffd5",
+}
 
 
-# Kirim berat gas yang dikonsumsi dalam kg; Climatiq menangani konversi satuan.
-def estimate_lpg(kg):
+# Pilih faktor sesuai jenis daging dan kirim gram agar satuannya tidak tertukar.
+def estimate_meat(activity_type, grams):
+    if activity_type not in MEAT_FACTOR_IDS:
+        raise ValueError("Unsupported meat type.")
+
     return estimate_emissions(
-        LPG_FACTOR_ID,
-        {"weight": float(kg), "weight_unit": "kg"},
+        MEAT_FACTOR_IDS[activity_type],
+        {"weight": float(grams), "weight_unit": "g"},
     )
