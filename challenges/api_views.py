@@ -7,8 +7,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import Challenge, Participation, PointEntry, UserBadge
-from .utils import hitung_streak, periksa_lencana_streak, total_poin
-from .views import hitung_progres
+from .utils import hitung_progres, hitung_streak, proses_checkin, total_poin
 
 
 def _ambil_tantangan_atau_none(pk):
@@ -143,67 +142,33 @@ def api_checkin(request, id):
     if partisipasi is None:
         return JsonResponse({"error": "Kamu belum mengikuti tantangan ini."}, status=404)
 
-    with transaction.atomic():
-        hari_ini = timezone.localdate()
-        checkin_objek, baru_dibuat = partisipasi.check_ins.get_or_create(date=hari_ini)
-        if not baru_dibuat:
-            return JsonResponse({"error": "Kamu sudah check-in hari ini."}, status=409)
+    hasil = proses_checkin(partisipasi, request.user)
+    if not hasil["baru_dibuat"]:
+        return JsonResponse({"error": "Kamu sudah check-in hari ini."}, status=409)
 
-        lencana_streak = periksa_lencana_streak(request.user)
-        progres = hitung_progres(partisipasi)
+    if hasil["selesai"]:
+        pesan = f'Selamat, "{challenge.title}" selesai! +{challenge.points} poin.'
+    else:
+        pesan = "Check-in hari ini tercatat."
 
-        if progres["done_days"] >= progres["total_days"]:
-            partisipasi.status = Participation.Status.COMPLETED
-            partisipasi.save(update_fields=["status"])
-
-            PointEntry.objects.create(
-                user=request.user,
-                delta=challenge.points,
-                reason=f'Menyelesaikan "{challenge.title}"',
-            )
-
-            lencana_tantangan = None
-            if challenge.badge:
-                user_badge_obj, badge_baru = UserBadge.objects.get_or_create(
-                    user=request.user, badge=challenge.badge
-                )
-                lencana_tantangan = challenge.badge.name
-
-            return JsonResponse(
-                {
-                    "status": "success",
-                    "completed": True,
-                    "message": f'Selamat, "{challenge.title}" selesai! +{challenge.points} poin.',
-                    "data": {
-                        "done_days": progres["done_days"],
-                        "total_days": progres["total_days"],
-                        "percent": progres["percent"],
-                        "points_earned": challenge.points,
-                        "total_points": total_poin(request.user),
-                        "streak": hitung_streak(request.user),
-                        "badge": lencana_tantangan,
-                        "streak_badges": lencana_streak,
-                    },
-                },
-                status=200,
-            )
-
-        return JsonResponse(
-            {
-                "status": "success",
-                "completed": False,
-                "message": "Check-in hari ini tercatat.",
-                "data": {
-                    "done_days": progres["done_days"],
-                    "total_days": progres["total_days"],
-                    "percent": progres["percent"],
-                    "total_points": total_poin(request.user),
-                    "streak": hitung_streak(request.user),
-                    "streak_badges": lencana_streak,
-                },
+    return JsonResponse(
+        {
+            "status": "success",
+            "completed": hasil["selesai"],
+            "message": pesan,
+            "data": {
+                "done_days": hasil["progres"]["done_days"],
+                "total_days": hasil["progres"]["total_days"],
+                "percent": hasil["progres"]["percent"],
+                "points_earned": hasil["points_earned"],
+                "total_points": hasil["total_points"],
+                "streak": hasil["streak"],
+                "badge": hasil["lencana_tantangan"],
+                "streak_badges": hasil["lencana_streak"],
             },
-            status=200,
-        )
+        },
+        status=200,
+    )
 
 
 @require_POST

@@ -2,7 +2,6 @@ from django import forms
 
 from .models import Challenge
 
-# Simbol ikon yang tersedia di sprite base.html
 IKON_PILIHAN = [
     ("bike", "Sepeda"),
     ("train-front", "Kereta"),

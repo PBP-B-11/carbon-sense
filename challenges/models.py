@@ -77,7 +77,6 @@ class Participation(models.Model):
     class Meta:
         ordering = ["-started_at"]
         constraints = [
-            # Unik per pengguna dan tantangan yang masih aktif
             models.UniqueConstraint(
                 fields=["user", "challenge"],
                 condition=Q(status="active"),

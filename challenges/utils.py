@@ -1,9 +1,21 @@
 from datetime import timedelta
 
+from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
 from .models import Badge, CheckIn, Participation, PointEntry, UserBadge
+
+
+def hitung_progres(partisipasi):
+    """Menghitung total hari selesai, target hari, dan persentase progres tantangan."""
+    selesai = partisipasi.check_ins.count()
+    total = partisipasi.challenge.duration_days
+    return {
+        "done_days": selesai,
+        "total_days": total,
+        "percent": min(selesai * 100 // total, 100) if total else 0,
+    }
 
 
 def total_poin(user):
@@ -76,3 +88,40 @@ def periksa_lencana_streak(user):
                 lencana_diberikan.append(badge_30_hari.name)
 
     return lencana_diberikan
+
+
+def proses_checkin(partisipasi, user):
+    """Mengeksekusi logika check-in harian, pembaruan progres, pemberian poin, dan lencana."""
+    with transaction.atomic():
+        hari_ini = timezone.localdate()
+        checkin_objek, baru_dibuat = partisipasi.check_ins.get_or_create(date=hari_ini)
+        if not baru_dibuat:
+            return {"baru_dibuat": False}
+
+        lencana_streak = periksa_lencana_streak(user)
+        progres = hitung_progres(partisipasi)
+        selesai = progres["done_days"] >= progres["total_days"]
+        lencana_tantangan = None
+
+        if selesai:
+            partisipasi.status = Participation.Status.COMPLETED
+            partisipasi.save(update_fields=["status"])
+            PointEntry.objects.create(
+                user=user,
+                delta=partisipasi.challenge.points,
+                reason=f'Menyelesaikan "{partisipasi.challenge.title}"',
+            )
+            if partisipasi.challenge.badge:
+                UserBadge.objects.get_or_create(user=user, badge=partisipasi.challenge.badge)
+                lencana_tantangan = partisipasi.challenge.badge.name
+
+        return {
+            "baru_dibuat": True,
+            "selesai": selesai,
+            "progres": progres,
+            "lencana_tantangan": lencana_tantangan,
+            "lencana_streak": lencana_streak,
+            "points_earned": partisipasi.challenge.points if selesai else 0,
+            "total_points": total_poin(user),
+            "streak": hitung_streak(user),
+        }

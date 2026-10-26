@@ -10,17 +10,7 @@ from django.utils import timezone
 
 from .forms import TantanganForm
 from .models import Badge, Challenge, CheckIn, Participation, PointEntry, UserBadge
-from .utils import hitung_streak, periksa_lencana_streak, sudah_checkin_hari_ini, total_poin
-
-
-def hitung_progres(partisipasi):
-    selesai = partisipasi.check_ins.count()
-    total = partisipasi.challenge.duration_days
-    return {
-        "done_days": selesai,
-        "total_days": total,
-        "percent": min(selesai * 100 // total, 100) if total else 0,
-    }
+from .utils import hitung_progres, hitung_streak, proses_checkin, sudah_checkin_hari_ini, total_poin
 
 
 def ikuti(request, tantangan):
@@ -55,29 +45,15 @@ def checkin(request, tantangan):
         messages.error(request, "Kamu belum mengikuti tantangan ini.")
         return
 
-    with transaction.atomic():
-        checkin_objek, baru_dibuat = partisipasi.check_ins.get_or_create(date=timezone.localdate())
-        if not baru_dibuat:
-            messages.warning(request, "Kamu sudah check-in hari ini.")
-            return
-
-        periksa_lencana_streak(request.user)
-        progres = hitung_progres(partisipasi)
-        if progres["done_days"] >= progres["total_days"]:
-            partisipasi.status = Participation.Status.COMPLETED
-            partisipasi.save(update_fields=["status"])
-            PointEntry.objects.create(
-                user=request.user,
-                delta=tantangan.points,
-                reason=f'Menyelesaikan "{tantangan.title}"',
-            )
-            if tantangan.badge:
-                UserBadge.objects.get_or_create(user=request.user, badge=tantangan.badge)
-            messages.success(
-                request, f'Selamat, "{tantangan.title}" selesai! +{tantangan.points} poin.'
-            )
-        else:
-            messages.success(request, "Check-in hari ini tercatat.")
+    hasil = proses_checkin(partisipasi, request.user)
+    if not hasil["baru_dibuat"]:
+        messages.warning(request, "Kamu sudah check-in hari ini.")
+    elif hasil["selesai"]:
+        messages.success(
+            request, f'Selamat, "{tantangan.title}" selesai! +{tantangan.points} poin.'
+        )
+    else:
+        messages.success(request, "Check-in hari ini tercatat.")
 
 
 def berhenti(request, tantangan):
@@ -138,6 +114,48 @@ def hapus_tantangan(request, id):
     return render(request, "challenges/hapus.html", {"challenge": tantangan})
 
 
+def _bangun_kartu_aktif(partisipasi, hari_ini):
+    """Menghitung progres dan status titik indikator untuk tantangan aktif pengguna."""
+    progres = hitung_progres(partisipasi)
+    sudah_checkin = partisipasi.check_ins.filter(date=hari_ini).exists()
+    titik = ["done"] * progres["done_days"]
+    if progres["done_days"] < progres["total_days"]:
+        titik.append("todo" if sudah_checkin else "today")
+    titik += ["todo"] * (progres["total_days"] - len(titik))
+    return {
+        "participation": partisipasi,
+        "challenge": partisipasi.challenge,
+        "checked_today": sudah_checkin,
+        "dots": titik,
+        "sisa_hari": progres["total_days"] - progres["done_days"],
+        **progres,
+    }
+
+
+def _ambil_data_pengguna(user):
+    """Mengambil seluruh data progres personal pengguna terautentikasi."""
+    aktif = (
+        Participation.objects.filter(user=user, status=Participation.Status.ACTIVE)
+        .select_related("challenge")
+        .order_by("-started_at")
+    )
+    hari_ini = timezone.localdate()
+    ada_checkin = CheckIn.objects.filter(participation__user=user, date=hari_ini).exists()
+    streak = hitung_streak(user)
+    pertama = aktif.first()
+
+    return {
+        "joined_ids": set(aktif.values_list("challenge_id", flat=True)),
+        "owned_badge_ids": set(
+            UserBadge.objects.filter(user=user).values_list("badge_id", flat=True)
+        ),
+        "streak": streak,
+        "streak_at_risk": streak > 0 and not ada_checkin,
+        "total_points": total_poin(user),
+        "active": _bangun_kartu_aktif(pertama, hari_ini) if pertama else None,
+    }
+
+
 def daftar_tantangan(request):
     """Menampilkan katalog tantangan publik dan progres pribadi pengguna terautentikasi."""
     user = request.user
@@ -163,59 +181,21 @@ def daftar_tantangan(request):
     if kategori in Challenge.Category.values:
         tantangan = tantangan.filter(category=kategori)
 
-    kartu_aktif = None
-    joined_ids = set()
-    lencana_dimiliki = set()
-    streak = 0
-    streak_at_risk = False
-    poin_total = 0
-
-    if user.is_authenticated:
-        aktif = (
-            Participation.objects.filter(user=user, status=Participation.Status.ACTIVE)
-            .select_related("challenge")
-            .order_by("-started_at")
-        )
-        lencana_dimiliki = set(
-            UserBadge.objects.filter(user=user).values_list("badge_id", flat=True)
-        )
-        streak = hitung_streak(user)
-        hari_ini = timezone.localdate()
-        ada_checkin_hari_ini = CheckIn.objects.filter(
-            participation__user=user, date=hari_ini
-        ).exists()
-
-        pertama = aktif.first()
-        if pertama:
-            progres = hitung_progres(pertama)
-            sudah_checkin_partisipasi = pertama.check_ins.filter(date=hari_ini).exists()
-            titik = ["done"] * progres["done_days"]
-            if progres["done_days"] < progres["total_days"]:
-                titik.append("todo" if sudah_checkin_partisipasi else "today")
-            titik += ["todo"] * (progres["total_days"] - len(titik))
-            kartu_aktif = {
-                "participation": pertama,
-                "challenge": pertama.challenge,
-                "checked_today": sudah_checkin_partisipasi,
-                "dots": titik,
-                "sisa_hari": progres["total_days"] - progres["done_days"],
-                **progres,
-            }
-        joined_ids = set(aktif.values_list("challenge_id", flat=True))
-        streak_at_risk = streak > 0 and not ada_checkin_hari_ini
-        poin_total = total_poin(user)
+    personal = _ambil_data_pengguna(user) if user.is_authenticated else {
+        "joined_ids": set(),
+        "owned_badge_ids": set(),
+        "streak": 0,
+        "streak_at_risk": False,
+        "total_points": 0,
+        "active": None,
+    }
 
     context = {
         "challenges": tantangan,
         "categories": Challenge.Category.choices,
         "selected_category": kategori,
-        "joined_ids": joined_ids,
         "badges": Badge.objects.all(),
-        "owned_badge_ids": lencana_dimiliki,
-        "owned_badge_count": len(lencana_dimiliki),
-        "total_points": poin_total,
-        "streak": streak,
-        "streak_at_risk": streak_at_risk,
-        "active": kartu_aktif,
+        "owned_badge_count": len(personal["owned_badge_ids"]),
+        **personal,
     }
     return render(request, "challenges/challenges.html", context)
