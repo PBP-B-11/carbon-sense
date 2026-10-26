@@ -68,6 +68,27 @@ class ProfileTests(TestCase):
         self.assertEqual(self.profile.city_name, 'Depok')
 
     @patch('profil.views.environment_snapshot', return_value=None)
+    def test_ajax_city_save_returns_new_widget_and_rejects_invalid_city(self, snapshot):
+        self.client.force_login(self.user)
+        url = reverse('profil:city')
+        headers = {'HTTP_ACCEPT': 'application/json'}
+
+        invalid = self.client.post(url, {'city': 'invalid'}, **headers)
+        self.assertEqual(invalid.status_code, 400)
+        self.assertIn('error', invalid.json())
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.city_name, 'Jakarta')
+
+        response = self.client.post(url, {'city': self.city}, **headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['city'], 'Depok')
+        self.assertIn('Cuaca dan udara di Depok', response.json()['air_html'])
+        self.assertIn('Data lingkungan saat ini tidak tersedia.', response.json()['air_html'])
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.city_name, 'Depok')
+        snapshot.assert_called_once_with(self.profile)
+
+    @patch('profil.views.environment_snapshot', return_value=None)
     def test_invalid_updates_show_errors(self, _snapshot):
         self.client.force_login(self.user)
         response = self.client.post(reverse('profil:update'), {'email': 'invalid', 'bio': ''})

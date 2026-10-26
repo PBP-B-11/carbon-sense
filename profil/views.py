@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.views.decorators.http import require_GET, require_POST
 
@@ -82,6 +83,7 @@ def update_profile(request):
 @require_POST
 def update_city(request):
     form = CityChoiceForm(request.POST, cities=token_city(request))
+    ajax = request.headers.get('Accept') == 'application/json'
     if form.is_valid():
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
         city = form.cleaned_data['city']
@@ -89,7 +91,17 @@ def update_city(request):
         profile.latitude = city['latitude']
         profile.longitude = city['longitude']
         profile.save()
+        if ajax:
+            return JsonResponse({
+                'city': profile.city_name,
+                'air_html': render_to_string('profil/_air.html', {
+                    'profile': profile,
+                    'snapshot': environment_snapshot(profile),
+                }, request=request),
+            })
         return redirect('profil:index')
+    if ajax:
+        return JsonResponse({'error': form.errors['city'][0]}, status=400)
     return index(request, city_form=form)
 
 
