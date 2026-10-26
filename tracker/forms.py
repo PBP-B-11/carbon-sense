@@ -7,8 +7,9 @@ class CarbonActivityForm(forms.ModelForm):
         choices=[
             ("car_travel", "Mobil"),
             ("electricity", "Listrik"),
-            #Gunakan kode LPG yang sama dengan pilihan pada model.
-            ("lpg", "Gas LPG"),
+            #Jenis daging menentukan faktor emisi, sementara kuantitas memakai gram.
+            ("chicken", "Ayam"),
+            ("beef", "Daging sapi"),
         ],
         widget=forms.RadioSelect(attrs={"class": "sr-only"}),
         initial="car_travel",

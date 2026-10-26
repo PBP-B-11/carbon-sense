@@ -1337,6 +1337,13 @@ main {
   line-height: 1.5;
 }
 
+/*Gunakan pilihan berat yang ringkas di dalam kartu formulir yang sudah ada.*/
+.quick .meat-portions .chips {
+  margin-top: 8px;
+  padding-left: 0;
+  gap: 8px;
+}
+
 .quick .input {
   margin-top: 0;
 }

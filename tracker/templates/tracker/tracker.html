@@ -102,7 +102,7 @@
                 <div class="progress" role="img" aria-label="{{ category.label }}: {{ category.percentage|floatformat:1 }}% dari total emisi minggu ini">
                   {#Persentase CSS memakai titik desimal; kategori nol tidak diisi.#}
                   {% if category.emissions %}
-                    <i class="{% if category.icon == 'i-zap' %}fill-moss-mid{% elif category.icon == 'i-flame' %}fill-moss-light{% endif %}" style="width: {{ category.percentage|unlocalize }}%"></i>
+                    <i class="{% if category.icon == 'i-zap' %}fill-moss-mid{% elif category.icon == 'i-utensils' %}fill-moss-light{% endif %}" style="width: {{ category.percentage|unlocalize }}%"></i>
                   {% endif %}
                 </div>
               </li>
@@ -139,20 +139,31 @@
               Mobil: perkiraan emisi penggunaan kendaraan berdasarkan data Amerika Serikat (US EPA 2025).
             {% elif form.activity_type.value == "electricity" %}
               Listrik: faktor bauran produksi listrik Indonesia (Ember 2024).
-            {% elif form.activity_type.value == "lpg" %}
-              Gas LPG: catat kg gas yang dikonsumsi, bukan berat tabung. Faktor pembakaran UK Government 2025 (Inggris), tanpa emisi produksi/distribusi.
+            {% elif form.activity_type.value == "chicken" %}
+              Ayam: masukkan perkiraan berat mentah daging saja dalam gram. Faktor total CONCITO/2-0 LCA, Prancis 2024, digunakan sebagai perkiraan; bukan faktor khusus Indonesia.
+            {% elif form.activity_type.value == "beef" %}
+              Daging sapi: masukkan perkiraan berat mentah daging saja dalam gram. Faktor total CONCITO/2-0 LCA, Prancis 2024, digunakan sebagai perkiraan; bukan faktor khusus Indonesia.
             {% else %}
               Pilih jenis aktivitas untuk melihat sumber faktor.
             {% endif %}
           </p>
           <div class="field">
             {#Sediakan label dan satuan yang benar sebelum JavaScript berjalan.#}
-            <label for="{{ form.quantity.id_for_label }}" id="quantity-label">{% if form.activity_type.value == "lpg" %}Gas LPG yang dikonsumsi{% elif form.activity_type.value == "electricity" %}Pemakaian listrik{% else %}Jarak tempuh{% endif %}</label>
+            <label for="{{ form.quantity.id_for_label }}" id="quantity-label">{% if form.activity_type.value == "chicken" %}Berat ayam mentah{% elif form.activity_type.value == "beef" %}Berat daging sapi mentah{% elif form.activity_type.value == "electricity" %}Pemakaian listrik{% else %}Jarak tempuh{% endif %}</label>
             <span class="input">
               {{ form.quantity }}
-              <span class="input-suffix" id="quantity-unit">{% if form.activity_type.value == "lpg" %}kg{% elif form.activity_type.value == "electricity" %}kWh{% else %}km{% endif %}</span>
+              <span class="input-suffix" id="quantity-unit">{% if form.activity_type.value == "chicken" or form.activity_type.value == "beef" %}g{% elif form.activity_type.value == "electricity" %}kWh{% else %}km{% endif %}</span>
             </span>
             {{ form.quantity.errors }}
+            {#Pilihan cepat adalah perkiraan berat mentah, bukan ukuran porsi baku.#}
+            <div class="meat-portions" id="meat-portions"{% if form.activity_type.value != "chicken" and form.activity_type.value != "beef" %} hidden{% endif %}>
+              <p class="hint">Perkiraan berat mentah; sesuaikan dengan jumlah dagingmu.</p>
+              <div class="chips" role="group" aria-label="Pilihan perkiraan berat daging">
+                <button class="chip" type="button" data-meat-grams="100">100 g</button>
+                <button class="chip" type="button" data-meat-grams="150">150 g</button>
+                <button class="chip" type="button" data-meat-grams="200">200 g</button>
+              </div>
+            </div>
           </div>
           <div class="field">
             <label for="{{ form.date.id_for_label }}">Tanggal</label>
@@ -215,13 +226,13 @@
                         Transportasi
                       {% elif activity.activity_type == "electricity" %}
                         Listrik
-                      {% elif activity.activity_type == "lpg" %}
-                        Gas LPG
+                      {% elif activity.activity_type == "chicken" or activity.activity_type == "beef" %}
+                        Daging
                       {% endif %}
                     </td>
                     <td>
                       {{ activity.quantity|floatformat:2 }}
-                      {% if activity.activity_type == "car_travel" %}km{% elif activity.activity_type == "electricity" %}kWh{% elif activity.activity_type == "lpg" %}kg{% endif %}
+                      {% if activity.activity_type == "car_travel" %}km{% elif activity.activity_type == "electricity" %}kWh{% elif activity.activity_type == "chicken" or activity.activity_type == "beef" %}g{% endif %}
                     </td>
                     <td><strong>{{ activity.emission_kg|floatformat:4 }} kg</strong></td>
                     <td>

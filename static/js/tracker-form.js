@@ -6,6 +6,7 @@
   const label = form.querySelector("#quantity-label");
   const unit = form.querySelector("#quantity-unit");
   const factorNote = form.querySelector("#activity-factor-note");
+  const meatPortions = form.querySelector("#meat-portions");
 
   //Siapkan satuan dan sumber faktor untuk setiap aktivitas.
   const activityFields = {
@@ -17,10 +18,14 @@
       label: "Pemakaian listrik", unit: "kWh", placeholder: "5",
       note: "Listrik: faktor bauran produksi listrik Indonesia (Ember 2024).",
     },
-    //LPG dicatat sebagai gas yang terpakai, bukan berat tabung.
-    lpg: {
-      label: "Gas LPG yang dikonsumsi", unit: "kg", placeholder: "0,1",
-      note: "Gas LPG: catat kg gas yang dikonsumsi, bukan berat tabung. Faktor pembakaran UK Government 2025 (Inggris), tanpa emisi produksi/distribusi.",
+    //Gunakan perkiraan berat mentah daging saja, bukan seluruh hidangan.
+    chicken: {
+      label: "Berat ayam mentah", unit: "g", placeholder: "150",
+      note: "Ayam: masukkan perkiraan berat mentah daging saja dalam gram. Faktor total CONCITO/2-0 LCA, Prancis 2024, digunakan sebagai perkiraan; bukan faktor khusus Indonesia.",
+    },
+    beef: {
+      label: "Berat daging sapi mentah", unit: "g", placeholder: "150",
+      note: "Daging sapi: masukkan perkiraan berat mentah daging saja dalam gram. Faktor total CONCITO/2-0 LCA, Prancis 2024, digunakan sebagai perkiraan; bukan faktor khusus Indonesia.",
     },
   };
 
@@ -34,7 +39,20 @@
     unit.textContent = fields.unit;
     quantity.placeholder = fields.placeholder;
     if (factorNote) factorNote.textContent = fields.note;
+    if (meatPortions) {
+      meatPortions.hidden = !["chicken", "beef"].includes(selected.value);
+    }
   }
+
+  //Tombol perkiraan mengisi gram tanpa mengirim formulir; pengguna dapat mengubahnya.
+  form.querySelectorAll("[data-meat-grams]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const selected = form.querySelector('[name="activity_type"]:checked');
+      if (!["chicken", "beef"].includes(selected?.value)) return;
+      quantity.value = button.dataset.meatGrams;
+      quantity.focus();
+    });
+  });
 
   form.addEventListener("change", (event) => {
     if (event.target.name === "activity_type") updateQuantityField();

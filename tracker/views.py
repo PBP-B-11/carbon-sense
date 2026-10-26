@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import CarbonActivityForm
-from .services import estimate_car_travel, estimate_electricity, estimate_lpg
+from .services import estimate_car_travel, estimate_electricity, estimate_meat
 
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
@@ -47,14 +47,14 @@ def index(request, pk=None):
             form.add_error(None, "Silakan login untuk menyimpan aktivitas.")
         #Izinkan aktivitas yang sudah memiliki kalkulasi.
         elif form.cleaned_data["activity_type"] not in (
-            "electricity", "car_travel", "lpg"
+            "electricity", "car_travel", "chicken", "beef"
         ):
             form.add_error(
                 "activity_type",
                 "Perhitungan untuk aktivitas ini belum tersedia.",
             )
         else:
-            #Pilih kalkulasi sesuai satuan aktivitas: kWh, km, atau kg LPG.
+            #Pilih kalkulasi sesuai satuan aktivitas: kWh, km, atau gram daging.
             try:
                 quantity = form.cleaned_data["quantity"]
 
@@ -63,7 +63,7 @@ def index(request, pk=None):
                 elif form.cleaned_data["activity_type"] == "car_travel":
                     estimate = estimate_car_travel(quantity)
                 else:
-                    estimate = estimate_lpg(quantity)
+                    estimate = estimate_meat(form.cleaned_data["activity_type"], quantity)
             except (requests.RequestException, ValueError):
                 form.add_error(None, "Gagal menghitung emisi. Coba lagi.")
             else:
@@ -99,6 +99,25 @@ def index(request, pk=None):
 
     week_start = today - timedelta(days=today.weekday())
     seven_days_start = today - timedelta(days=6)
+
+    #Ambil pilihan periode dari URL dan gunakan minggu sebagai default.
+    period = request.GET.get("period", "week")
+    if period not in ("week", "month", "year"):
+        period = "week"
+
+    period_options = {
+        "week": (week_start, "Minggu ini"),
+        "month": (today.replace(day=1), "Bulan ini"),
+        "year": (today.replace(month=1, day=1), "Tahun ini"),
+    }
+    period_start, period_label = period_options[period]
+
+    period_activities = activities.filter(
+        date__range=(period_start, today)
+    )
+    period_emissions = period_activities.aggregate(
+        total=Sum("emission_kg", default=Decimal("0"))
+    )["total"]
 
     #Kalkulasi emisi hari ini
     today_emissions = activities.filter(date=today).aggregate(
@@ -173,15 +192,19 @@ def index(request, pk=None):
     }
 
     categories = [
-        ("car_travel", "Transportasi", "i-car"),
-        ("electricity", "Listrik", "i-zap"),
-        #Kelompokkan konsumsi LPG tersendiri dari listrik dan transportasi.
-        ("lpg", "Gas LPG", "i-flame"),
+        (("car_travel",), "Transportasi", "i-car"),
+        (("electricity",), "Listrik", "i-zap"),
+        #Gabungkan ayam dan sapi dalam kategori Daging tanpa menyamakan faktor emisinya.
+        (("chicken", "beef"), "Daging", "i-utensils"),
     ]
     category_breakdown = []
 
-    for activity_type, label, icon in categories:
-        emissions = totals_by_type.get(activity_type, Decimal("0"))
+    for activity_types, label, icon in categories:
+        #Jumlahkan semua jenis aktivitas yang termasuk kategori ini.
+        emissions = sum(
+            (totals_by_type.get(kind, Decimal("0")) for kind in activity_types),
+            Decimal("0"),
+        )
         percentage = (
             emissions / week_emissions * Decimal("100")
             if week_emissions
@@ -218,6 +241,9 @@ def index(request, pk=None):
         "daily_chart": daily_chart,
         "category_breakdown": category_breakdown,
         "top_category": top_category,
+        "period": period,
+        "period_label": period_label,
+        "period_emissions": period_emissions,
     },
 )
 

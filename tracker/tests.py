@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -8,42 +9,51 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .models import CarbonActivity
-from .services import LPG_FACTOR_ID, estimate_lpg
+from .services import MEAT_FACTOR_IDS, estimate_meat
 
 
-#Gunakan hasil API tiruan agar pengujian tidak memakai kuota Climatiq.
-LPG_RESULT = {"co2e": 0.293936095, "co2e_unit": "kg"}
+#Gunakan respons tiruan agar pengujian tidak memakai kuota Climatiq.
+CHICKEN_RESULT = {"co2e": 0.420022996, "co2e_unit": "kg"}
+BEEF_RESULT = {"co2e": 7.085123047, "co2e_unit": "kg"}
 
 
 @override_settings(CLIMATIQ_API_KEY="test-key")
-class LPGServiceTests(SimpleTestCase):
+class MeatServiceTests(SimpleTestCase):
     @patch("tracker.services.requests.post")
-    def test_request_uses_kilograms_instead_of_meal_count(self, post):
-        post.return_value.json.return_value = LPG_RESULT
+    def test_each_meat_uses_its_factor_and_grams(self, post):
+        for kind, result in (("chicken", CHICKEN_RESULT), ("beef", BEEF_RESULT)):
+            with self.subTest(kind=kind):
+                post.reset_mock()
+                post.return_value.json.return_value = result
+                response = estimate_meat(kind, Decimal("100"))
 
-        result = estimate_lpg(Decimal("0.10"))
+                post.return_value.raise_for_status.assert_called_once()
+                self.assertEqual(post.call_args.kwargs["json"], {
+                    "emission_factor": {"id": MEAT_FACTOR_IDS[kind]},
+                    "parameters": {"weight": 100.0, "weight_unit": "g"},
+                })
+                self.assertEqual(response, result)
 
-        post.return_value.raise_for_status.assert_called_once()
-        self.assertEqual(post.call_args.kwargs["json"], {
-            "emission_factor": {"id": LPG_FACTOR_ID},
-            "parameters": {"weight": 0.1, "weight_unit": "kg"},
-        })
-        self.assertEqual(result, LPG_RESULT)
+    @patch("tracker.services.requests.post")
+    def test_unsupported_type_is_rejected_before_request(self, post):
+        with self.assertRaises(ValueError):
+            estimate_meat("lpg", Decimal("100"))
+        post.assert_not_called()
 
 
-#TestCase menggunakan database pengujian yang terpisah dari data pengguna.
-class LPGTrackerTests(TestCase):
+#Database pengujian terpisah menjaga catatan pengguna tetap utuh.
+class MeatTrackerTests(TestCase):
     def setUp(self):
-        self.owner = get_user_model().objects.create_user(username="lpg-owner")
-        self.other = get_user_model().objects.create_user(username="lpg-other")
+        self.owner = get_user_model().objects.create_user(username="meat-owner")
+        self.other = get_user_model().objects.create_user(username="meat-other")
         self.index_url = reverse("tracker:index")
 
-    #Kuantitas formulir adalah berat gas yang dikonsumsi dalam kg.
+    #Kuantitas daging adalah perkiraan berat mentah dalam gram.
     def payload(self, **changes):
         data = {
-            "activity_type": "lpg",
-            "quantity": "0.10",
-            "description": "Gas untuk memasak",
+            "activity_type": "chicken",
+            "quantity": "100",
+            "description": "Catatan daging",
             "date": timezone.localdate().isoformat(),
             "action": "estimate",
         }
@@ -52,138 +62,157 @@ class LPGTrackerTests(TestCase):
 
     def create_activity(self, **changes):
         data = {
-            "user": self.owner, "activity_type": "lpg",
-            "quantity": Decimal("0.10"), "emission_kg": Decimal("0.2939"),
+            "user": self.owner, "activity_type": "chicken",
+            "quantity": Decimal("100"), "emission_kg": Decimal("0.4200"),
             "date": timezone.localdate(),
         }
         data.update(changes)
         return CarbonActivity.objects.create(**data)
 
-    @patch("tracker.views.estimate_lpg", return_value=LPG_RESULT)
-    def test_preview_displays_units_and_source_without_saving(self, estimate):
+    @patch("tracker.views.estimate_meat", return_value=CHICKEN_RESULT)
+    def test_preview_displays_grams_source_and_shortcuts_without_saving(self, estimate):
         response = self.client.post(self.index_url, self.payload())
 
-        estimate.assert_called_once_with(Decimal("0.10"))
-        self.assertEqual(response.context["estimate"], LPG_RESULT)
-        self.assertContains(response, 'id="quantity-unit">kg</span>')
-        self.assertContains(response, "UK Government 2025 (Inggris)")
+        estimate.assert_called_once_with("chicken", Decimal("100"))
+        self.assertEqual(response.context["estimate"], CHICKEN_RESULT)
+        self.assertContains(response, 'id="quantity-unit">g</span>')
+        self.assertContains(response, "Prancis 2024")
+        self.assertContains(response, 'data-meat-grams="150"')
+        self.assertNotContains(response, 'value="lpg"')
         self.assertNotContains(response, 'value="meal"')
         self.assertEqual(CarbonActivity.objects.count(), 0)
 
-    @patch("tracker.views.estimate_lpg", return_value=LPG_RESULT)
-    def test_save_assigns_owner_and_updates_history_and_categories(self, estimate):
+    @patch("tracker.views.estimate_meat", side_effect=[CHICKEN_RESULT, BEEF_RESULT])
+    def test_saved_meats_keep_separate_types_but_share_dashboard_category(self, estimate):
         self.client.force_login(self.owner)
-        response = self.client.post(
-            self.index_url, self.payload(action="save"), follow=True
-        )
+        for kind in ("chicken", "beef"):
+            response = self.client.post(
+                self.index_url, self.payload(activity_type=kind, action="save"),
+                follow=True,
+            )
+            self.assertEqual(response.status_code, 200)
 
-        activity = CarbonActivity.objects.get()
-        self.assertEqual(activity.user, self.owner)
-        self.assertEqual(activity.activity_type, "lpg")
-        self.assertEqual(activity.quantity, Decimal("0.10"))
-        self.assertEqual(activity.emission_kg, Decimal("0.2939"))
-        self.assertEqual(response.context["total_emissions"], Decimal("0.2939"))
-        self.assertEqual(response.context["top_category"]["label"], "Gas LPG")
+        self.assertEqual(CarbonActivity.objects.count(), 2)
+        for kind, emission in (("chicken", "0.4200"), ("beef", "7.0851")):
+            activity = CarbonActivity.objects.get(activity_type=kind)
+            self.assertEqual(activity.user, self.owner)
+            self.assertEqual(activity.quantity, Decimal("100"))
+            self.assertEqual(activity.emission_kg, Decimal(emission))
+        self.assertEqual(response.context["total_emissions"], Decimal("7.5051"))
+        self.assertEqual(response.context["top_category"]["label"], "Daging")
         self.assertEqual(response.context["top_category"]["percentage"], Decimal("100"))
-        self.assertContains(response, "Gas untuk memasak")
-        self.assertContains(response, 'href="#i-flame"')
+        self.assertContains(response, 'href="#i-utensils"')
 
-    @patch("tracker.views.estimate_lpg", return_value={"co2e": 0.58787219})
-    def test_edit_recalculates_same_record_and_preview_does_not_save(self, estimate):
+    @patch("tracker.views.estimate_meat", return_value={"co2e": 14.170246094})
+    def test_edit_can_change_meat_type_and_recalculate_same_record(self, estimate):
         activity = self.create_activity()
         self.client.force_login(self.owner)
         url = reverse("tracker:edit", args=[activity.pk])
         response = self.client.get(url)
         self.assertEqual(response.context["form"].instance.pk, activity.pk)
-        self.assertContains(response, 'id="quantity-unit">kg</span>')
+        self.assertContains(response, 'id="quantity-unit">g</span>')
 
-        self.client.post(url, self.payload(quantity="0.20"))
+        data = self.payload(activity_type="beef", quantity="200")
+        self.client.post(url, data)
         activity.refresh_from_db()
-        self.assertEqual(activity.quantity, Decimal("0.10"))
+        self.assertEqual(activity.activity_type, "chicken")
+        self.assertEqual(activity.quantity, Decimal("100"))
 
-        self.client.post(url, self.payload(quantity="0.20", action="save"))
+        data["action"] = "save"
+        self.client.post(url, data)
         activity.refresh_from_db()
-        self.assertEqual(activity.quantity, Decimal("0.20"))
-        self.assertEqual(activity.emission_kg, Decimal("0.5879"))
+        self.assertEqual(activity.activity_type, "beef")
+        self.assertEqual(activity.quantity, Decimal("200"))
+        self.assertEqual(activity.emission_kg, Decimal("14.1702"))
         self.assertEqual(activity.user, self.owner)
         self.assertEqual(CarbonActivity.objects.count(), 1)
+        estimate.assert_called_with("beef", Decimal("200"))
 
-    @patch("tracker.views.estimate_lpg", side_effect=requests.Timeout)
-    def test_api_failure_preserves_existing_activity(self, estimate):
+    @patch("tracker.views.estimate_meat", side_effect=requests.Timeout)
+    def test_api_failure_preserves_existing_record(self, estimate):
         activity = self.create_activity()
         self.client.force_login(self.owner)
         response = self.client.post(
             reverse("tracker:edit", args=[activity.pk]),
-            self.payload(quantity="0.20", action="save"),
+            self.payload(quantity="200", action="save"),
         )
-
         self.assertContains(response, "Gagal menghitung emisi.")
         activity.refresh_from_db()
-        self.assertEqual(activity.quantity, Decimal("0.10"))
-        self.assertEqual(activity.emission_kg, Decimal("0.2939"))
+        self.assertEqual(activity.quantity, Decimal("100"))
+        self.assertEqual(activity.emission_kg, Decimal("0.4200"))
 
-    @patch("tracker.views.estimate_lpg")
+    @patch("tracker.views.estimate_meat")
     def test_anonymous_user_cannot_save(self, estimate):
         response = self.client.post(self.index_url, self.payload(action="save"))
-
         self.assertContains(response, "Silakan login untuk menyimpan aktivitas.")
         estimate.assert_not_called()
         self.assertEqual(CarbonActivity.objects.count(), 0)
 
-    @patch("tracker.views.estimate_lpg")
+    @patch("tracker.views.estimate_meat")
     def test_other_user_cannot_edit_or_delete(self, estimate):
         activity = self.create_activity()
         self.client.force_login(self.other)
-
         for route in ("tracker:edit", "tracker:delete"):
             url = reverse(route, args=[activity.pk])
             self.assertEqual(self.client.get(url).status_code, 404)
             self.assertEqual(self.client.post(url, self.payload(action="save")).status_code, 404)
-
         self.assertTrue(CarbonActivity.objects.filter(pk=activity.pk).exists())
         estimate.assert_not_called()
 
-    @patch("tracker.views.estimate_lpg")
-    def test_invalid_quantities_and_retired_food_choice_are_rejected(self, estimate):
-        for quantity in ("0", "-0.10"):
-            with self.subTest(quantity=quantity):
-                response = self.client.post(self.index_url, self.payload(quantity=quantity))
-                self.assertIn("quantity", response.context["form"].errors)
-
-        response = self.client.post(self.index_url, self.payload(activity_type="meal"))
-        self.assertIn("activity_type", response.context["form"].errors)
+    @patch("tracker.views.estimate_meat")
+    def test_invalid_amounts_and_retired_types_are_rejected(self, estimate):
+        for quantity in ("0", "-100"):
+            response = self.client.post(self.index_url, self.payload(quantity=quantity))
+            self.assertIn("quantity", response.context["form"].errors)
+        for kind in ("lpg", "meal"):
+            response = self.client.post(self.index_url, self.payload(activity_type=kind))
+            self.assertIn("activity_type", response.context["form"].errors)
         estimate.assert_not_called()
         self.assertEqual(CarbonActivity.objects.count(), 0)
 
-    def test_confirmed_delete_requires_csrf_and_updates_total(self):
+    def test_delete_confirmation_preserves_grams_and_requires_csrf(self):
         activity = self.create_activity()
-        self.create_activity(quantity=Decimal("0.20"), emission_kg=Decimal("0.5879"))
+        self.create_activity(activity_type="beef", emission_kg=Decimal("7.0851"))
         client = Client(enforce_csrf_checks=True)
         client.force_login(self.owner)
         url = reverse("tracker:delete", args=[activity.pk])
-
         response = client.get(url)
-        self.assertContains(response, "Cooking gas LPG (kg)")
+        self.assertContains(response, "Chicken meat (g)")
         self.assertTrue(CarbonActivity.objects.filter(pk=activity.pk).exists())
         self.assertEqual(client.post(url).status_code, 403)
         token = client.cookies["csrftoken"].value
         response = client.post(url, {"csrfmiddlewaretoken": token}, follow=True)
-
         self.assertFalse(CarbonActivity.objects.filter(pk=activity.pk).exists())
         self.assertEqual(CarbonActivity.objects.count(), 1)
-        self.assertEqual(response.context["total_emissions"], Decimal("0.5879"))
+        self.assertEqual(response.context["total_emissions"], Decimal("7.0851"))
+
+    def test_weekly_meat_category_excludes_other_users_and_dates(self):
+        today = timezone.localdate()
+        self.create_activity(emission_kg=Decimal("2"))
+        self.create_activity(activity_type="beef", emission_kg=Decimal("6"))
+        self.create_activity(activity_type="car_travel", emission_kg=Decimal("2"))
+        self.create_activity(user=self.other, emission_kg=Decimal("999"))
+        self.create_activity(date=today + timedelta(days=1), emission_kg=Decimal("100"))
+        self.create_activity(
+            date=today - timedelta(days=today.weekday() + 1),
+            emission_kg=Decimal("100"),
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(self.index_url)
+        self.assertEqual(response.context["week_emissions"], Decimal("10"))
+        self.assertEqual(response.context["top_category"]["emissions"], Decimal("8"))
+        self.assertEqual(response.context["top_category"]["percentage"], Decimal("80"))
 
     @patch("tracker.views.estimate_car_travel", return_value={"co2e": 2.78283915682})
     @patch("tracker.views.estimate_electricity", return_value={"co2e": 6.8025})
-    @patch("tracker.views.estimate_lpg")
-    def test_car_and_electricity_keep_their_own_calculators(self, lpg, electricity, car):
+    @patch("tracker.views.estimate_meat")
+    def test_car_and_electricity_keep_their_own_calculators(self, meat, electricity, car):
         for activity_type, quantity in (("car_travel", "15"), ("electricity", "10")):
             response = self.client.post(
                 self.index_url, self.payload(activity_type=activity_type, quantity=quantity)
             )
             self.assertEqual(response.status_code, 200)
             self.assertIsNotNone(response.context["estimate"])
-
         car.assert_called_once_with(Decimal("15"))
         electricity.assert_called_once_with(Decimal("10"))
-        lpg.assert_not_called()
+        meat.assert_not_called()
