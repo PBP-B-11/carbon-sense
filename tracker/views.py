@@ -45,7 +45,7 @@ def index(request, pk=None):
     if request.method == "POST" and form.is_valid():
         if saving and not request.user.is_authenticated:
             form.add_error(None, "Silakan login untuk menyimpan aktivitas.")
-#Izinkan aktivitas yang sudah memiliki kalkulasi.
+        #Izinkan aktivitas yang sudah memiliki kalkulasi.
         elif form.cleaned_data["activity_type"] not in (
             "electricity", "car_travel"
         ):

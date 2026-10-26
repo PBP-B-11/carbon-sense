@@ -1331,6 +1331,12 @@ main {
   margin-top: 20px;
 }
 
+/*Pisahkan sumber faktor dari pilihan aktivitas dan kolom input.*/
+.quick .activity-factor-note {
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
 .quick .input {
   margin-top: 0;
 }

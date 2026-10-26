@@ -120,7 +120,7 @@
             <p class="hint" role="status">{{ message }}</p>
           {% endfor %}
           {{ form.non_field_errors }}
-          <fieldset class="chips">
+          <fieldset class="chips" aria-describedby="activity-factor-note">
             <legend class="sr-only">{{ form.activity_type.label }}</legend>
             {% for radio in form.activity_type %}
               <label class="activity-choice">
@@ -133,6 +133,18 @@
             {% endfor %}
           </fieldset>
           {{ form.activity_type.errors }}
+          {#Jelaskan sumber faktor sesuai aktivitas, termasuk sebelum JavaScript berjalan.#}
+          <p class="hint activity-factor-note" id="activity-factor-note" aria-live="polite">
+            {% if form.activity_type.value == "car_travel" %}
+              Mobil: perkiraan emisi penggunaan kendaraan berdasarkan data Amerika Serikat (US EPA 2025).
+            {% elif form.activity_type.value == "electricity" %}
+              Listrik: faktor bauran produksi listrik Indonesia (Ember 2024).
+            {% elif form.activity_type.value == "meal" %}
+              Makanan: perhitungan belum tersedia.
+            {% else %}
+              Pilih jenis aktivitas untuk melihat sumber faktor.
+            {% endif %}
+          </p>
           <div class="field">
             <label for="{{ form.quantity.id_for_label }}" id="quantity-label">Jarak tempuh</label>
             <span class="input">
