@@ -10,6 +10,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from .forms import CarbonActivityForm
 from .services import estimate_electricity
 
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
 
 def index(request, pk=None):
     editing_activity = None
@@ -82,3 +84,23 @@ def index(request, pk=None):
         "editing_activity": editing_activity,
     },
 )
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def delete_activity(request, pk):
+    activity = get_object_or_404(
+        CarbonActivity,
+        pk=pk,
+        user=request.user,
+    )
+
+    if request.method == "POST":
+        activity.delete()
+        messages.success(request, "Aktivitas berhasil dihapus.")
+        return redirect("tracker:index")
+
+    return render(
+        request,
+        "tracker/activity_confirm_delete.html",
+        {"activity": activity},
+    )

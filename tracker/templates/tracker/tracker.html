@@ -162,7 +162,7 @@
           </div>
         </form>
 
-        <article class="card card--a history" aria-labelledby="judul-riwayat">
+        <article class="card card--a history" id="riwayat-aktivitas" aria-labelledby="judul-riwayat">
           <h2 class="card-title" id="judul-riwayat">Riwayat aktivitas</h2>
           <p class="hint history-total">
             Total emisi seluruh waktu:
@@ -201,7 +201,10 @@
                     </td>
                     <td><strong>{{ activity.emission_kg|floatformat:4 }} kg</strong></td>
                     <td>
-                      <a class="history-edit" href="{% url 'tracker:edit' activity.pk %}#catat-cepat" aria-label="Edit aktivitas tanggal {{ activity.date|date:'d M Y' }}">Edit</a>
+                      <span class="acts">
+                        <a class="history-edit" href="{% url 'tracker:edit' activity.pk %}#catat-cepat" aria-label="Edit aktivitas tanggal {{ activity.date|date:'d M Y' }}">Edit</a>
+                        <a href="{% url 'tracker:delete' activity.pk %}" aria-label="Hapus aktivitas tanggal {{ activity.date|date:'d M Y' }}">Hapus</a>
+                      </span>
                     </td>
                   </tr>
                 {% empty %}

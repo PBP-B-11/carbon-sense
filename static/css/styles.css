@@ -1386,6 +1386,30 @@ main {
   outline-offset: 4px;
 }
 
+.activity-confirm {
+  max-width: 640px;
+}
+
+.activity-confirm-details {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px 24px;
+  margin: 24px 0;
+}
+
+.activity-confirm-details dt {
+  font-weight: 700;
+}
+
+.activity-confirm-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.activity-confirm .form-actions {
+  flex-wrap: wrap;
+}
+
 .table {
   width: 100%;
   margin-top: 7px;
