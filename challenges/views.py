@@ -106,6 +106,22 @@ def tambah_tantangan(request):
 
 
 @login_required
+def hapus_tantangan(request, id):
+    """Menghapus tantangan dari katalog, dibatasi khusus untuk superuser."""
+    if not request.user.is_superuser:
+        raise PermissionDenied("Hanya superuser yang dapat menghapus tantangan.")
+
+    tantangan = get_object_or_404(Challenge, pk=id)
+    if request.method == "POST":
+        judul = tantangan.title
+        tantangan.delete()
+        messages.success(request, f'Tantangan "{judul}" berhasil dihapus.')
+        return redirect("challenges:index")
+
+    return render(request, "challenges/hapus.html", {"challenge": tantangan})
+
+
+@login_required
 def daftar_tantangan(request):
     user = request.user
 

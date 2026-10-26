@@ -241,6 +241,27 @@ class ChallengeViewsTests(TestCase):
         self.assertEqual(res_post.status_code, 302)
         self.assertTrue(Challenge.objects.filter(title="Tantangan Baru Admin").exists())
 
+    def test_hapus_tantangan_forbidden_untuk_user_biasa(self):
+        """Memverifikasi bahwa pengguna biasa mendapat response 403 Forbidden saat mencoba menghapus tantangan."""
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("challenges:hapus", kwargs={"id": self.challenge1.id}))
+        self.assertEqual(response.status_code, 403)
+
+        post_res = self.client.post(reverse("challenges:hapus", kwargs={"id": self.challenge1.id}))
+        self.assertEqual(post_res.status_code, 403)
+        self.assertTrue(Challenge.objects.filter(id=self.challenge1.id).exists())
+
+    def test_hapus_tantangan_bisa_diakses_superuser(self):
+        """Memverifikasi bahwa superuser dapat melihat konfirmasi dan menghapus tantangan."""
+        self.client.force_login(self.admin)
+        get_res = self.client.get(reverse("challenges:hapus", kwargs={"id": self.challenge1.id}))
+        self.assertEqual(get_res.status_code, 200)
+        self.assertContains(get_res, self.challenge1.title)
+
+        post_res = self.client.post(reverse("challenges:hapus", kwargs={"id": self.challenge1.id}))
+        self.assertEqual(post_res.status_code, 302)
+        self.assertFalse(Challenge.objects.filter(id=self.challenge1.id).exists())
+
 
 class ChallengeAPITests(TestCase):
     """Pengujian seluruh endpoint JSON API tantangan (/api/tantangan/)."""

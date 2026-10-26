@@ -106,7 +106,17 @@
         <ul class="challenge-grid">
           {% for tantangan in challenges %}
           <li class="card card--{% cycle 'a' 'b' 'c' 'd' %}{% if tantangan.id in joined_ids %} card--emphasis{% endif %} challenge">
-            <div class="top"><span class="icon-disc tone-{{ tantangan.tone }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-{{ tantangan.icon }}"/></svg></span><span class="pill pill--amber">+{{ tantangan.points|intcomma }} poin</span></div>
+            <div class="top">
+              <span class="icon-disc tone-{{ tantangan.tone }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-{{ tantangan.icon }}"/></svg></span>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <span class="pill pill--amber">+{{ tantangan.points|intcomma }} poin</span>
+                {% if request.user.is_superuser %}
+                <a class="btn-delete" href="{% url 'challenges:hapus' tantangan.id %}" title="Hapus tantangan" style="color: var(--color-error-text); display: inline-flex; align-items: center; padding: 4px;" aria-label="Hapus tantangan {{ tantangan.title }}">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash-2"/></svg>
+                </a>
+                {% endif %}
+              </div>
+            </div>
             <h3>{{ tantangan.title }}</h3>
             <p>{{ tantangan.description }}</p>
             <div class="foot"><small>{{ tantangan.duration_days }} hari, {{ tantangan.participants|intcomma }} peserta</small>
