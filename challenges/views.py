@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Count
 from django.http import Http404
@@ -93,6 +93,10 @@ AKSI = {"ikut": ikuti, "checkin": checkin, "berhenti": berhenti}
 
 @login_required
 def tambah_tantangan(request):
+    """Halaman tambah tantangan, dibatasi khusus untuk superuser."""
+    if not request.user.is_superuser:
+        raise PermissionDenied("Hanya superuser yang dapat menambahkan tantangan baru.")
+
     form = TantanganForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         tantangan = form.save()

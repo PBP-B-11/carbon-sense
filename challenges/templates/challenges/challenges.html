@@ -18,7 +18,9 @@
         <div class="page-tools page-tools--tight">
           <span class="pill pill--amber"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-star"/></svg>{{ total_points }} poin</span>
           <span class="pill pill--streak"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-flame"/></svg>Streak {{ streak }} hari</span>
+          {% if request.user.is_superuser %}
           <a class="btn btn--primary" href="{% url 'challenges:tambah' %}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>Tambah tantangan</a>
+          {% endif %}
         </div>
       </div>
 
