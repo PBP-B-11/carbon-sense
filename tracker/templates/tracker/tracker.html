@@ -118,7 +118,7 @@
       </section>
 
       <section class="tracker-forms">
-        <form method="post" action="{{ request.path }}?period={{ period }}" data-dashboard-url="{% url 'tracker:index' %}?period={{ period }}" class="card card--c quick" id="catat-cepat" aria-labelledby="judul-catat">
+        <form method="post" action="{{ request.path }}?period={{ period }}" data-tracker-form data-dashboard-url="{% url 'tracker:index' %}?period={{ period }}" class="card card--c quick" id="catat-cepat" aria-labelledby="judul-catat">
           <p class="eyebrow">{% if editing_activity %}Edit aktivitas{% else %}Catat cepat{% endif %}</p>
           <h2 id="judul-catat">{% if editing_activity %}Perbarui aktivitasmu{% else %}Apa aktivitasmu tadi?{% endif %}</h2>
           {#Tampilkan konfirmasi penyimpanan setelah konten dashboard diperbarui.#}
@@ -143,7 +143,7 @@
           </fieldset>
           <div data-form-errors="activity_type" role="alert">{{ form.activity_type.errors }}</div>
           {#Jelaskan sumber faktor sesuai aktivitas, termasuk sebelum JavaScript berjalan.#}
-          <p class="hint activity-factor-note" id="activity-factor-note" aria-live="polite">
+          <p class="hint activity-factor-note" id="activity-factor-note" data-factor-note aria-live="polite">
             {% if form.activity_type.value == "car_travel" %}
               Mobil: perkiraan emisi penggunaan kendaraan berdasarkan data Amerika Serikat (US EPA 2025).
             {% elif form.activity_type.value == "electricity" %}
@@ -158,14 +158,14 @@
           </p>
           <div class="field">
             {#Sediakan label dan satuan yang benar sebelum JavaScript berjalan.#}
-            <label for="{{ form.quantity.id_for_label }}" id="quantity-label">{% if form.activity_type.value == "chicken" %}Berat ayam mentah{% elif form.activity_type.value == "beef" %}Berat daging sapi mentah{% elif form.activity_type.value == "electricity" %}Pemakaian listrik{% else %}Jarak tempuh{% endif %}</label>
+            <label for="{{ form.quantity.id_for_label }}" id="quantity-label" data-quantity-label>{% if form.activity_type.value == "chicken" %}Berat ayam mentah{% elif form.activity_type.value == "beef" %}Berat daging sapi mentah{% elif form.activity_type.value == "electricity" %}Pemakaian listrik{% else %}Jarak tempuh{% endif %}</label>
             <span class="input">
               {{ form.quantity }}
-              <span class="input-suffix" id="quantity-unit">{% if form.activity_type.value == "chicken" or form.activity_type.value == "beef" %}g{% elif form.activity_type.value == "electricity" %}kWh{% else %}km{% endif %}</span>
+              <span class="input-suffix" id="quantity-unit" data-quantity-unit>{% if form.activity_type.value == "chicken" or form.activity_type.value == "beef" %}g{% elif form.activity_type.value == "electricity" %}kWh{% else %}km{% endif %}</span>
             </span>
             <div data-form-errors="quantity" role="alert">{{ form.quantity.errors }}</div>
             {#Pilihan cepat adalah perkiraan berat mentah, bukan ukuran porsi baku.#}
-            <div class="meat-portions" id="meat-portions"{% if form.activity_type.value != "chicken" and form.activity_type.value != "beef" %} hidden{% endif %}>
+            <div class="meat-portions" id="meat-portions" data-meat-portions{% if form.activity_type.value != "chicken" and form.activity_type.value != "beef" %} hidden{% endif %}>
               <p class="hint">Perkiraan berat mentah; sesuaikan dengan jumlah dagingmu.</p>
               <div class="chips" role="group" aria-label="Pilihan perkiraan berat daging">
                 <button class="chip" type="button" data-meat-grams="100">100 g</button>
@@ -188,14 +188,14 @@
             </div>
           </details>
           {#Perbarui hasil dan status langsung tanpa memuat ulang halaman.#}
-          <p class="hint" id="preview-status" role="status" hidden></p>
-          <p class="hint" id="preview-result" role="status"{% if not estimate %} hidden{% endif %}>
+          <p class="hint" id="preview-status" data-preview-status role="status" hidden></p>
+          <p class="hint" id="preview-result" data-preview-result role="status"{% if not estimate %} hidden{% endif %}>
             Estimasi emisi:
-            <strong id="preview-value">{% if estimate %}{{ estimate.co2e|floatformat:4 }} kg CO₂e{% endif %}</strong>
+            <strong id="preview-value" data-preview-value>{% if estimate %}{{ estimate.co2e|floatformat:4 }} kg CO₂e{% endif %}</strong>
           </p>
           <div class="actions">
             {% if editing_activity %}
-              <a class="btn" href="{% url 'tracker:index' %}?period={{ period }}#catat-cepat">Batal</a>
+              <a class="btn" data-tracker-cancel href="{% url 'tracker:index' %}?period={{ period }}#catat-cepat">Batal</a>
             {% endif %}
             <button class="btn" type="submit" name="action" value="estimate">
               Hitung emisi
@@ -268,6 +268,16 @@
         </article>
       </section>
     </div>
+    {#Dialog tetap di luar dashboard agar penggantian konten AJAX tidak menggandakannya.#}
+    <dialog class="edit-dialog tracker-edit-dialog" id="tracker-edit-dialog" data-edit-modal aria-labelledby="tracker-edit-title">
+      <div class="tracker-modal-head">
+        <h2 id="tracker-edit-title">Edit aktivitas</h2>
+        <button class="chip" type="button" data-edit-close aria-label="Tutup dialog edit">Tutup ×</button>
+      </div>
+      <p class="hint" data-edit-status role="status" hidden></p>
+      <div data-edit-content></div>
+    </dialog>
     <script src="{% static 'js/tracker-form.js' %}" defer></script>
     <script src="{% static 'js/tracker-preview.js' %}" defer></script>
+    <script src="{% static 'js/tracker-modal.js' %}" defer></script>
 {% endblock %}

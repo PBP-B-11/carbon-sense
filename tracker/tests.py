@@ -76,7 +76,7 @@ class MeatTrackerTests(TestCase):
 
         estimate.assert_called_once_with("chicken", Decimal("100"))
         self.assertEqual(response.context["estimate"], CHICKEN_RESULT)
-        self.assertContains(response, 'id="quantity-unit">g</span>')
+        self.assertContains(response, 'id="quantity-unit" data-quantity-unit>g</span>')
         self.assertContains(response, "Prancis 2024")
         self.assertContains(response, 'data-meat-grams="150"')
         #Pastikan formulir hanya menyediakan empat aktivitas yang didukung.
@@ -260,7 +260,7 @@ class MeatTrackerTests(TestCase):
         url = reverse("tracker:edit", args=[activity.pk])
         response = self.client.get(url)
         self.assertEqual(response.context["form"].instance.pk, activity.pk)
-        self.assertContains(response, 'id="quantity-unit">g</span>')
+        self.assertContains(response, 'id="quantity-unit" data-quantity-unit>g</span>')
 
         data = self.payload(activity_type="beef", quantity="200")
         self.client.post(url, data)

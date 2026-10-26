@@ -1,14 +1,13 @@
 (() => {
-  function initializeForm() {
-    const form = document.getElementById("catat-cepat");
+  function initializeForm(form) {
     if (!form || form.dataset.fieldsReady) return;
     form.dataset.fieldsReady = "true";
 
     const quantity = form.querySelector('[name="quantity"]');
-    const label = form.querySelector("#quantity-label");
-    const unit = form.querySelector("#quantity-unit");
-    const factorNote = form.querySelector("#activity-factor-note");
-    const meatPortions = form.querySelector("#meat-portions");
+    const label = form.querySelector("[data-quantity-label]");
+    const unit = form.querySelector("[data-quantity-unit]");
+    const factorNote = form.querySelector("[data-factor-note]");
+    const meatPortions = form.querySelector("[data-meat-portions]");
 
     //Siapkan satuan dan sumber faktor untuk setiap aktivitas.
     const activityFields = {
@@ -62,7 +61,10 @@
     updateQuantityField();
   }
 
-  //Pasang kembali pilihan satuan setelah formulir diganti melalui AJAX.
-  document.addEventListener("tracker:form-ready", initializeForm);
-  initializeForm();
+  //Inisialisasi formulir halaman dan modal secara terpisah tanpa menggandakan listener.
+  function initializeForms() {
+    document.querySelectorAll("[data-tracker-form]").forEach(initializeForm);
+  }
+  document.addEventListener("tracker:form-ready", initializeForms);
+  initializeForms();
 })();

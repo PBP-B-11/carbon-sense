@@ -23,6 +23,8 @@
     document.getElementById("tracker-dashboard").replaceWith(replacement);
     document.title = page.title;
     window.history.replaceState(null, "", url);
+    //Tutup modal edit setelah dashboard baru berhasil dipasang.
+    document.dispatchEvent(new Event("tracker:dashboard-updated"));
     //Formulir baru memerlukan kembali penanganan satuan dan pengiriman AJAX.
     document.dispatchEvent(new Event("tracker:form-ready"));
     const confirmation = document.getElementById("activity-status");
@@ -31,14 +33,13 @@
     confirmation.focus({ preventScroll: true });
   }
 
-  function initializeRequests() {
-    const form = document.getElementById("catat-cepat");
+  function initializeRequests(form) {
     if (!form || !window.fetch || form.dataset.requestsReady) return;
     form.dataset.requestsReady = "true";
 
-    const result = form.querySelector("#preview-result");
-    const value = form.querySelector("#preview-value");
-    const status = form.querySelector("#preview-status");
+    const result = form.querySelector("[data-preview-result]");
+    const value = form.querySelector("[data-preview-value]");
+    const status = form.querySelector("[data-preview-status]");
     const errorSlots = [...form.querySelectorAll("[data-form-errors]")];
     let pending = false;
 
@@ -47,7 +48,7 @@
       for (const [field, messages] of Object.entries(errors)) {
         const slot = errorSlots.find((item) => item.dataset.formErrors === field)
           || errorSlots.find((item) => item.dataset.formErrors === "__all__");
-        slot.id = `tracker-errors-${slot.dataset.formErrors}`;
+        slot.id = `${form.id}-errors-${slot.dataset.formErrors}`;
         const list = document.createElement("ul");
         list.className = "errorlist";
         for (const error of messages) {
@@ -93,9 +94,14 @@
       //Batas waktu hanya untuk pratinjau; penyimpanan tidak dibatalkan di tengah jalan.
       const timeout = saving ? null : window.setTimeout(() => controller.abort(), 20000);
       let saveConfirmed = false;
+      const modalClose = form.closest("[data-edit-modal]")?.querySelector("[data-edit-close]");
 
       //Cegah pengiriman ganda dan perubahan data selama perhitungan berlangsung.
       pending = true;
+      if (saving) {
+        form.dataset.saving = "true";
+        if (modalClose) modalClose.disabled = true;
+      }
       controls.forEach((control) => { control.disabled = true; });
       form.setAttribute("aria-busy", "true");
       button.textContent = saving ? "Menyimpan…" : "Menghitung…";
@@ -106,7 +112,8 @@
       status.hidden = false;
 
       try {
-        const response = await fetch(form.action, {
+        //Tombol bernama action dapat menutupi properti form.action di browser.
+        const response = await fetch(form.getAttribute("action") || window.location.href, {
           method: "POST",
           body,
           credentials: "same-origin",
@@ -176,6 +183,8 @@
         form.removeAttribute("aria-busy");
         status.hidden = true;
         pending = false;
+        delete form.dataset.saving;
+        if (modalClose) modalClose.disabled = false;
       }
     }
 
@@ -193,6 +202,9 @@
   }
 
   //Inisialisasi ulang hanya formulir baru agar listener tidak terpasang berulang.
-  document.addEventListener("tracker:form-ready", initializeRequests);
-  initializeRequests();
+  function initializeForms() {
+    document.querySelectorAll("[data-tracker-form]").forEach(initializeRequests);
+  }
+  document.addEventListener("tracker:form-ready", initializeForms);
+  initializeForms();
 })();
