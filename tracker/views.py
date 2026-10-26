@@ -34,19 +34,30 @@ def index(request, pk=None):
         estimate, saved_activity = process_activity_form(
             form, request.user, saving=request.POST.get("action") == "save",
         )
-        #Kembalikan hasil pratinjau sebagai JSON untuk permintaan AJAX.
         is_ajax = (
             request.headers.get("X-Requested-With") == "XMLHttpRequest"
         )
-        if is_ajax and request.POST.get("action") == "estimate":
+        #Kembalikan estimasi atau hasil penyimpanan untuk permintaan AJAX.
+        if is_ajax:
             errors = form.errors.get_json_data()
+            response_data = {
+                "estimate": estimate,
+                "errors": errors,
+            }
+
+            #Berikan identitas aktivitas dan pesan setelah berhasil disimpan.
+            if saved_activity is not None:
+                response_data.update({
+                    "activity_id": saved_activity.pk,
+                    "message": "Aktivitas berhasil disimpan.",
+                })
+
             return JsonResponse(
-                {
-                    "estimate": estimate,
-                    "errors": errors,
-                },
+                response_data,
                 status=400 if errors else 200,
             )
+
+        #Pertahankan pengalihan setelah penyimpanan formulir tanpa AJAX.
         if saved_activity is not None:
             messages.success(request, "Aktivitas berhasil disimpan.")
             return redirect("tracker:index")

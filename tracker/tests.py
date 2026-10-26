@@ -148,6 +148,90 @@ class MeatTrackerTests(TestCase):
         self.assertRedirects(response, self.index_url)
         self.assertEqual(CarbonActivity.objects.count(), 1)
 
+    #Penyimpanan AJAX memberi konfirmasi; GET berikutnya merender seluruh angka terbaru.
+    @patch("tracker.activity_actions.estimate_meat", return_value=CHICKEN_RESULT)
+    def test_ajax_save_returns_confirmation_and_fresh_dashboard(self, estimate):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            self.index_url + "?period=year", self.payload(action="save"),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("Location", response.headers)
+        activity = CarbonActivity.objects.get()
+        self.assertEqual(activity.user, self.owner)
+        self.assertEqual(response.json()["activity_id"], activity.pk)
+        self.assertEqual(response.json()["message"], "Aktivitas berhasil disimpan.")
+        self.assertEqual(response.json()["errors"], {})
+        fresh = self.client.get(self.index_url, {"period": "year"})
+        self.assertContains(fresh, 'id="tracker-dashboard"')
+        self.assertContains(fresh, f'data-dashboard-url="{self.index_url}?period=year"')
+        self.assertContains(
+            fresh,
+            f'href="{reverse("tracker:edit", args=[activity.pk])}?period=year#catat-cepat"',
+        )
+        self.assertEqual(fresh.context["period"], "year")
+        self.assertEqual(fresh.context["total_emissions"], Decimal("0.4200"))
+        self.assertEqual(fresh.context["activities"].count(), 1)
+        self.assertFalse(fresh.context["form"].is_bound)
+
+    @patch("tracker.activity_actions.estimate_meat", return_value={"co2e": 14.170246094})
+    def test_ajax_edit_updates_same_record_and_returns_its_id(self, estimate):
+        activity = self.create_activity()
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("tracker:edit", args=[activity.pk]),
+            self.payload(activity_type="beef", quantity="200", action="save"),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["activity_id"], activity.pk)
+        activity.refresh_from_db()
+        self.assertEqual(activity.activity_type, "beef")
+        self.assertEqual(activity.quantity, Decimal("200"))
+        self.assertEqual(activity.emission_kg, Decimal("14.1702"))
+        self.assertEqual(CarbonActivity.objects.count(), 1)
+
+    @patch("tracker.activity_actions.estimate_meat")
+    def test_ajax_save_rejects_anonymous_invalid_and_other_user_requests(self, estimate):
+        activity = self.create_activity()
+        response = self.client.post(
+            self.index_url, self.payload(action="save"),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("__all__", response.json()["errors"])
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            self.index_url, self.payload(action="save", quantity="-100"),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("quantity", response.json()["errors"])
+        self.client.force_login(self.other)
+        response = self.client.post(
+            reverse("tracker:edit", args=[activity.pk]), self.payload(action="save"),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(CarbonActivity.objects.count(), 1)
+        estimate.assert_not_called()
+
+    @patch("tracker.activity_actions.estimate_meat", side_effect=requests.Timeout)
+    def test_ajax_save_api_error_keeps_existing_record(self, estimate):
+        activity = self.create_activity()
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("tracker:edit", args=[activity.pk]),
+            self.payload(action="save", quantity="200"),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("__all__", response.json()["errors"])
+        activity.refresh_from_db()
+        self.assertEqual(activity.quantity, Decimal("100"))
+        self.assertEqual(activity.emission_kg, Decimal("0.4200"))
+
     @patch("tracker.activity_actions.estimate_meat", side_effect=[CHICKEN_RESULT, BEEF_RESULT])
     def test_saved_meats_keep_separate_types_but_share_dashboard_category(self, estimate):
         self.client.force_login(self.owner)

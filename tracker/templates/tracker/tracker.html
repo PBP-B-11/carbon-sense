@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block content %}
-    <div class="container">
+    <div class="container" id="tracker-dashboard">
       <div class="page-title">
         <div>
           <span class="eyebrow t-moss">Modul 1, Carbon Tracker</span>
@@ -22,7 +22,7 @@
             <a class="chip{% if period == 'month' %} chip--active{% endif %}" href="?period=month"{% if period == 'month' %} aria-current="true"{% endif %}>Bulan ini</a>
             <a class="chip{% if period == 'year' %} chip--active{% endif %}" href="?period=year"{% if period == 'year' %} aria-current="true"{% endif %}>Tahun ini</a>
           </div>
-          <a class="btn btn--primary" href="{% url 'tracker:index' %}#catat-cepat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>Tambah aktivitas</a>
+          <a class="btn btn--primary" href="{% url 'tracker:index' %}?period={{ period }}#catat-cepat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>Tambah aktivitas</a>
         </div>
       </div>
 
@@ -61,7 +61,7 @@
           {% else %}
             <h2>Belum ada <span class="hl">emisi {{ period_label|lower }}.</span></h2>
             <p class="meta">Mulai dengan mencatat aktivitas harianmu.</p>
-            <a class="btn btn--lichen" href="{% url 'tracker:index' %}#catat-cepat">Catat aktivitas</a>
+            <a class="btn btn--lichen" href="{% url 'tracker:index' %}?period={{ period }}#catat-cepat">Catat aktivitas</a>
           {% endif %}
         </article>
       </section>
@@ -118,9 +118,11 @@
       </section>
 
       <section class="tracker-forms">
-        <form method="post" class="card card--c quick" id="catat-cepat" aria-labelledby="judul-catat">
+        <form method="post" action="{{ request.path }}?period={{ period }}" data-dashboard-url="{% url 'tracker:index' %}?period={{ period }}" class="card card--c quick" id="catat-cepat" aria-labelledby="judul-catat">
           <p class="eyebrow">{% if editing_activity %}Edit aktivitas{% else %}Catat cepat{% endif %}</p>
           <h2 id="judul-catat">{% if editing_activity %}Perbarui aktivitasmu{% else %}Apa aktivitasmu tadi?{% endif %}</h2>
+          {#Tampilkan konfirmasi penyimpanan setelah konten dashboard diperbarui.#}
+          <p class="hint" id="activity-status" role="status" tabindex="-1" hidden></p>
           {% csrf_token %}
           {% for message in messages %}
             <p class="hint" role="status">{{ message }}</p>
@@ -193,7 +195,7 @@
           </p>
           <div class="actions">
             {% if editing_activity %}
-              <a class="btn" href="{% url 'tracker:index' %}#catat-cepat">Batal</a>
+              <a class="btn" href="{% url 'tracker:index' %}?period={{ period }}#catat-cepat">Batal</a>
             {% endif %}
             <button class="btn" type="submit" name="action" value="estimate">
               Hitung emisi
@@ -244,7 +246,7 @@
                     <td><strong>{{ activity.emission_kg|floatformat:4 }} kg</strong></td>
                     <td>
                       <span class="acts">
-                        <a class="history-edit" href="{% url 'tracker:edit' activity.pk %}#catat-cepat" aria-label="Edit aktivitas tanggal {{ activity.date|date:'d M Y' }}">Edit</a>
+                        <a class="history-edit" href="{% url 'tracker:edit' activity.pk %}?period={{ period }}#catat-cepat" aria-label="Edit aktivitas tanggal {{ activity.date|date:'d M Y' }}">Edit</a>
                         <a href="{% url 'tracker:delete' activity.pk %}" aria-label="Hapus aktivitas tanggal {{ activity.date|date:'d M Y' }}">Hapus</a>
                       </span>
                     </td>
