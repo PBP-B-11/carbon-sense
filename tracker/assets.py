@@ -4,7 +4,7 @@ from django.conf import settings
 
 
 def tracker_asset_version():
-    #Ubah URL JavaScript ketika isinya berubah agar browser tidak memakai skrip lama.
+    # Ubah URL JavaScript ketika isinya berubah agar browser tidak memakai skrip lama.
     digest = sha256()
     scripts = settings.BASE_DIR / "static" / "js"
     for script in sorted(scripts.glob("tracker*.js")):

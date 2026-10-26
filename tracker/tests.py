@@ -22,9 +22,12 @@ BEEF_RESULT = {"co2e": 7.085123047, "co2e_unit": "kg"}
 
 
 class TrackerAssetTests(SimpleTestCase):
-    #Perubahan isi JavaScript harus menghasilkan URL versi baru meski nama tetap sama.
+    # Perubahan isi JavaScript harus menghasilkan URL versi baru meski nama tetap sama.
     def test_version_changes_when_script_content_changes(self):
-        with TemporaryDirectory() as directory, override_settings(BASE_DIR=Path(directory)):
+        with (
+            TemporaryDirectory() as directory,
+            override_settings(BASE_DIR=Path(directory)),
+        ):
             scripts = Path(directory) / "static" / "js"
             scripts.mkdir(parents=True)
             script = scripts / "tracker-form.js"
@@ -103,7 +106,7 @@ class MeatTrackerTests(TestCase):
         self.assertContains(response, 'data-meat-grams="150"')
         self.assertContains(
             response,
-            f'js/tracker-form.js?v={response.context["tracker_asset_version"]}',
+            f"js/tracker-form.js?v={response.context['tracker_asset_version']}",
         )
         # Pastikan formulir hanya menyediakan empat aktivitas yang didukung.
         self.assertEqual(
