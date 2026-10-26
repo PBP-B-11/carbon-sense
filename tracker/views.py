@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import CarbonActivityForm
-from .services import estimate_car_travel, estimate_electricity
+from .services import estimate_car_travel, estimate_electricity, estimate_lpg
 
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
@@ -47,21 +47,23 @@ def index(request, pk=None):
             form.add_error(None, "Silakan login untuk menyimpan aktivitas.")
         #Izinkan aktivitas yang sudah memiliki kalkulasi.
         elif form.cleaned_data["activity_type"] not in (
-            "electricity", "car_travel"
+            "electricity", "car_travel", "lpg"
         ):
             form.add_error(
                 "activity_type",
-                "Perhitungan makanan belum tersedia.",
+                "Perhitungan untuk aktivitas ini belum tersedia.",
             )
         else:
-            #Request emissions dari climatiq
+            #Pilih kalkulasi sesuai satuan aktivitas: kWh, km, atau kg LPG.
             try:
                 quantity = form.cleaned_data["quantity"]
 
                 if form.cleaned_data["activity_type"] == "electricity":
                     estimate = estimate_electricity(quantity)
-                else:
+                elif form.cleaned_data["activity_type"] == "car_travel":
                     estimate = estimate_car_travel(quantity)
+                else:
+                    estimate = estimate_lpg(quantity)
             except (requests.RequestException, ValueError):
                 form.add_error(None, "Gagal menghitung emisi. Coba lagi.")
             else:
@@ -173,7 +175,8 @@ def index(request, pk=None):
     categories = [
         ("car_travel", "Transportasi", "i-car"),
         ("electricity", "Listrik", "i-zap"),
-        ("meal", "Makanan", "i-utensils"),
+        #Kelompokkan konsumsi LPG tersendiri dari listrik dan transportasi.
+        ("lpg", "Gas LPG", "i-flame"),
     ]
     category_breakdown = []
 

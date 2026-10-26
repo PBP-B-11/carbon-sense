@@ -68,7 +68,7 @@ def find_car_factors():
     response.raise_for_status()
     return response.json()["results"]
 
-#Faktor mobil 
+#Faktor mobil US EPA 2025 sebagai perkiraan berbasis data AS.
 CAR_FACTOR_ID = "81caf960-fc4d-4a7b-8da2-85076a152774"
 
 
@@ -80,4 +80,15 @@ def estimate_car_travel(km):
             "distance": float(km),
             "distance_unit": "km",
         },
+    )
+
+#Faktor pembakaran stasioner LPG UK Government 2025, bukan emisi produksi gas.
+LPG_FACTOR_ID = "62685eb5-8636-8aa1-8858-c4889af4e184"
+
+
+#Kirim berat gas yang dikonsumsi dalam kg; Climatiq menangani konversi satuan.
+def estimate_lpg(kg):
+    return estimate_emissions(
+        LPG_FACTOR_ID,
+        {"weight": float(kg), "weight_unit": "kg"},
     )

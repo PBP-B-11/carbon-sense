@@ -7,7 +7,8 @@ class CarbonActivityForm(forms.ModelForm):
         choices=[
             ("car_travel", "Mobil"),
             ("electricity", "Listrik"),
-            ("meal", "Makanan"),
+            #Gunakan kode LPG yang sama dengan pilihan pada model.
+            ("lpg", "Gas LPG"),
         ],
         widget=forms.RadioSelect(attrs={"class": "sr-only"}),
         initial="car_travel",

@@ -102,7 +102,7 @@
                 <div class="progress" role="img" aria-label="{{ category.label }}: {{ category.percentage|floatformat:1 }}% dari total emisi minggu ini">
                   {#Persentase CSS memakai titik desimal; kategori nol tidak diisi.#}
                   {% if category.emissions %}
-                    <i class="{% if category.icon == 'i-zap' %}fill-moss-mid{% elif category.icon == 'i-utensils' %}fill-moss-light{% endif %}" style="width: {{ category.percentage|unlocalize }}%"></i>
+                    <i class="{% if category.icon == 'i-zap' %}fill-moss-mid{% elif category.icon == 'i-flame' %}fill-moss-light{% endif %}" style="width: {{ category.percentage|unlocalize }}%"></i>
                   {% endif %}
                 </div>
               </li>
@@ -139,17 +139,18 @@
               Mobil: perkiraan emisi penggunaan kendaraan berdasarkan data Amerika Serikat (US EPA 2025).
             {% elif form.activity_type.value == "electricity" %}
               Listrik: faktor bauran produksi listrik Indonesia (Ember 2024).
-            {% elif form.activity_type.value == "meal" %}
-              Makanan: perhitungan belum tersedia.
+            {% elif form.activity_type.value == "lpg" %}
+              Gas LPG: catat kg gas yang dikonsumsi, bukan berat tabung. Faktor pembakaran UK Government 2025 (Inggris), tanpa emisi produksi/distribusi.
             {% else %}
               Pilih jenis aktivitas untuk melihat sumber faktor.
             {% endif %}
           </p>
           <div class="field">
-            <label for="{{ form.quantity.id_for_label }}" id="quantity-label">Jarak tempuh</label>
+            {#Sediakan label dan satuan yang benar sebelum JavaScript berjalan.#}
+            <label for="{{ form.quantity.id_for_label }}" id="quantity-label">{% if form.activity_type.value == "lpg" %}Gas LPG yang dikonsumsi{% elif form.activity_type.value == "electricity" %}Pemakaian listrik{% else %}Jarak tempuh{% endif %}</label>
             <span class="input">
               {{ form.quantity }}
-              <span class="input-suffix" id="quantity-unit">km</span>
+              <span class="input-suffix" id="quantity-unit">{% if form.activity_type.value == "lpg" %}kg{% elif form.activity_type.value == "electricity" %}kWh{% else %}km{% endif %}</span>
             </span>
             {{ form.quantity.errors }}
           </div>
@@ -214,13 +215,13 @@
                         Transportasi
                       {% elif activity.activity_type == "electricity" %}
                         Listrik
-                      {% elif activity.activity_type == "meal" %}
-                        Makanan
+                      {% elif activity.activity_type == "lpg" %}
+                        Gas LPG
                       {% endif %}
                     </td>
                     <td>
                       {{ activity.quantity|floatformat:2 }}
-                      {% if activity.activity_type == "car_travel" %}km{% elif activity.activity_type == "electricity" %}kWh{% elif activity.activity_type == "meal" %}porsi{% endif %}
+                      {% if activity.activity_type == "car_travel" %}km{% elif activity.activity_type == "electricity" %}kWh{% elif activity.activity_type == "lpg" %}kg{% endif %}
                     </td>
                     <td><strong>{{ activity.emission_kg|floatformat:4 }} kg</strong></td>
                     <td>

@@ -17,9 +17,10 @@
       label: "Pemakaian listrik", unit: "kWh", placeholder: "5",
       note: "Listrik: faktor bauran produksi listrik Indonesia (Ember 2024).",
     },
-    meal: {
-      label: "Jumlah porsi", unit: "porsi", placeholder: "1",
-      note: "Makanan: perhitungan belum tersedia.",
+    //LPG dicatat sebagai gas yang terpakai, bukan berat tabung.
+    lpg: {
+      label: "Gas LPG yang dikonsumsi", unit: "kg", placeholder: "0,1",
+      note: "Gas LPG: catat kg gas yang dikonsumsi, bukan berat tabung. Faktor pembakaran UK Government 2025 (Inggris), tanpa emisi produksi/distribusi.",
     },
   };
 

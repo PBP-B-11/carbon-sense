@@ -30,7 +30,8 @@
         <dt>Jumlah</dt>
         <dd>
           {{ activity.quantity|floatformat:2 }}
-          {% if activity.activity_type == "car_travel" %}km{% elif activity.activity_type == "electricity" %}kWh{% elif activity.activity_type == "meal" %}porsi{% endif %}
+          {#Gunakan kg untuk LPG agar jumlah gas terpisah dari kg CO2e pada emisi.#}
+          {% if activity.activity_type == "car_travel" %}km{% elif activity.activity_type == "electricity" %}kWh{% elif activity.activity_type == "lpg" %}kg{% endif %}
         </dd>
         <dt>Emisi</dt>
         <dd>{{ activity.emission_kg|floatformat:4 }} kg CO₂e</dd>
