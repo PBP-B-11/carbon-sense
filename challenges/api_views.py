@@ -1,9 +1,10 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from .models import Challenge, Participation, PointEntry, UserBadge
 from .utils import hitung_streak, periksa_lencana_streak, total_poin
@@ -16,6 +17,62 @@ def _ambil_tantangan_atau_none(pk):
         return get_object_or_404(Challenge, pk=pk)
     except (ValidationError, ValueError):
         return None
+
+
+@require_GET
+def api_daftar_tantangan(request):
+    """Mengembalikan daftar seluruh tantangan dalam format JSON, mendukung filter kategori."""
+    kategori = request.GET.get("kategori", "")
+    qs = Challenge.objects.annotate(
+        participants=Count("participations__user", distinct=True)
+    ).select_related("badge")
+    if kategori in Challenge.Category.values:
+        qs = qs.filter(category=kategori)
+
+    data = [
+        {
+            "id": str(c.id),
+            "title": c.title,
+            "description": c.description,
+            "category": c.category,
+            "category_display": c.get_category_display(),
+            "duration_days": c.duration_days,
+            "points": c.points,
+            "estimated_saving_kg": float(c.estimated_saving_kg),
+            "badge": c.badge.name if c.badge else None,
+            "icon": c.icon,
+            "tone": c.tone,
+            "participants": c.participants,
+        }
+        for c in qs
+    ]
+    return JsonResponse(data, safe=False)
+
+
+@require_GET
+def api_detail_tantangan(request, id):
+    """Mengembalikan detail satu tantangan dalam format JSON."""
+    challenge = _ambil_tantangan_atau_none(id)
+    if challenge is None:
+        return JsonResponse({"error": "Tantangan tidak ditemukan."}, status=404)
+
+    participants_count = Participation.objects.filter(challenge=challenge).values("user").distinct().count()
+    return JsonResponse(
+        {
+            "id": str(challenge.id),
+            "title": challenge.title,
+            "description": challenge.description,
+            "category": challenge.category,
+            "category_display": challenge.get_category_display(),
+            "duration_days": challenge.duration_days,
+            "points": challenge.points,
+            "estimated_saving_kg": float(challenge.estimated_saving_kg),
+            "badge": challenge.badge.name if challenge.badge else None,
+            "icon": challenge.icon,
+            "tone": challenge.tone,
+            "participants": participants_count,
+        }
+    )
 
 
 @require_POST

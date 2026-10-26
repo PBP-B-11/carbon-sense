@@ -326,6 +326,36 @@ class ChallengeAPITests(TestCase):
             tone="amber",
         )
 
+    def test_api_daftar_dan_detail_json(self):
+        """Memverifikasi endpoint GET daftar tantangan JSON dan detail satu tantangan."""
+        # Uji list JSON
+        url_list = reverse("challenges_api:list")
+        res_list = self.client.get(url_list)
+        self.assertEqual(res_list.status_code, 200)
+        data = res_list.json()
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["title"], "Sepeda ke kampus")
+        self.assertEqual(data[0]["category"], "transportasi")
+
+        # Uji filter kategori JSON
+        res_filter_match = self.client.get(f"{url_list}?kategori=transportasi")
+        self.assertEqual(len(res_filter_match.json()), 1)
+
+        res_filter_empty = self.client.get(f"{url_list}?kategori=energi")
+        self.assertEqual(len(res_filter_empty.json()), 0)
+
+        # Uji detail JSON
+        url_detail = reverse("challenges_api:detail", kwargs={"id": self.challenge.id})
+        res_detail = self.client.get(url_detail)
+        self.assertEqual(res_detail.status_code, 200)
+        self.assertEqual(res_detail.json()["id"], str(self.challenge.id))
+        self.assertEqual(res_detail.json()["badge"], "Pesepeda")
+
+        # Uji alias /tantangan/json/
+        res_alias = self.client.get(reverse("challenges:json"))
+        self.assertEqual(res_alias.status_code, 200)
+
     def test_api_requires_authentication(self):
         """Memverifikasi bahwa endpoint mengembalikan HTTP 401 saat belum terautentikasi."""
         url = reverse("challenges_api:ikut", kwargs={"id": self.challenge.id})
