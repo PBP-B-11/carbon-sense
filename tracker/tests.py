@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -37,7 +37,7 @@ class MeatServiceTests(SimpleTestCase):
     @patch("tracker.services.requests.post")
     def test_unsupported_type_is_rejected_before_request(self, post):
         with self.assertRaises(ValueError):
-            estimate_meat("lpg", Decimal("100"))
+            estimate_meat("unsupported", Decimal("100"))
         post.assert_not_called()
 
 
@@ -78,8 +78,16 @@ class MeatTrackerTests(TestCase):
         self.assertContains(response, 'id="quantity-unit">g</span>')
         self.assertContains(response, "Prancis 2024")
         self.assertContains(response, 'data-meat-grams="150"')
-        self.assertNotContains(response, 'value="lpg"')
-        self.assertNotContains(response, 'value="meal"')
+        #Pastikan formulir hanya menyediakan empat aktivitas yang didukung.
+        self.assertEqual(
+            list(response.context["form"].fields["activity_type"].choices),
+            [
+                ("car_travel", "Mobil"),
+                ("electricity", "Listrik"),
+                ("chicken", "Ayam"),
+                ("beef", "Daging sapi"),
+            ],
+        )
         self.assertEqual(CarbonActivity.objects.count(), 0)
 
     @patch("tracker.views.estimate_meat", side_effect=[CHICKEN_RESULT, BEEF_RESULT])
@@ -160,11 +168,12 @@ class MeatTrackerTests(TestCase):
         estimate.assert_not_called()
 
     @patch("tracker.views.estimate_meat")
-    def test_invalid_amounts_and_retired_types_are_rejected(self, estimate):
+    def test_invalid_amounts_and_unsupported_types_are_rejected(self, estimate):
         for quantity in ("0", "-100"):
             response = self.client.post(self.index_url, self.payload(quantity=quantity))
             self.assertIn("quantity", response.context["form"].errors)
-        for kind in ("lpg", "meal"):
+        #Tolak jenis aktivitas yang tidak dikenal dan pilihan kosong.
+        for kind in ("unsupported", ""):
             response = self.client.post(self.index_url, self.payload(activity_type=kind))
             self.assertIn("activity_type", response.context["form"].errors)
         estimate.assert_not_called()
@@ -202,6 +211,38 @@ class MeatTrackerTests(TestCase):
         self.assertEqual(response.context["week_emissions"], Decimal("10"))
         self.assertEqual(response.context["top_category"]["emissions"], Decimal("8"))
         self.assertEqual(response.context["top_category"]["percentage"], Decimal("80"))
+
+    #Periksa batas periode, isolasi pengguna, dan pilihan aktif pada template.
+    @patch("tracker.views.timezone.localdate", return_value=date(2026, 10, 14))
+    def test_period_filters_update_summary_categories_and_active_control(self, localdate):
+        for day, amount, kind in (
+            (date(2025, 12, 31), "999", "chicken"),
+            (date(2026, 1, 1), "4", "car_travel"),
+            (date(2026, 10, 1), "1", "chicken"),
+            (date(2026, 10, 12), "2", "chicken"),
+            (date(2026, 10, 14), "3", "beef"),
+            (date(2026, 10, 15), "999", "chicken"),
+        ):
+            self.create_activity(date=day, emission_kg=Decimal(amount), activity_type=kind)
+        self.create_activity(user=self.other, date=date(2026, 10, 14), emission_kg=Decimal("999"))
+        self.client.force_login(self.owner)
+
+        for requested, selected, label, total, meat_total in (
+            ("week", "week", "Minggu ini", "5", "5"),
+            ("month", "month", "Bulan ini", "6", "6"),
+            ("year", "year", "Tahun ini", "10", "6"),
+            ("invalid", "week", "Minggu ini", "5", "5"),
+        ):
+            with self.subTest(period=requested):
+                response = self.client.get(self.index_url, {"period": requested})
+                self.assertEqual(response.context["period"], selected)
+                self.assertEqual(response.context["period_emissions"], Decimal(total))
+                self.assertEqual(response.context["top_category"]["emissions"], Decimal(meat_total))
+                self.assertEqual(response.context["today_emissions"], Decimal("3"))
+                self.assertEqual(response.context["average_daily_emissions"], Decimal("5") / Decimal("7"))
+                self.assertContains(response, f'href="?period={selected}" aria-current="true"')
+                self.assertContains(response, f"Jejak karbonmu {label.lower()}.")
+                self.assertEqual(response.content.count(b'aria-current="true"'), 1)
 
     @patch("tracker.views.estimate_car_travel", return_value={"co2e": 2.78283915682})
     @patch("tracker.views.estimate_electricity", return_value={"co2e": 6.8025})
