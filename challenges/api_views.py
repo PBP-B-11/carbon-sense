@@ -28,14 +28,19 @@ def api_ikuti(request, id):
     if challenge is None:
         return JsonResponse({"error": "Tantangan tidak ditemukan."}, status=404)
 
-    partisipasi_aktif = Participation.objects.filter(
-        user=request.user,
-        status=Participation.Status.ACTIVE
-    ).select_related("challenge").first()
+    partisipasi_aktif = (
+        Participation.objects.filter(
+            user=request.user, status=Participation.Status.ACTIVE
+        )
+        .select_related("challenge")
+        .first()
+    )
 
     if partisipasi_aktif:
         if partisipasi_aktif.challenge_id == challenge.id:
-            return JsonResponse({"error": "Tantangan ini sudah kamu ikuti."}, status=400)
+            return JsonResponse(
+                {"error": "Tantangan ini sudah kamu ikuti."}, status=400
+            )
         return JsonResponse(
             {
                 "error": (
@@ -50,7 +55,7 @@ def api_ikuti(request, id):
         user=request.user,
         challenge=challenge,
         started_at=timezone.localdate(),
-        status=Participation.Status.ACTIVE
+        status=Participation.Status.ACTIVE,
     )
 
     return JsonResponse(
@@ -79,12 +84,12 @@ def api_checkin(request, id):
         return JsonResponse({"error": "Tantangan tidak ditemukan."}, status=404)
 
     partisipasi = Participation.objects.filter(
-        user=request.user,
-        challenge=challenge,
-        status=Participation.Status.ACTIVE
+        user=request.user, challenge=challenge, status=Participation.Status.ACTIVE
     ).first()
     if partisipasi is None:
-        return JsonResponse({"error": "Kamu belum mengikuti tantangan ini."}, status=404)
+        return JsonResponse(
+            {"error": "Kamu belum mengikuti tantangan ini."}, status=404
+        )
 
     with transaction.atomic():
         hari_ini = timezone.localdate()
@@ -160,13 +165,13 @@ def api_berhenti(request, id):
         return JsonResponse({"error": "Tantangan tidak ditemukan."}, status=404)
 
     baris_terubah = Participation.objects.filter(
-        user=request.user,
-        challenge=challenge,
-        status=Participation.Status.ACTIVE
+        user=request.user, challenge=challenge, status=Participation.Status.ACTIVE
     ).update(status=Participation.Status.STOPPED)
 
     if not baris_terubah:
-        return JsonResponse({"error": "Kamu belum mengikuti tantangan ini."}, status=400)
+        return JsonResponse(
+            {"error": "Kamu belum mengikuti tantangan ini."}, status=400
+        )
 
     return JsonResponse(
         {

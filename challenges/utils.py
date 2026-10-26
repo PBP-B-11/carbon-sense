@@ -8,7 +8,9 @@ from .models import Badge, CheckIn, Participation, PointEntry, UserBadge
 
 def total_poin(user):
     """Total poin = jumlah seluruh PointEntry milik pengguna."""
-    return PointEntry.objects.filter(user=user).aggregate(total=Sum("delta"))["total"] or 0
+    return (
+        PointEntry.objects.filter(user=user).aggregate(total=Sum("delta"))["total"] or 0
+    )
 
 
 def ringkasan_pengguna(user):
@@ -61,14 +63,18 @@ def periksa_lencana_streak(user):
     if streak >= 7:
         badge_7_hari = Badge.objects.filter(name="Hijau 7 hari").first()
         if badge_7_hari:
-            user_badge_obj, baru_dibuat = UserBadge.objects.get_or_create(user=user, badge=badge_7_hari)
+            user_badge_obj, baru_dibuat = UserBadge.objects.get_or_create(
+                user=user, badge=badge_7_hari
+            )
             if baru_dibuat:
                 lencana_diberikan.append(badge_7_hari.name)
 
     if streak >= 30:
         badge_30_hari = Badge.objects.filter(name="Pejuang 30 hari").first()
         if badge_30_hari:
-            user_badge_obj, baru_dibuat = UserBadge.objects.get_or_create(user=user, badge=badge_30_hari)
+            user_badge_obj, baru_dibuat = UserBadge.objects.get_or_create(
+                user=user, badge=badge_30_hari
+            )
             if baru_dibuat:
                 lencana_diberikan.append(badge_30_hari.name)
 
