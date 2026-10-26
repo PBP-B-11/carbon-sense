@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load static l10n %}
 
-{% block title %}Carbon Sense: Carbon Tracker{% endblock %}
+{% block title %}Carbon Sense: {% if editing_activity %}Edit Aktivitas{% else %}Carbon Tracker{% endif %}{% endblock %}
 
 {% block blobs %}
   <i class="blob blob--tracker-1" aria-hidden="true"></i>
@@ -20,39 +21,46 @@
             <button class="chip" type="button" aria-pressed="false">Bulan ini</button>
             <button class="chip" type="button" aria-pressed="false">Tahun ini</button>
           </div>
-          <a class="btn btn--primary" href="#catat-cepat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>Tambah aktivitas</a>
+          <a class="btn btn--primary" href="{% url 'tracker:index' %}#catat-cepat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>Tambah aktivitas</a>
         </div>
       </div>
 
       <section class="tracker-summary" aria-label="Ringkasan emisi">
         <div class="seed-wrap">
-          <div class="seed" role="img" aria-label="42,6 kilogram CO2e minggu ini">
-            <span class="num">42,6</span>
+          <div class="seed" role="img" aria-label="{{ week_emissions|floatformat:2 }} kilogram CO2e dari Senin sampai hari ini">
+            <span class="num">{{ week_emissions|floatformat:1 }}</span>
             <span class="unit">kg CO₂e</span>
           </div>
           <div class="seed-text">
             <p class="eyebrow">Minggu ini</p>
-            <h2>Kamu lebih ringan dari minggu lalu.</h2>
-            <p class="delta">Turun 12%</p>
+            <h2>Jejak karbonmu minggu ini.</h2>
+            <p class="delta">Dari Senin hingga hari ini</p>
           </div>
         </div>
         <div class="stat-stack">
           <article class="card card--a stat stat--1">
             <p class="eyebrow">Hari ini</p>
-            <p class="val">5,8 <small>kg CO₂e</small></p>
-            <p class="note">Di bawah rata-rata harian</p>
+            <p class="val">{{ today_emissions|floatformat:2 }} <small>kg CO₂e</small></p>
+            <p class="note note--muted">Berdasarkan aktivitas tersimpan</p>
           </article>
           <article class="card card--c stat stat--2">
             <p class="eyebrow">Rata-rata harian</p>
-            <p class="val">6,1 <small>kg CO₂e</small></p>
-            <p class="note note--muted">7 hari terakhir</p>
+            <p class="val">{{ average_daily_emissions|floatformat:2 }} <small>kg CO₂e</small></p>
+            <p class="note note--muted">7 hari terakhir, termasuk hari tanpa aktivitas</p>
           </article>
         </div>
         <article class="card-dark top-source">
           <p class="eyebrow">Sumber terbesar minggu ini</p>
-          <h2><span class="hl">Transportasi,</span> hampir separuh jejakmu.</h2>
-          <p class="meta">20,4 kg CO₂e, 48% dari total</p>
-          <a class="btn btn--lichen" href="#catat-cepat">Lihat saran</a>
+          {#Tampilkan kategori terbesar hanya jika ada emisi minggu ini.#}
+          {% if top_category %}
+            <h2><span class="hl">{{ top_category.label }}</span> sumber emisi terbesar.</h2>
+            <p class="meta">{{ top_category.emissions|floatformat:2 }} kg CO₂e, {{ top_category.percentage|floatformat:1 }}% dari total minggu ini</p>
+            <a class="btn btn--lichen" href="#riwayat-aktivitas">Lihat riwayat</a>
+          {% else %}
+            <h2>Belum ada <span class="hl">emisi minggu ini.</span></h2>
+            <p class="meta">Mulai dengan mencatat aktivitas harianmu.</p>
+            <a class="btn btn--lichen" href="{% url 'tracker:index' %}#catat-cepat">Catat aktivitas</a>
+          {% endif %}
         </article>
       </section>
 
@@ -60,79 +68,185 @@
         <article class="card card--b chart-card" aria-labelledby="judul-grafik">
           <div class="chart-head">
             <h2 class="card-title" id="judul-grafik">Emisi harian</h2>
-            <ul class="legend" aria-label="Level emisi">
-              <li><span><i class="bg-low"></i>Rendah</span></li>
-              <li><span><i class="bg-medium"></i>Sedang</span></li>
-              <li><span><i class="bg-high"></i>Tinggi</span></li>
-              <li><span><i class="bg-very-high"></i>Sangat tinggi</span></li>
-            </ul>
+            <p class="hint">Minggu ini · kg CO₂e</p>
           </div>
-          <div class="bars" role="img" aria-label="Emisi harian: Sen 4,2; Sel 7,9; Rab 5,1; Kam 10,8; Jum 8,8; Sab 5,8; Min 0 kg CO2e">
-            <span class="bar bar--low h-76"><b>4,2</b></span>
-            <span class="bar bar--medium h-142"><b>7,9</b></span>
-            <span class="bar bar--low h-92"><b>5,1</b></span>
-            <span class="bar bar--very-high h-190"><b>10,8</b></span>
-            <span class="bar bar--high h-160"><b>8,8</b></span>
-            <span class="bar bar--low h-104"><b>5,8</b></span>
-            <span class="bar bar--zero h-4"><b>0</b></span>
+          {#Render saved daily totals with heights calculated by the view.#}
+          <div class="bars" role="img" aria-describedby="chart-note" aria-label="Emisi harian minggu ini: {% for day in daily_chart %}{{ day.label }}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO2e{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}">
+            {% for day in daily_chart %}
+              <span class="bar {% if day.emissions %}bar--recorded{% else %}bar--zero{% endif %}" style="height: {{ day.height }}px" title="{{ day.date|date:'d M Y' }}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO₂e{% endif %}">
+                <b>{% if day.is_future %}—{% else %}{{ day.emissions|floatformat:1 }}{% endif %}</b>
+              </span>
+            {% endfor %}
           </div>
-          <div class="days" aria-hidden="true"><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span></div>
-          <p class="chart-foot">Faktor emisi dari Climatiq. Hari Minggu belum ada aktivitas.</p>
+          {#Keep weekday labels aligned with the seven chart bars.#}
+          <div class="days" aria-hidden="true">
+            {% for day in daily_chart %}<span>{{ day.label }}</span>{% endfor %}
+          </div>
+          <p class="chart-foot" id="chart-note">Total emisi tersimpan per hari, Senin hingga hari ini. Tinggi batang mengikuti total terbesar minggu ini; — menandai hari yang belum berlangsung.</p>
         </article>
 
         <article class="card breakdown" aria-labelledby="judul-rincian">
           <h2 class="card-title" id="judul-rincian">Rincian kategori</h2>
+          <p class="hint">Minggu ini</p>
+          {#Gunakan total, ikon, dan persentase kategori dari view.#}
           <ul>
-            <li>
-              <div class="row"><span class="name"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-car"/></svg>Transportasi</span><span class="kg">20,4 kg</span></div>
-              <div class="progress" role="img" aria-label="48% dari total"><i class="w-48"></i></div>
-            </li>
-            <li>
-              <div class="row"><span class="name"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-zap"/></svg>Listrik</span><span class="kg">13,2 kg</span></div>
-              <div class="progress" role="img" aria-label="31% dari total"><i class="w-31 fill-moss-mid"></i></div>
-            </li>
-            <li>
-              <div class="row"><span class="name"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-utensils"/></svg>Makanan</span><span class="kg">9,0 kg</span></div>
-              <div class="progress" role="img" aria-label="21% dari total"><i class="w-21 fill-moss-light"></i></div>
-            </li>
+            {% for category in category_breakdown %}
+              <li>
+                <div class="row">
+                  <span class="name">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#{{ category.icon }}"/></svg>
+                    {{ category.label }}
+                  </span>
+                  <span class="kg">{{ category.emissions|floatformat:2 }} kg</span>
+                </div>
+                <div class="progress" role="img" aria-label="{{ category.label }}: {{ category.percentage|floatformat:1 }}% dari total emisi minggu ini">
+                  {#Persentase CSS memakai titik desimal; kategori nol tidak diisi.#}
+                  {% if category.emissions %}
+                    <i class="{% if category.icon == 'i-zap' %}fill-moss-mid{% elif category.icon == 'i-flame' %}fill-moss-light{% endif %}" style="width: {{ category.percentage|unlocalize }}%"></i>
+                  {% endif %}
+                </div>
+              </li>
+            {% endfor %}
           </ul>
         </article>
       </section>
 
       <section class="tracker-forms">
-        <form class="card card--c quick" id="catat-cepat" aria-labelledby="judul-catat">
-          <p class="eyebrow">Catat cepat</p>
-          <h2 id="judul-catat">Apa aktivitasmu tadi?</h2>
-          <div class="chips" role="group" aria-label="Jenis aktivitas">
-            <button class="chip chip--select" type="button" aria-pressed="false">KRL</button>
-            <button class="chip chip--select" type="button" aria-pressed="false">Motor</button>
-            <button class="chip chip--select" type="button" aria-pressed="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Mobil</button>
-            <button class="chip chip--select" type="button" aria-pressed="false">AC</button>
-            <button class="chip chip--select" type="button" aria-pressed="false">Daging</button>
+        <form method="post" class="card card--c quick" id="catat-cepat" aria-labelledby="judul-catat">
+          <p class="eyebrow">{% if editing_activity %}Edit aktivitas{% else %}Catat cepat{% endif %}</p>
+          <h2 id="judul-catat">{% if editing_activity %}Perbarui aktivitasmu{% else %}Apa aktivitasmu tadi?{% endif %}</h2>
+          {% csrf_token %}
+          {% for message in messages %}
+            <p class="hint" role="status">{{ message }}</p>
+          {% endfor %}
+          {{ form.non_field_errors }}
+          <fieldset class="chips" aria-describedby="activity-factor-note">
+            <legend class="sr-only">{{ form.activity_type.label }}</legend>
+            {% for radio in form.activity_type %}
+              <label class="activity-choice">
+                {{ radio.tag }}
+                <span class="chip chip--select">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>
+                  {{ radio.choice_label }}
+                </span>
+              </label>
+            {% endfor %}
+          </fieldset>
+          {{ form.activity_type.errors }}
+          {#Jelaskan sumber faktor sesuai aktivitas, termasuk sebelum JavaScript berjalan.#}
+          <p class="hint activity-factor-note" id="activity-factor-note" aria-live="polite">
+            {% if form.activity_type.value == "car_travel" %}
+              Mobil: perkiraan emisi penggunaan kendaraan berdasarkan data Amerika Serikat (US EPA 2025).
+            {% elif form.activity_type.value == "electricity" %}
+              Listrik: faktor bauran produksi listrik Indonesia (Ember 2024).
+            {% elif form.activity_type.value == "lpg" %}
+              Gas LPG: catat kg gas yang dikonsumsi, bukan berat tabung. Faktor pembakaran UK Government 2025 (Inggris), tanpa emisi produksi/distribusi.
+            {% else %}
+              Pilih jenis aktivitas untuk melihat sumber faktor.
+            {% endif %}
+          </p>
+          <div class="field">
+            {#Sediakan label dan satuan yang benar sebelum JavaScript berjalan.#}
+            <label for="{{ form.quantity.id_for_label }}" id="quantity-label">{% if form.activity_type.value == "lpg" %}Gas LPG yang dikonsumsi{% elif form.activity_type.value == "electricity" %}Pemakaian listrik{% else %}Jarak tempuh{% endif %}</label>
+            <span class="input">
+              {{ form.quantity }}
+              <span class="input-suffix" id="quantity-unit">{% if form.activity_type.value == "lpg" %}kg{% elif form.activity_type.value == "electricity" %}kWh{% else %}km{% endif %}</span>
+            </span>
+            {{ form.quantity.errors }}
           </div>
-          <label class="field">Jarak tempuh
-            <span class="input"><input type="text" inputmode="decimal" value="12,5"><span class="input-suffix">km</span></span>
-          </label>
-          <label class="field">Tanggal
-            <span class="input"><input type="text" value="Sabtu, 26 September"><span class="input-suffix"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-calendar"/></svg></span></span>
-          </label>
-          <div class="actions"><button class="btn btn--primary" type="submit">Simpan aktivitas</button></div>
+          <div class="field">
+            <label for="{{ form.date.id_for_label }}">Tanggal</label>
+            <span class="input">{{ form.date }}</span>
+            {{ form.date.errors }}
+          </div>
+          <details class="activity-notes"{% if form.description.value or form.description.errors %} open{% endif %}>
+            <summary>Tambah catatan (opsional)</summary>
+            <div class="field">
+              <label for="{{ form.description.id_for_label }}">Catatan</label>
+              <span class="input">{{ form.description }}</span>
+              {{ form.description.errors }}
+            </div>
+          </details>
+          {% if estimate %}
+            <p class="hint" role="status">
+              Estimasi emisi:
+              <strong>{{ estimate.co2e|floatformat:4 }} kg CO₂e</strong>
+            </p>
+          {% endif %}
+          <div class="actions">
+            {% if editing_activity %}
+              <a class="btn" href="{% url 'tracker:index' %}#catat-cepat">Batal</a>
+            {% endif %}
+            <button class="btn" type="submit" name="action" value="estimate">
+              Hitung emisi
+            </button>
+            <button class="btn btn--primary" type="submit" name="action" value="save">
+              {% if editing_activity %}Simpan perubahan{% else %}Simpan aktivitas{% endif %}
+            </button>
+          </div>
         </form>
 
-        <article class="card card--a history" aria-labelledby="judul-riwayat">
+        <article class="card card--a history" id="riwayat-aktivitas" aria-labelledby="judul-riwayat">
           <h2 class="card-title" id="judul-riwayat">Riwayat aktivitas</h2>
-          <table class="table">
-            <colgroup><col class="col-71"><col class="col-150"><col class="col-106"><col class="col-68"><col class="col-143"><col></colgroup>
-            <thead><tr><th scope="col">Tanggal</th><th scope="col">Aktivitas</th><th scope="col">Kategori</th><th scope="col">Emisi</th><th scope="col">Level</th><th scope="col"><span class="sr-only">Aksi</span></th></tr></thead>
-            <tbody>
-              <tr><td>26 Sep</td><td>Mobil, 12,5 km</td><td>Transportasi</td><td><strong>2,4 kg</strong></td><td><span class="level level--medium">Sedang</span></td><td><span class="acts"><a href="#">Edit</a><a href="#">Hapus</a></span></td></tr>
-              <tr><td>26 Sep</td><td>AC, 6 jam</td><td>Listrik</td><td><strong>3,4 kg</strong></td><td><span class="level level--high">Tinggi</span></td><td><span class="acts"><a href="#">Edit</a><a href="#">Hapus</a></span></td></tr>
-              <tr><td>25 Sep</td><td>KRL, 18 km</td><td>Transportasi</td><td><strong>0,6 kg</strong></td><td><span class="level level--low">Rendah</span></td><td><span class="acts"><a href="#">Edit</a><a href="#">Hapus</a></span></td></tr>
-              <tr><td>24 Sep</td><td>Daging sapi, 200 g</td><td>Makanan</td><td><strong>5,4 kg</strong></td><td><span class="level level--very-high">Sangat tinggi</span></td><td><span class="acts"><a href="#">Edit</a><a href="#">Hapus</a></span></td></tr>
-              <tr><td>24 Sep</td><td>Motor, 9 km</td><td>Transportasi</td><td><strong>0,9 kg</strong></td><td><span class="level level--low">Rendah</span></td><td><span class="acts"><a href="#">Edit</a><a href="#">Hapus</a></span></td></tr>
-            </tbody>
-          </table>
+          <p class="hint history-total">
+            Total emisi seluruh waktu:
+            <strong>{{ total_emissions|floatformat:4 }} kg CO₂e</strong>
+          </p>
+          <div class="history-table-wrap" role="region" aria-label="Tabel riwayat aktivitas" tabindex="0">
+            <table class="table">
+              <caption class="sr-only">Aktivitas karbon tersimpan, terbaru terlebih dahulu</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Tanggal</th>
+                  <th scope="col">Aktivitas</th>
+                  <th scope="col">Kategori</th>
+                  <th scope="col">Jumlah</th>
+                  <th scope="col">Emisi</th>
+                  <th scope="col">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for activity in activities %}
+                  <tr>
+                    <td>{{ activity.date|date:"d M Y" }}</td>
+                    <td>{{ activity.description|default:activity.get_activity_type_display }}</td>
+                    <td>
+                      {% if activity.activity_type == "car_travel" %}
+                        Transportasi
+                      {% elif activity.activity_type == "electricity" %}
+                        Listrik
+                      {% elif activity.activity_type == "lpg" %}
+                        Gas LPG
+                      {% endif %}
+                    </td>
+                    <td>
+                      {{ activity.quantity|floatformat:2 }}
+                      {% if activity.activity_type == "car_travel" %}km{% elif activity.activity_type == "electricity" %}kWh{% elif activity.activity_type == "lpg" %}kg{% endif %}
+                    </td>
+                    <td><strong>{{ activity.emission_kg|floatformat:4 }} kg</strong></td>
+                    <td>
+                      <span class="acts">
+                        <a class="history-edit" href="{% url 'tracker:edit' activity.pk %}#catat-cepat" aria-label="Edit aktivitas tanggal {{ activity.date|date:'d M Y' }}">Edit</a>
+                        <a href="{% url 'tracker:delete' activity.pk %}" aria-label="Hapus aktivitas tanggal {{ activity.date|date:'d M Y' }}">Hapus</a>
+                      </span>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="6" class="history-empty">
+                      {% if request.user.is_authenticated %}
+                        Belum ada aktivitas tersimpan. Catat aktivitas pertamamu di formulir.
+                      {% else %}
+                        Silakan login untuk melihat riwayat aktivitasmu.
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </article>
       </section>
     </div>
+    <script src="{% static 'js/tracker-form.js' %}" defer></script>
 {% endblock %}

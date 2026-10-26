@@ -1070,8 +1070,9 @@ main {
   height: 140px;
 }
 
+/*Biarkan teks kategori dan total dinamis tetap berada di dalam kartu.*/
 .top-source {
-  height: 312px;
+  min-height: 312px;
   padding: 32px 40px;
 }
 
@@ -1177,6 +1178,11 @@ main {
   color: var(--color-text-primary);
 }
 
+/*Use one color for recorded emissions until level thresholds are defined.*/
+.bar--recorded {
+  background: var(--chart-low);
+}
+
 .bar--zero {
   border-radius: 4px 4px 0 0;
   background: var(--color-bg-sunken);
@@ -1202,8 +1208,8 @@ main {
 }
 
 .breakdown {
-  height: 327px;
-  padding: 30px 32px 0;
+  min-height: 327px;
+  padding: 30px 32px;
   border-radius: 59px 47px 71px 27px / 46px 37px 56px 21px;
 }
 
@@ -1252,8 +1258,8 @@ main {
 }
 
 .quick {
-  height: 506px;
-  padding: 32px 32px 0;
+  min-height: 506px;
+  padding: 32px;
 }
 
 .quick .eyebrow {
@@ -1271,10 +1277,64 @@ main {
   gap: 8px 14px;
   margin-top: 19px;
   padding-left: 4px;
+  border: 0;
+  min-width: 0;
+  margin-right: 0;
+  margin-bottom: 0;
+  margin-left: 0;
+}
+
+.activity-choice {
+  position: relative;
+  cursor: pointer;
+}
+
+.activity-choice .chip svg {
+  display: none;
+}
+
+.activity-choice input:checked + .chip {
+  background: var(--color-highlight);
+  color: var(--color-text-primary);
+  border: 2px solid var(--color-border-strong);
+  box-shadow: 0 3px 0 var(--color-border-strong);
+  padding: 0 17px;
+}
+
+.activity-choice input:checked + .chip svg {
+  display: block;
+}
+
+.activity-choice input:focus-visible + .chip {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+}
+
+.quick .activity-notes {
+  margin-top: 20px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.activity-notes summary {
+  cursor: pointer;
+}
+
+.quick .errorlist {
+  margin-top: 8px;
+  padding-left: 18px;
+  color: var(--color-error-text);
+  font-size: 13px;
 }
 
 .quick .field {
   margin-top: 20px;
+}
+
+/*Pisahkan sumber faktor dari pilihan aktivitas dan kolom input.*/
+.quick .activity-factor-note {
+  margin-top: 12px;
+  line-height: 1.5;
 }
 
 .quick .input {
@@ -1283,13 +1343,83 @@ main {
 
 .quick .actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   justify-content: flex-end;
   margin-top: 20px;
 }
 
 .history {
-  height: 506px;
-  padding: 35px 32px 0;
+  min-height: 506px;
+  min-width: 0;
+  padding: 35px 32px 32px;
+}
+
+.history-total {
+  margin-top: 12px;
+}
+
+.history-table-wrap {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.history .table {
+  min-width: 620px;
+  table-layout: auto;
+}
+
+.history .table td:nth-child(2) {
+  min-width: 150px;
+  max-width: 250px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.history .table .history-empty {
+  padding: 24px 12px;
+  white-space: normal;
+  color: var(--color-text-secondary);
+}
+
+.history-edit {
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.history-edit:hover {
+  text-decoration: underline;
+}
+
+.history-edit:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+}
+
+.activity-confirm {
+  max-width: 640px;
+}
+
+.activity-confirm-details {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px 24px;
+  margin: 24px 0;
+}
+
+.activity-confirm-details dt {
+  font-weight: 700;
+}
+
+.activity-confirm-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.activity-confirm .form-actions {
+  flex-wrap: wrap;
 }
 
 .table {

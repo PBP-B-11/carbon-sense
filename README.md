@@ -6,12 +6,16 @@
 
 ### 1. Modul "Carbon Tracker" (Pencatat Jejak Karbon)
 
-- **Fokus Utama:** Fitur inti untuk mencatat emisi harian pengguna (transportasi, listrik, makanan).
+- **Fokus Utama:** Fitur inti untuk mencatat emisi harian pengguna (transportasi, listrik, gas LPG).
 - **Komponen CRUD:**
   - **Create:** Menambahkan log aktivitas karbon (misal: "Naik mobil 15 km").
   - **Read:** Menampilkan tabel riwayat aktivitas dan total emisi (Dashboard).
   - **Update:** Mengedit log aktivitas jika salah ketik.
   - **Delete:** Menghapus log dari riwayat.
+
+Input Tracker menggunakan kilometer untuk mobil, kWh untuk listrik, dan kilogram gas yang dikonsumsi untuk LPG (bukan berat tabung atau jumlah pembelian isi ulang).
+
+Estimasi LPG menggunakan faktor pembakaran stasioner UK Government 2025 melalui Climatiq sebagai perkiraan berbasis data Inggris. Perhitungan ini tidak mencakup emisi produksi/distribusi gas dan bukan faktor khusus Indonesia. Sumber: [UK greenhouse gas conversion factors 2025](https://www.gov.uk/government/publications/greenhouse-gas-reporting-conversion-factors-2025).
 
 ### 2. Modul "Profile & Environment Settings" (Profil & Widget Udara)
 
