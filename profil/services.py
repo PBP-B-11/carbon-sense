@@ -2,15 +2,20 @@ from urllib.parse import urlencode
 
 import requests
 from django.core import signing
+from django.core.cache import cache
 
 
 def _get(url):
-    try:
-        response = requests.get(url, timeout=4)
-        response.raise_for_status()
-        return response.json()
-    except (requests.RequestException, ValueError):
-        return None
+    for _ in range(3):
+        try:
+            response = requests.get(url, timeout=4)
+            response.raise_for_status()
+            return response.json()
+        except requests.ConnectionError:
+            continue
+        except (requests.RequestException, ValueError):
+            break
+    return None
 
 
 def search_cities(query):
@@ -40,8 +45,12 @@ def environment_snapshot(profile):
         return None
     location = urlencode({'latitude': profile.latitude, 'longitude': profile.longitude, 'timezone': 'auto'})
     weather = _get('https://api.open-meteo.com/v1/forecast?' + location + '&current=temperature_2m,relative_humidity_2m,wind_speed_10m')
-    air = _get('https://air-quality-api.open-meteo.com/v1/air-quality?' + location + '&current=us_aqi')
-    try:
-        return {**weather['current'], 'us_aqi': air['current']['us_aqi']}
-    except (KeyError, TypeError):
-        return None
+    air_key = f'profil:air:{location}'
+    air = cache.get(air_key)
+    if air is None:
+        air = _get('https://air-quality-api.open-meteo.com/v1/air-quality?' + location + '&current=us_aqi')
+        if ((air or {}).get('current') or {}).get('us_aqi') is not None:
+            cache.set(air_key, air, 300)
+    current = {**((weather or {}).get('current') or {}), **((air or {}).get('current') or {})}
+    snapshot = {key: value for key, value in current.items() if key in ('temperature_2m', 'relative_humidity_2m', 'wind_speed_10m', 'us_aqi') and value is not None}
+    return snapshot or None

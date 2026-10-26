@@ -1,12 +1,14 @@
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+import requests
 from django.contrib.auth.models import User
 from django.conf import settings
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .models import UserProfile
-from .services import city_token
+from .services import _get, city_token, environment_snapshot
 
 
 @override_settings(MIDDLEWARE=[middleware for middleware in settings.MIDDLEWARE if middleware != 'whitenoise.middleware.WhiteNoiseMiddleware'])
@@ -35,6 +37,34 @@ class ProfileTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse('profil:index'))
         self.assertContains(response, 'US AQI estimate: 52')
+
+    @patch('profil.services._get')
+    def test_weather_stays_visible_when_air_api_fails(self, get):
+        get.side_effect = [
+            {'current': {'temperature_2m': 29.2, 'relative_humidity_2m': 66, 'wind_speed_10m': 7.4}},
+            None,
+        ]
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('profil:index'))
+        self.assertEqual(response.context['snapshot']['temperature_2m'], 29.2)
+        self.assertContains(response, 'Suhu')
+        self.assertNotContains(response, 'US AQI estimate:')
+
+    @patch('profil.services.requests.get')
+    def test_api_retries_refused_connection(self, get):
+        get.side_effect = [requests.ConnectionError('refused'), Mock(json=lambda: {'current': {'temperature_2m': 29.2}})]
+        self.assertEqual(_get('https://api.open-meteo.com'), {'current': {'temperature_2m': 29.2}})
+        self.assertEqual(get.call_count, 2)
+
+    @patch('profil.services._get')
+    def test_aqi_remains_available_on_next_snapshot(self, get):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        weather = {'current': {'temperature_2m': 29.2}}
+        air = {'current': {'us_aqi': 174}}
+        get.side_effect = [weather, air, weather]
+        self.assertEqual(environment_snapshot(self.profile)['us_aqi'], 174)
+        self.assertEqual(environment_snapshot(self.profile)['us_aqi'], 174)
 
     def test_registration_creates_profile_with_city(self):
         response = self.client.post(reverse('profil:register'), {
