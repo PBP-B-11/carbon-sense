@@ -1115,8 +1115,31 @@ main {
 }
 
 .chart-card {
-  height: 420px;
-  padding: 30px 32px 0;
+  min-width: 0;
+  min-height: 420px;
+  padding: 30px 32px 24px;
+}
+
+/*Pertahankan ukuran batang dan sejajarkan label saat grafik digeser.*/
+.chart-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.chart-scroll:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+}
+
+.chart-series {
+  min-width: calc(var(--chart-columns) * 60px);
+}
+
+.chart-series .bars,
+.chart-series .days {
+  grid-template-columns: repeat(var(--chart-columns), minmax(0, 1fr));
+  gap: 16px;
 }
 
 .chart-head {

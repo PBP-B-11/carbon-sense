@@ -69,22 +69,26 @@
       <section class="tracker-charts">
         <article class="card card--b chart-card" aria-labelledby="judul-grafik">
           <div class="chart-head">
-            <h2 class="card-title" id="judul-grafik">Emisi harian</h2>
-            <p class="hint">Minggu ini · kg CO₂e</p>
+            <h2 class="card-title" id="judul-grafik">{% if period == 'year' %}Emisi bulanan{% else %}Emisi harian{% endif %}</h2>
+            <p class="hint">{{ period_label }} · kg CO₂e</p>
           </div>
-          {#Render saved daily totals with heights calculated by the view.#}
-          <div class="bars" role="img" aria-describedby="chart-note" aria-label="Emisi harian minggu ini: {% for day in daily_chart %}{{ day.label }}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO2e{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}">
-            {% for day in daily_chart %}
-              <span class="bar {% if day.emissions %}bar--recorded{% else %}bar--zero{% endif %}" style="height: {{ day.height }}px" title="{{ day.date|date:'d M Y' }}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO₂e{% endif %}">
-                <b>{% if day.is_future %}—{% else %}{{ day.emissions|floatformat:1 }}{% endif %}</b>
-              </span>
-            {% endfor %}
+          {#Geser grafik panjang tanpa mengubah lebar kartu atau posisi label.#}
+          <div class="chart-scroll" tabindex="0" role="region" aria-label="Grafik {{ period_label|lower }}, dapat digeser horizontal">
+            <div class="chart-series" style="--chart-columns: {{ daily_chart|length }}">
+              <div class="bars" role="img" aria-describedby="chart-note" aria-label="Emisi {% if period == 'year' %}bulanan{% else %}harian{% endif %} {{ period_label|lower }}: {% for day in daily_chart %}{{ day.label }}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO2e{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}">
+                {% for day in daily_chart %}
+                  <span class="bar {% if day.emissions %}bar--recorded{% else %}bar--zero{% endif %}" style="height: {{ day.height }}px" title="{% if period == 'year' %}{{ day.label }} {{ day.date|date:'Y' }}{% else %}{{ day.date|date:'d M Y' }}{% endif %}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO₂e{% endif %}">
+                    <b>{% if day.is_future %}—{% else %}{{ day.emissions|floatformat:1 }}{% endif %}</b>
+                  </span>
+                {% endfor %}
+              </div>
+              {#Samakan jumlah label dengan batang untuk semua periode.#}
+              <div class="days" aria-hidden="true">
+                {% for day in daily_chart %}<span>{{ day.label }}</span>{% endfor %}
+              </div>
+            </div>
           </div>
-          {#Keep weekday labels aligned with the seven chart bars.#}
-          <div class="days" aria-hidden="true">
-            {% for day in daily_chart %}<span>{{ day.label }}</span>{% endfor %}
-          </div>
-          <p class="chart-foot" id="chart-note">Total emisi tersimpan per hari, Senin hingga hari ini. Tinggi batang mengikuti total terbesar minggu ini; — menandai hari yang belum berlangsung.</p>
+          <p class="chart-foot" id="chart-note">Total emisi tersimpan per {% if period == 'year' %}bulan{% else %}hari{% endif %} {{ period_label|lower }}, hingga hari ini. Tinggi batang mengikuti total terbesar; — menandai {% if period == 'year' %}bulan{% else %}hari{% endif %} yang belum berlangsung. Geser grafik untuk melihat semua label.</p>
         </article>
 
         <article class="card breakdown" aria-labelledby="judul-rincian">

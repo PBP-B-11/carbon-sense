@@ -8,6 +8,7 @@ from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from .dashboard import build_emissions_chart
 from .models import CarbonActivity
 from .services import MEAT_FACTOR_IDS, estimate_meat
 
@@ -69,7 +70,7 @@ class MeatTrackerTests(TestCase):
         data.update(changes)
         return CarbonActivity.objects.create(**data)
 
-    @patch("tracker.views.estimate_meat", return_value=CHICKEN_RESULT)
+    @patch("tracker.activity_actions.estimate_meat", return_value=CHICKEN_RESULT)
     def test_preview_displays_grams_source_and_shortcuts_without_saving(self, estimate):
         response = self.client.post(self.index_url, self.payload())
 
@@ -90,7 +91,7 @@ class MeatTrackerTests(TestCase):
         )
         self.assertEqual(CarbonActivity.objects.count(), 0)
 
-    @patch("tracker.views.estimate_meat", side_effect=[CHICKEN_RESULT, BEEF_RESULT])
+    @patch("tracker.activity_actions.estimate_meat", side_effect=[CHICKEN_RESULT, BEEF_RESULT])
     def test_saved_meats_keep_separate_types_but_share_dashboard_category(self, estimate):
         self.client.force_login(self.owner)
         for kind in ("chicken", "beef"):
@@ -111,7 +112,7 @@ class MeatTrackerTests(TestCase):
         self.assertEqual(response.context["top_category"]["percentage"], Decimal("100"))
         self.assertContains(response, 'href="#i-utensils"')
 
-    @patch("tracker.views.estimate_meat", return_value={"co2e": 14.170246094})
+    @patch("tracker.activity_actions.estimate_meat", return_value={"co2e": 14.170246094})
     def test_edit_can_change_meat_type_and_recalculate_same_record(self, estimate):
         activity = self.create_activity()
         self.client.force_login(self.owner)
@@ -136,7 +137,7 @@ class MeatTrackerTests(TestCase):
         self.assertEqual(CarbonActivity.objects.count(), 1)
         estimate.assert_called_with("beef", Decimal("200"))
 
-    @patch("tracker.views.estimate_meat", side_effect=requests.Timeout)
+    @patch("tracker.activity_actions.estimate_meat", side_effect=requests.Timeout)
     def test_api_failure_preserves_existing_record(self, estimate):
         activity = self.create_activity()
         self.client.force_login(self.owner)
@@ -149,14 +150,14 @@ class MeatTrackerTests(TestCase):
         self.assertEqual(activity.quantity, Decimal("100"))
         self.assertEqual(activity.emission_kg, Decimal("0.4200"))
 
-    @patch("tracker.views.estimate_meat")
+    @patch("tracker.activity_actions.estimate_meat")
     def test_anonymous_user_cannot_save(self, estimate):
         response = self.client.post(self.index_url, self.payload(action="save"))
         self.assertContains(response, "Silakan login untuk menyimpan aktivitas.")
         estimate.assert_not_called()
         self.assertEqual(CarbonActivity.objects.count(), 0)
 
-    @patch("tracker.views.estimate_meat")
+    @patch("tracker.activity_actions.estimate_meat")
     def test_other_user_cannot_edit_or_delete(self, estimate):
         activity = self.create_activity()
         self.client.force_login(self.other)
@@ -167,7 +168,7 @@ class MeatTrackerTests(TestCase):
         self.assertTrue(CarbonActivity.objects.filter(pk=activity.pk).exists())
         estimate.assert_not_called()
 
-    @patch("tracker.views.estimate_meat")
+    @patch("tracker.activity_actions.estimate_meat")
     def test_invalid_amounts_and_unsupported_types_are_rejected(self, estimate):
         for quantity in ("0", "-100"):
             response = self.client.post(self.index_url, self.payload(quantity=quantity))
@@ -237,6 +238,12 @@ class MeatTrackerTests(TestCase):
                 response = self.client.get(self.index_url, {"period": requested})
                 self.assertEqual(response.context["period"], selected)
                 self.assertEqual(response.context["period_emissions"], Decimal(total))
+                #Grafik dan ringkasan harus memakai rentang dan total yang sama.
+                chart = response.context["daily_chart"]
+                self.assertEqual(len(chart), {"week": 7, "month": 31, "year": 12}[selected])
+                self.assertEqual(sum(bar["emissions"] for bar in chart), Decimal(total))
+                self.assertContains(response, "Emisi bulanan" if selected == "year" else "Emisi harian")
+                self.assertContains(response, f'--chart-columns: {len(chart)}')
                 self.assertEqual(response.context["top_category"]["emissions"], Decimal(meat_total))
                 self.assertEqual(response.context["today_emissions"], Decimal("3"))
                 self.assertEqual(response.context["average_daily_emissions"], Decimal("5") / Decimal("7"))
@@ -244,9 +251,9 @@ class MeatTrackerTests(TestCase):
                 self.assertContains(response, f"Jejak karbonmu {label.lower()}.")
                 self.assertEqual(response.content.count(b'aria-current="true"'), 1)
 
-    @patch("tracker.views.estimate_car_travel", return_value={"co2e": 2.78283915682})
-    @patch("tracker.views.estimate_electricity", return_value={"co2e": 6.8025})
-    @patch("tracker.views.estimate_meat")
+    @patch("tracker.activity_actions.estimate_car_travel", return_value={"co2e": 2.78283915682})
+    @patch("tracker.activity_actions.estimate_electricity", return_value={"co2e": 6.8025})
+    @patch("tracker.activity_actions.estimate_meat")
     def test_car_and_electricity_keep_their_own_calculators(self, meat, electricity, car):
         for activity_type, quantity in (("car_travel", "15"), ("electricity", "10")):
             response = self.client.post(
@@ -257,3 +264,81 @@ class MeatTrackerTests(TestCase):
         car.assert_called_once_with(Decimal("15"))
         electricity.assert_called_once_with(Decimal("10"))
         meat.assert_not_called()
+
+
+class DashboardChartTests(TestCase):
+    def setUp(self):
+        self.owner = get_user_model().objects.create_user(username="chart-owner")
+        self.other = get_user_model().objects.create_user(username="chart-other")
+        self.activities = CarbonActivity.objects.filter(user=self.owner)
+
+    def log(self, day, emission, user=None):
+        return CarbonActivity.objects.create(
+            user=user or self.owner, activity_type="electricity",
+            quantity=Decimal("1"), emission_kg=Decimal(emission), date=day,
+        )
+
+    #Data kosong tetap menyediakan seluruh label tanpa membagi dengan nol.
+    def test_empty_periods_keep_zero_bars_and_future_markers(self):
+        today = date(2026, 10, 14)
+        for period, count in (("week", 7), ("month", 31), ("year", 12)):
+            with self.subTest(period=period):
+                chart = build_emissions_chart(self.activities, period, today)
+                self.assertEqual(len(chart), count)
+                self.assertTrue(all(bar["emissions"] == 0 and bar["height"] == 4 for bar in chart))
+                self.assertFalse(chart[0]["is_future"])
+                self.assertTrue(chart[-1]["is_future"])
+
+    #Minggu yang melintasi pergantian tahun tetap dimulai pada Senin.
+    def test_week_crosses_year_boundary_and_excludes_future_and_other_users(self):
+        self.log(date(2025, 12, 28), "999")
+        self.log(date(2025, 12, 29), "2")
+        self.log(date(2026, 1, 1), "4")
+        self.log(date(2026, 1, 2), "999")
+        self.log(date(2026, 1, 1), "999", user=self.other)
+
+        chart = build_emissions_chart(self.activities, "week", date(2026, 1, 1))
+        self.assertEqual(chart[0]["date"], date(2025, 12, 29))
+        self.assertEqual(chart[-1]["date"], date(2026, 1, 4))
+        self.assertEqual([bar["label"] for bar in chart], ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"])
+        self.assertEqual(sum(bar["emissions"] for bar in chart), Decimal("6"))
+        self.assertEqual(chart[0]["height"], 95)
+        self.assertEqual(chart[3]["height"], 190)
+        self.assertFalse(chart[3]["is_future"])
+        self.assertTrue(chart[4]["is_future"])
+        self.assertEqual(chart[4]["emissions"], 0)
+
+    #Jumlah hari Februari harus sesuai tahun kabisat dan tahun biasa.
+    def test_month_respects_leap_year_and_calendar_boundaries(self):
+        for year, last_day in ((2024, 29), (2026, 28)):
+            with self.subTest(year=year):
+                self.log(date(year, 1, 31), "999")
+                self.log(date(year, 2, 1), "2")
+                self.log(date(year, 2, last_day), "3")
+                self.log(date(year, 3, 1), "999")
+                chart = build_emissions_chart(self.activities, "month", date(year, 2, last_day))
+                self.assertEqual(len(chart), last_day)
+                self.assertEqual(chart[-1]["label"], str(last_day))
+                self.assertEqual(sum(bar["emissions"] for bar in chart), Decimal("5"))
+                self.assertFalse(any(bar["is_future"] for bar in chart))
+
+    #Gabungkan catatan bulanan hanya dalam tahun ini sampai hari ini.
+    def test_year_sums_months_and_excludes_future_records(self):
+        for day, emission in (
+            (date(2025, 12, 31), "999"),
+            (date(2026, 1, 1), "3"),
+            (date(2026, 1, 30), "2"),
+            (date(2026, 10, 14), "1"),
+            (date(2026, 10, 15), "999"),
+            (date(2027, 1, 1), "999"),
+        ):
+            self.log(day, emission)
+        chart = build_emissions_chart(self.activities, "year", date(2026, 10, 14))
+        self.assertEqual(len(chart), 12)
+        self.assertEqual(chart[0]["label"], "Jan")
+        self.assertEqual(chart[-1]["label"], "Des")
+        self.assertEqual(chart[0]["emissions"], Decimal("5"))
+        self.assertEqual(chart[9]["emissions"], Decimal("1"))
+        self.assertEqual(sum(bar["emissions"] for bar in chart), Decimal("6"))
+        self.assertFalse(chart[9]["is_future"])
+        self.assertTrue(chart[10]["is_future"])
