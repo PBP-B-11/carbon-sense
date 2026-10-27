@@ -323,6 +323,7 @@ main {
 
 .page-tools {
   display: flex;
+  flex-wrap: wrap;  /* tombol turun ke baris baru saat layar sempit */
   align-items: center;
   gap: 16px;
   margin-bottom: 8px;
@@ -1020,7 +1021,7 @@ main {
 }
 
 .stat {
-  padding: 21px 28px 0;
+  padding: 21px 28px 24px;  /* ruang bawah agar teks tidak menyentuh sudut melengkung */
 }
 
 .stat .eyebrow {
@@ -1062,12 +1063,13 @@ main {
   color: var(--color-text-secondary);
 }
 
+/* min-height: kartu boleh memanjang saat catatan terbungkus dua baris */
 .stat--1 {
-  height: 142px;
+  min-height: 142px;
 }
 
 .stat--2 {
-  height: 140px;
+  min-height: 140px;
 }
 
 /*Biarkan teks kategori dan total dinamis tetap berada di dalam kartu.*/
@@ -3015,6 +3017,18 @@ main {
   }
 }
 
+/* ---------- Layar ponsel: judul halaman mengecil ---------- */
+@media (max-width: 600px) {
+  .page-title h1 {
+    font-size: clamp(44px, 12vw, 68px);
+  }
+
+  /* Jarak tambahan tidak perlu saat kata penekanan turun ke baris baru */
+  .page-title .hl {
+    margin-left: 0;
+  }
+}
+
 /* ---------- Warna teks dan penekanan per modul ---------- */
 .t-moss {
   color: var(--color-primary);
@@ -3146,6 +3160,7 @@ main {
 
 .page-tools .chips {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
