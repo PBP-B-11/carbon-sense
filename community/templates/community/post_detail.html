@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load community_tags %}
+{% load community_tags static %}
 
 {% block title %}Carbon Sense: Postingan{% endblock %}
 
@@ -7,7 +7,10 @@
 
 {% block content %}
     <div class="container">
-      <p><a href="{% url 'community:index' %}">&larr; Kembali ke feed</a></p>
+      <p class="back-link"><a href="{% url 'community:index' %}">&larr; Kembali ke feed</a></p>
+      {% for message in messages %}
+      <p class="card feed-note" role="alert">{{ message }}</p>
+      {% endfor %}
       <article class="card post">
         <header class="post-head">
           <span class="avatar avatar--46" aria-hidden="true">{{ post.author.username|slice:":2"|upper }}</span>
@@ -22,22 +25,24 @@
           {% if post.news_snippet %}<small>{{ post.news_snippet }}</small>{% endif %}
         </a>
         {% endif %}
-        <footer class="post-foot"><span>{{ post.like_count }} suka</span><span>{{ comments|length }} komentar</span></footer>
+        <footer class="post-foot">
+          {% include "community/_like_form.html" with next=request.path %}
+          <span><span id="comment-count">{{ comments|length }}</span> komentar</span>
+        </footer>
 
         <h2>Komentar</h2>
-        {% for comment in comments %}
-        <div class="comment">
-          <strong>{{ comment.author.username }}</strong> <small>{{ comment.created_at|ago }}</small>
-          <p>{{ comment.content|linebreaksbr }}</p>
+        <div id="comments">
+          {% for comment in comments %}
+          {% include "community/_comment.html" %}
+          {% empty %}
+          <p class="comment-empty">Belum ada komentar.</p>
+          {% endfor %}
         </div>
-        {% empty %}
-        <p>Belum ada komentar.</p>
-        {% endfor %}
 
         {% if user.is_authenticated %}
-        <form method="post" action="{% url 'community:add_comment' post.pk %}">
+        <form method="post" action="{% url 'community:add_comment' post.pk %}" id="comment-form">
           {% csrf_token %}
-          <textarea name="content" aria-label="Tulis komentar" required></textarea>
+          <textarea name="content" aria-label="Tulis komentar" maxlength="{{ comment_max }}" required></textarea>
           <button class="btn btn--primary" type="submit">Kirim</button>
         </form>
         {% else %}
@@ -45,4 +50,31 @@
         {% endif %}
       </article>
     </div>
+
+    <dialog class="edit-dialog" id="comment-edit-dialog" aria-labelledby="comment-edit-title">
+      <form method="post" id="comment-edit-form">
+        {% csrf_token %}
+        <h2 id="comment-edit-title">Edit komentar</h2>
+        <textarea name="content" aria-label="Isi komentar" maxlength="{{ comment_max }}" required></textarea>
+        <div class="cat-choice">
+          <button class="btn btn--primary" type="submit">Simpan</button>
+          <button class="btn" type="button" id="comment-edit-cancel">Batal</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="edit-dialog" id="comment-delete-dialog" aria-labelledby="comment-delete-title">
+      <form id="comment-delete-confirm">
+        <h2 id="comment-delete-title">Hapus komentar?</h2>
+        <p>Komentar ini akan dihapus dan tidak bisa dikembalikan.</p>
+        <div class="cat-choice">
+          <button class="btn btn--danger" type="submit">Hapus</button>
+          <button class="btn" type="button" id="comment-delete-cancel">Batal</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast-region" id="toast-region" role="status" aria-live="polite"></div>
+
+    <script type="module" src="{% static 'js/community/detail-page.js' %}"></script>
 {% endblock %}

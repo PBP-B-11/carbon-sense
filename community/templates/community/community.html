@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load community_tags %}
+{% load community_tags static %}
 
 {% block title %}Carbon Sense: Green Community{% endblock %}
 
@@ -26,11 +26,11 @@
           {% endfor %}
 
           {% if user.is_authenticated %}
-          <form class="card card--a composer" method="post" action="{% url 'community:create_post' %}">
+          <form class="card card--a composer js-compose-form" method="post" action="{% url 'community:create_post' %}">
             {% csrf_token %}
             <div class="row">
               <span class="avatar avatar--46" aria-hidden="true">{{ user.username|slice:":2"|upper }}</span>
-              <textarea name="content" aria-label="Tulis postingan" placeholder="Bagikan tips atau ceritamu minggu ini..." required></textarea>
+              <textarea name="content" aria-label="Tulis postingan" placeholder="Bagikan tips atau ceritamu minggu ini..." maxlength="{{ post_max }}" required></textarea>
             </div>
             <div class="cat-choice">
               {% include "community/_category_chips.html" with selected="tips" %}
@@ -41,41 +41,24 @@
           <p class="card card--a feed-note">Masuk untuk membuat postingan, menyukai, dan berkomentar.</p>
           {% endif %}
 
-          {% for post in posts %}
-          <article class="card post">
-            <header class="post-head">
-              <span class="avatar avatar--46" aria-hidden="true">{{ post.author.username|slice:":2"|upper }}</span>
-              <div class="who"><strong>{{ post.author.username }}</strong><small>{{ post.created_at|ago }}</small></div>
-              <span class="pill {% if post.category == 'tips' %}pill--moss{% elif post.category == 'diskusi' %}pill--teal{% else %}pill--amber{% endif %}">{{ post.get_category_display }}</span>
-            </header>
-            <p>{{ post.content|linebreaksbr }}</p>
-            {% if post.has_news %}
-            <a class="post-news" href="{{ post.news_url }}" target="_blank" rel="noopener noreferrer">
-              <small>{{ post.news_source }}</small>
-              <strong>{{ post.news_title }}</strong>
-              {% if post.news_snippet %}<small>{{ post.news_snippet }}</small>{% endif %}
-            </a>
+          <nav class="feed-filter" aria-label="Filter kategori">
+            <a class="chip js-filter{% if not category %} chip--active{% endif %}" href="{% url 'community:index' %}" data-category=""{% if not category %} aria-current="true"{% endif %}>Semua</a>
+            {% for value, label in categories %}
+            <a class="chip js-filter{% if category == value %} chip--active{% endif %}" href="?category={{ value }}" data-category="{{ value }}"{% if category == value %} aria-current="true"{% endif %}>{{ label }}</a>
+            {% endfor %}
+          </nav>
+
+          <div class="post-list" id="post-list" data-category="{{ category }}">
+            {% include "community/_post_list.html" %}
+          </div>
+
+          <div class="load-more" id="load-more-wrap"{% if not page.has_next %} hidden{% endif %}>
+            {% if page.has_next %}
+            <a class="btn js-load-more" href="?page={{ page.next_page_number }}{% if category %}&category={{ category }}{% endif %}" data-next-page="{{ page.next_page_number }}">Muat lebih banyak</a>
+            {% else %}
+            <a class="btn js-load-more" href="#" data-next-page="">Muat lebih banyak</a>
             {% endif %}
-            <footer class="post-foot">
-              <form method="post" action="{% url 'community:toggle_like' post.pk %}">
-                {% csrf_token %}
-                <button type="submit"{% if post.is_liked %} class="liked" aria-pressed="true"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-leaf"/></svg>{{ post.like_count }} suka</button>
-              </form>
-              <a href="{% url 'community:post_detail' post.pk %}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-message-circle"/></svg>{{ post.comment_count }} komentar</a>
-              {% if post.author_id == user.id %}
-              <span class="edit">
-                <button type="button" class="js-edit" data-action="{% url 'community:edit_post' post.pk %}" data-category="{{ post.category }}" data-content="{{ post.content }}">Edit</button>
-                <form method="post" action="{% url 'community:delete_post' post.pk %}" onsubmit="return confirm('Hapus postingan ini?')">
-                  {% csrf_token %}
-                  <button type="submit">Hapus</button>
-                </form>
-              </span>
-              {% endif %}
-            </footer>
-          </article>
-          {% empty %}
-          <p class="card feed-note">Belum ada postingan. Jadilah yang pertama bercerita.</p>
-          {% endfor %}
+          </div>
         </div>
 
         <aside class="card card--a side-news" aria-labelledby="judul-berita">
@@ -86,11 +69,7 @@
               <h3><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">{{ article.title }}</a></h3>
               <p>{{ article.source }}{% if article.published_at %}, {{ article.published_at|ago }}{% endif %}</p>
               {% if user.is_authenticated %}
-              <form method="post" action="{% url 'community:share_news' %}">
-                {% csrf_token %}
-                <input type="hidden" name="url" value="{{ article.url }}">
-                <button type="submit">Bagikan ke feed</button>
-              </form>
+              <button type="button" class="js-share" data-url="{{ article.url }}" data-title="{{ article.title }}">Bagikan ke feed</button>
               {% endif %}
             </li>
             {% empty %}
@@ -101,11 +80,13 @@
       </div>
     </div>
 
+    <div class="toast-region" id="toast-region" role="status" aria-live="polite"></div>
+
     <dialog class="edit-dialog" id="edit-dialog" aria-labelledby="edit-title">
-      <form method="post" id="edit-form">
+      <form method="post" id="edit-form" class="js-edit-form">
         {% csrf_token %}
         <h2 id="edit-title">Edit postingan</h2>
-        <textarea name="content" aria-label="Isi postingan" required></textarea>
+        <textarea name="content" aria-label="Isi postingan" maxlength="{{ post_max }}" required></textarea>
         <div class="cat-choice">
           {% include "community/_category_chips.html" with selected="" %}
         </div>
@@ -116,21 +97,30 @@
       </form>
     </dialog>
 
-    <script>
-      (function () {
-        var dialog = document.getElementById('edit-dialog');
-        var form = document.getElementById('edit-form');
-        document.querySelectorAll('.js-edit').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            form.action = btn.dataset.action;
-            form.elements.content.value = btn.dataset.content;
-            form.querySelectorAll('input[name=category]').forEach(function (r) {
-              r.checked = r.value === btn.dataset.category;
-            });
-            dialog.showModal();
-          });
-        });
-        document.getElementById('edit-cancel').addEventListener('click', function () { dialog.close(); });
-      })();
-    </script>
+    <dialog class="edit-dialog" id="delete-dialog" aria-labelledby="delete-title">
+      <form id="delete-confirm-form">
+        <h2 id="delete-title">Hapus postingan?</h2>
+        <p>Postingan ini akan dihapus beserta likes dan komentarnya. Tindakan ini tidak bisa dibatalkan.</p>
+        <div class="cat-choice">
+          <button class="btn btn--danger" type="submit">Hapus</button>
+          <button class="btn" type="button" id="delete-cancel">Batal</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="edit-dialog" id="share-dialog" aria-labelledby="share-title">
+      <form method="post" action="{% url 'community:share_news' %}">
+        {% csrf_token %}
+        <h2 id="share-title">Bagikan berita</h2>
+        <p id="share-news-title"></p>
+        <input type="hidden" name="url">
+        <textarea name="content" aria-label="Caption" placeholder="Tambahkan caption (opsional)" maxlength="{{ post_max }}"></textarea>
+        <div class="cat-choice">
+          <button class="btn btn--primary" type="submit">Bagikan</button>
+          <button class="btn" type="button" id="share-cancel">Batal</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="{% static 'js/community/feed-page.js' %}"></script>
 {% endblock %}

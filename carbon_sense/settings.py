@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import sys
+import tempfile
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -143,5 +145,20 @@ STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-LOGIN_URL = "/profil/login/"
-LOGIN_REDIRECT_URL = "/profil/"
+LOGIN_URL = '/profil/login/'
+LOGIN_REDIRECT_URL = '/profil/'
+
+# Cache dipakai bersama oleh semua worker gunicorn (LocMemCache bersifat per proses),
+# supaya berita yang dirender worker A bisa ditemukan saat dibagikan lewat worker B.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': os.path.join(tempfile.gettempdir(), 'carbon_sense_cache'),
+    }
+}
+
+# Tes tidak boleh memakai cache bersama atau memanggil API GNews sungguhan
+if 'test' in sys.argv:
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+    GNEWS_API_KEY = ''
+
