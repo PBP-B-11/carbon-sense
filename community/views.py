@@ -47,7 +47,9 @@ def _feed_posts(user):
 
 def _post_card_json(request, post):
     post = _feed_posts(request.user).get(pk=post.pk)
-    html = render_to_string("community/_post_card.html", {"post": post}, request=request)
+    html = render_to_string(
+        "community/_post_card.html", {"post": post}, request=request
+    )
     return JsonResponse({"html": html})
 
 
@@ -67,7 +69,9 @@ def index(request):
         except (EmptyPage, PageNotAnInteger):
             return JsonResponse({"html": "", "has_next": False, "next_page": None})
         html = render_to_string(
-            "community/_post_list.html", {"posts": page, "category": category}, request=request
+            "community/_post_list.html",
+            {"posts": page, "category": category},
+            request=request,
         )
         return JsonResponse(
             {
@@ -181,7 +185,10 @@ def add_comment(request, pk):
             return JsonResponse({"html": html, "count": post.comments.count()})
         return redirect("community:post_detail", pk=post.pk)
     return _fail(
-        request, _form_error(form, "Komentar tidak valid."), "community:post_detail", pk=post.pk
+        request,
+        _form_error(form, "Komentar tidak valid."),
+        "community:post_detail",
+        pk=post.pk,
     )
 
 
@@ -199,7 +206,9 @@ def edit_comment(request, pk):
         )
     form.save()
     if _is_ajax(request):
-        html = render_to_string("community/_comment.html", {"comment": comment}, request=request)
+        html = render_to_string(
+            "community/_comment.html", {"comment": comment}, request=request
+        )
         return JsonResponse({"html": html})
     return redirect("community:post_detail", pk=comment.post_id)
 

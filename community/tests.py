@@ -111,7 +111,9 @@ class NewsShareTests(TestCase):
         self.assertFalse(Post.objects.exists())
 
     def test_plain_share_still_redirects(self):
-        res = self.client.post(reverse("community:share_news"), {"url": self.ARTICLE["url"]})
+        res = self.client.post(
+            reverse("community:share_news"), {"url": self.ARTICLE["url"]}
+        )
         self.assertRedirects(res, reverse("community:index"))
 
 
@@ -178,7 +180,9 @@ class AjaxPostTests(TestCase):
     def test_ajax_create_returns_card_html(self):
         self.client.force_login(self.owner)
         res = self.client.post(
-            reverse("community:create_post"), {"content": "halo dunia", "category": "tips"}, **self.ajax
+            reverse("community:create_post"),
+            {"content": "halo dunia", "category": "tips"},
+            **self.ajax,
         )
         self.assertEqual(res.status_code, 200)
         html = res.json()["html"]
@@ -189,7 +193,9 @@ class AjaxPostTests(TestCase):
     def test_ajax_create_invalid_returns_400(self):
         self.client.force_login(self.owner)
         res = self.client.post(
-            reverse("community:create_post"), {"content": "", "category": "tips"}, **self.ajax
+            reverse("community:create_post"),
+            {"content": "", "category": "tips"},
+            **self.ajax,
         )
         self.assertEqual(res.status_code, 400)
         self.assertFalse(Post.objects.exists())
@@ -198,7 +204,9 @@ class AjaxPostTests(TestCase):
         post = Post.objects.create(author=self.owner, content="lama", category="tips")
         self.client.force_login(self.owner)
         res = self.client.post(
-            reverse("community:edit_post", args=[post.pk]), {"content": "baru", "category": "diskusi"}, **self.ajax
+            reverse("community:edit_post", args=[post.pk]),
+            {"content": "baru", "category": "diskusi"},
+            **self.ajax,
         )
         self.assertIn("baru", res.json()["html"])
         post.refresh_from_db()
@@ -208,13 +216,17 @@ class AjaxPostTests(TestCase):
         post = Post.objects.create(author=self.owner, content="lama")
         self.client.force_login(self.other)
         res = self.client.post(
-            reverse("community:edit_post", args=[post.pk]), {"content": "x", "category": "tips"}, **self.ajax
+            reverse("community:edit_post", args=[post.pk]),
+            {"content": "x", "category": "tips"},
+            **self.ajax,
         )
         self.assertEqual(res.status_code, 404)
 
     def test_plain_create_still_redirects(self):
         self.client.force_login(self.owner)
-        res = self.client.post(reverse("community:create_post"), {"content": "x", "category": "tips"})
+        res = self.client.post(
+            reverse("community:create_post"), {"content": "x", "category": "tips"}
+        )
         self.assertRedirects(res, reverse("community:index"))
 
 
@@ -274,13 +286,17 @@ class ValidationTests(TestCase):
 
     def test_whitespace_only_post_is_rejected(self):
         res = self.client.post(
-            reverse("community:create_post"), {"content": "   ", "category": "tips"}, **self.ajax
+            reverse("community:create_post"),
+            {"content": "   ", "category": "tips"},
+            **self.ajax,
         )
         self.assertEqual(res.status_code, 400)
 
     def test_invalid_category_is_rejected(self):
         res = self.client.post(
-            reverse("community:create_post"), {"content": "x", "category": "hack"}, **self.ajax
+            reverse("community:create_post"),
+            {"content": "x", "category": "hack"},
+            **self.ajax,
         )
         self.assertEqual(res.status_code, 400)
 
@@ -301,7 +317,18 @@ class ValidationTests(TestCase):
 
         from .forms import POST_MAX_LENGTH
 
-        cache.set("community:gnews", [{"title": "J", "snippet": "", "url": "https://e.com/a", "source": "M", "published_at": None}])
+        cache.set(
+            "community:gnews",
+            [
+                {
+                    "title": "J",
+                    "snippet": "",
+                    "url": "https://e.com/a",
+                    "source": "M",
+                    "published_at": None,
+                }
+            ],
+        )
         res = self.client.post(
             reverse("community:share_news"),
             {"url": "https://e.com/a", "content": "a" * (POST_MAX_LENGTH + 1)},
@@ -331,7 +358,9 @@ class NewsPostEditTests(TestCase):
         self.assertEqual(res.status_code, 200)
 
     def test_news_post_category_cannot_change(self):
-        self.client.post(self.url, {"content": "caption baru", "category": "tips"}, **self.ajax)
+        self.client.post(
+            self.url, {"content": "caption baru", "category": "tips"}, **self.ajax
+        )
         self.post.refresh_from_db()
         self.assertEqual(self.post.category, "berita")
         self.assertEqual(self.post.content, "caption baru")
@@ -339,7 +368,9 @@ class NewsPostEditTests(TestCase):
     def test_regular_post_still_requires_content(self):
         plain = Post.objects.create(author=self.user, content="isi", category="tips")
         res = self.client.post(
-            reverse("community:edit_post", args=[plain.pk]), {"content": "", "category": "tips"}, **self.ajax
+            reverse("community:edit_post", args=[plain.pk]),
+            {"content": "", "category": "tips"},
+            **self.ajax,
         )
         self.assertEqual(res.status_code, 400)
 
@@ -350,13 +381,17 @@ class CommentCrudTests(TestCase):
         self.owner = User.objects.create_user("owner", password="x")
         self.other = User.objects.create_user("other", password="x")
         self.post = Post.objects.create(author=self.owner, content="halo")
-        self.comment = Comment.objects.create(post=self.post, author=self.owner, content="lama")
+        self.comment = Comment.objects.create(
+            post=self.post, author=self.owner, content="lama"
+        )
         self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
 
     def test_owner_can_edit_comment(self):
         self.client.force_login(self.owner)
         res = self.client.post(
-            reverse("community:edit_comment", args=[self.comment.pk]), {"content": "baru"}, **self.ajax
+            reverse("community:edit_comment", args=[self.comment.pk]),
+            {"content": "baru"},
+            **self.ajax,
         )
         self.assertIn("baru", res.json()["html"])
         self.comment.refresh_from_db()
@@ -365,29 +400,39 @@ class CommentCrudTests(TestCase):
     def test_edit_comment_with_empty_content_is_400(self):
         self.client.force_login(self.owner)
         res = self.client.post(
-            reverse("community:edit_comment", args=[self.comment.pk]), {"content": ""}, **self.ajax
+            reverse("community:edit_comment", args=[self.comment.pk]),
+            {"content": ""},
+            **self.ajax,
         )
         self.assertEqual(res.status_code, 400)
 
     def test_non_owner_cannot_edit_or_delete_comment(self):
         self.client.force_login(self.other)
         res = self.client.post(
-            reverse("community:edit_comment", args=[self.comment.pk]), {"content": "x"}, **self.ajax
+            reverse("community:edit_comment", args=[self.comment.pk]),
+            {"content": "x"},
+            **self.ajax,
         )
         self.assertEqual(res.status_code, 404)
-        res = self.client.post(reverse("community:delete_comment", args=[self.comment.pk]), **self.ajax)
+        res = self.client.post(
+            reverse("community:delete_comment", args=[self.comment.pk]), **self.ajax
+        )
         self.assertEqual(res.status_code, 404)
         self.assertTrue(Comment.objects.filter(pk=self.comment.pk).exists())
 
     def test_owner_can_delete_comment_and_get_count(self):
         Comment.objects.create(post=self.post, author=self.other, content="lain")
         self.client.force_login(self.owner)
-        res = self.client.post(reverse("community:delete_comment", args=[self.comment.pk]), **self.ajax)
+        res = self.client.post(
+            reverse("community:delete_comment", args=[self.comment.pk]), **self.ajax
+        )
         self.assertEqual(res.json(), {"deleted": True, "count": 1})
 
     def test_plain_delete_comment_redirects_to_detail(self):
         self.client.force_login(self.owner)
-        res = self.client.post(reverse("community:delete_comment", args=[self.comment.pk]))
+        res = self.client.post(
+            reverse("community:delete_comment", args=[self.comment.pk])
+        )
         self.assertRedirects(res, reverse("community:post_detail", args=[self.post.pk]))
 
     def test_detail_shows_actions_only_for_own_comments(self):
@@ -405,7 +450,9 @@ class FeedFilterPaginationTests(TestCase):
         self.user = get_user_model().objects.create_user("me", password="x")
         for i in range(12):
             Post.objects.create(author=self.user, category="tips", content=f"tips {i}")
-        Post.objects.create(author=self.user, category="diskusi", content="satu diskusi")
+        Post.objects.create(
+            author=self.user, category="diskusi", content="satu diskusi"
+        )
         self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
         self.url = reverse("community:index")
 
@@ -463,7 +510,9 @@ class NewsClientTests(TestCase):
 
         from .news import fetch_news
 
-        with patch("community.news.requests.get", side_effect=requests.ConnectionError) as get:
+        with patch(
+            "community.news.requests.get", side_effect=requests.ConnectionError
+        ) as get:
             self.assertEqual(fetch_news(), [])
             self.assertEqual(fetch_news(), [])
         self.assertEqual(get.call_count, 1)
@@ -475,7 +524,9 @@ class NewsClientTests(TestCase):
 
         good = {"title": "A", "url": "https://e.com/a", "source": {"name": "M"}}
         bad = {"title": "B", "url": "javascript:alert(1)", "source": {"name": "M"}}
-        with patch("community.news.requests.get", return_value=self._response([good, bad])):
+        with patch(
+            "community.news.requests.get", return_value=self._response([good, bad])
+        ):
             urls = [a["url"] for a in fetch_news()]
         self.assertEqual(urls, ["https://e.com/a"])
 
@@ -523,7 +574,9 @@ class DetailLikeTests(TestCase):
 
     def test_detail_like_redirects_back_to_detail(self):
         self.client.force_login(self.user)
-        res = self.client.post(reverse("community:toggle_like", args=[self.post.pk]), {"next": self.url})
+        res = self.client.post(
+            reverse("community:toggle_like", args=[self.post.pk]), {"next": self.url}
+        )
         self.assertRedirects(res, self.url)
 
     def test_anonymous_sees_like_button_unpressed(self):
