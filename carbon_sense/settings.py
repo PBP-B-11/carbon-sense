@@ -35,6 +35,7 @@ SESSION_COOKIE_SECURE = PRODUCTION
 CSRF_COOKIE_SECURE = PRODUCTION
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "faishal-falih-carbon-sense.pws.cs.ui.ac.id"]
+CSRF_TRUSTED_ORIGINS = ["https://faishal-falih-carbon-sense.pws.cs.ui.ac.id"]
 GNEWS_API_KEY = os.getenv("GNEWS_API_KEY", "")
 
 # Application definition
