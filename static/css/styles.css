@@ -1115,8 +1115,31 @@ main {
 }
 
 .chart-card {
-  height: 420px;
-  padding: 30px 32px 0;
+  min-width: 0;
+  min-height: 420px;
+  padding: 30px 32px 24px;
+}
+
+/*Pertahankan ukuran batang dan sejajarkan label saat grafik digeser.*/
+.chart-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.chart-scroll:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+}
+
+.chart-series {
+  min-width: calc(var(--chart-columns) * 60px);
+}
+
+.chart-series .bars,
+.chart-series .days {
+  grid-template-columns: repeat(var(--chart-columns), minmax(0, 1fr));
+  gap: 16px;
 }
 
 .chart-head {
@@ -1262,6 +1285,55 @@ main {
   padding: 32px;
 }
 
+/*Gunakan gaya dialog yang sudah ada dan pertahankan kartu formulir di dalamnya.*/
+.edit-dialog.tracker-edit-dialog {
+  width: min(600px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.tracker-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-bg-surface);
+  border-bottom: var(--border-subtle);
+}
+
+.tracker-modal-head h2 {
+  font-size: 22px;
+}
+
+.tracker-edit-dialog [data-edit-status] {
+  margin: 24px;
+}
+
+.tracker-edit-dialog .quick,
+.tracker-edit-dialog .activity-confirm {
+  min-height: 0;
+  padding: 24px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.tracker-edit-dialog .quick > .eyebrow {
+  display: none;
+}
+
+.tracker-modal-open {
+  overflow: hidden;
+}
+
 .quick .eyebrow {
   color: var(--color-primary);
 }
@@ -1335,6 +1407,13 @@ main {
 .quick .activity-factor-note {
   margin-top: 12px;
   line-height: 1.5;
+}
+
+/*Gunakan pilihan berat yang ringkas di dalam kartu formulir yang sudah ada.*/
+.quick .meat-portions .chips {
+  margin-top: 8px;
+  padding-left: 0;
+  gap: 8px;
 }
 
 .quick .input {
@@ -1420,6 +1499,10 @@ main {
 
 .activity-confirm .form-actions {
   flex-wrap: wrap;
+}
+
+.activity-confirm [data-delete-status] .btn {
+  margin-top: 12px;
 }
 
 .table {
@@ -3510,4 +3593,71 @@ textarea:focus-visible {
   font-size: 13px;
   line-height: 16px;
   color: var(--color-error-text);
+}
+
+
+/* ---------- Toast Notification Component ---------- */
+#toast-component {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  margin: 0;
+  z-index: 9999;
+  display: none;
+  flex-direction: column;
+  min-width: 280px;
+  max-width: 380px;
+  padding: 16px 20px;
+  border-radius: var(--radius-input, 8px);
+  border: 2px solid var(--color-border-strong, #14301F);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-family: var(--font-body, inherit);
+  background: var(--color-bg-surface, #FFFAF0);
+  color: var(--color-text-primary, #14301F);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: auto;
+}
+
+#toast-component:popover-open {
+  display: flex;
+}
+
+#toast-component.toast-show {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#toast-component.toast-hidden {
+  opacity: 0;
+  transform: translateY(-12px);
+}
+
+#toast-component.toast-success {
+  background: var(--color-primary-subtle, #E5F2DC);
+  border-color: var(--color-primary, #2C7A4B);
+  color: var(--color-text-primary, #14301F);
+}
+
+#toast-component.toast-error {
+  background: var(--color-error-subtle, #FFE6E3);
+  border-color: var(--color-error, #B0352F);
+  color: var(--color-error-text, #9E2A24);
+}
+
+#toast-component.toast-normal {
+  background: var(--color-bg-surface, #FFFAF0);
+  border-color: var(--color-border-strong, #14301F);
+  color: var(--color-text-primary, #14301F);
+}
+
+#toast-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+#toast-message {
+  font-size: 14px;
+  line-height: 1.4;
 }

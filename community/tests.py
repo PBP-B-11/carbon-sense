@@ -20,7 +20,9 @@ class CommunityFlowTests(TestCase):
 
     def test_create_and_like_toggle(self):
         self.client.force_login(self.other)
-        self.client.post(reverse("community:create_post"), {"content": "baru", "category": "diskusi"})
+        self.client.post(
+            reverse("community:create_post"), {"content": "baru", "category": "diskusi"}
+        )
         self.assertTrue(Post.objects.filter(author=self.other, content="baru").exists())
         url = reverse("community:toggle_like", args=[self.post.pk])
         self.client.post(url)
@@ -30,7 +32,10 @@ class CommunityFlowTests(TestCase):
 
     def test_only_owner_can_edit_or_delete(self):
         self.client.force_login(self.other)
-        res = self.client.post(reverse("community:edit_post", args=[self.post.pk]), {"content": "x", "category": "tips"})
+        res = self.client.post(
+            reverse("community:edit_post", args=[self.post.pk]),
+            {"content": "x", "category": "tips"},
+        )
         self.assertEqual(res.status_code, 404)
         res = self.client.post(reverse("community:delete_post", args=[self.post.pk]))
         self.assertEqual(res.status_code, 404)
@@ -38,7 +43,9 @@ class CommunityFlowTests(TestCase):
 
     def test_detail_and_comment(self):
         self.client.force_login(self.other)
-        self.client.post(reverse("community:add_comment", args=[self.post.pk]), {"content": "mantap"})
+        self.client.post(
+            reverse("community:add_comment", args=[self.post.pk]), {"content": "mantap"}
+        )
         res = self.client.get(reverse("community:post_detail", args=[self.post.pk]))
         self.assertContains(res, "mantap")
 
@@ -61,12 +68,20 @@ class NewsShareTests(TestCase):
         self.client.force_login(self.user)
 
     def test_share_uses_cached_article(self):
-        self.client.post(reverse("community:share_news"), {"url": self.ARTICLE["url"], "content": "menarik"})
+        self.client.post(
+            reverse("community:share_news"),
+            {"url": self.ARTICLE["url"], "content": "menarik"},
+        )
         post = Post.objects.get()
-        self.assertEqual((post.category, post.news_title, post.news_source), ("berita", "Judul", "Media"))
+        self.assertEqual(
+            (post.category, post.news_title, post.news_source),
+            ("berita", "Judul", "Media"),
+        )
 
     def test_share_rejects_unknown_url(self):
-        self.client.post(reverse("community:share_news"), {"url": "https://evil.test/x"})
+        self.client.post(
+            reverse("community:share_news"), {"url": "https://evil.test/x"}
+        )
         self.assertFalse(Post.objects.exists())
 
     def test_feed_lists_news(self):
