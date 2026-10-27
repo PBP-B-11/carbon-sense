@@ -80,6 +80,60 @@
   --page-margin: 64px;
 }
 
+html[data-theme="dark"],
+[data-theme="dark"] {
+  /* Warna Tema Gelap (Forest Night / Organic Dark) */
+  --color-primary: #3DA366;
+  --color-primary-hover: #4EB87A;
+  --color-primary-subtle: #193323;
+  --color-secondary: #32A2C4;
+  --color-secondary-subtle: #13333F;
+  --color-secondary-text: #7AD5EE;
+  --color-tertiary: #F4BA4E;
+  --color-tertiary-subtle: #3D2D12;
+  --color-tertiary-text: #FAD37C;
+  --color-highlight: #8EA725;
+  --color-accent: #E06C46;
+  --color-bg-page: #0E1611;
+  --color-bg-surface: #17231C;
+  --color-bg-sunken: #111B14;
+  --color-bg-inverse: #1F3326;
+  --color-text-primary: #ECE7D9;
+  --color-text-secondary: #9EA898;
+  --color-text-inverse: #ECE7D9;
+  --color-text-inverse-muted: #8AA878;
+  --color-border-subtle: #27372D;
+  --color-border-default: #445448;
+  --color-border-strong: #728477;
+  --color-error: #D94843;
+  --color-error-subtle: #3E1B1A;
+  --color-error-text: #F7938F;
+  --color-warning-subtle: #3D2D12;
+  --color-warning-text: #FAD37C;
+  --color-streak-bg: #3E2114;
+  --color-streak-text: #F6A378;
+
+  --level-low-bg: #153823;
+  --level-low-text: #66C58B;
+  --level-medium-bg: #3D3114;
+  --level-medium-text: #F7CB66;
+  --level-high-bg: #3D2114;
+  --level-high-text: #F6A378;
+  --level-very-high-bg: #3D1917;
+  --level-very-high-text: #F7938F;
+
+  --chart-low: #3FA66B;
+  --chart-medium: #E8B23A;
+  --chart-high: #E0703A;
+  --chart-very-high: #C8413B;
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background-color: #0E1611 !important;
+  color: #ECE7D9 !important;
+}
+
 *,
 *::before,
 *::after {
@@ -269,6 +323,80 @@ main {
   display: grid;
   place-items: center;
   padding: 0;
+}
+
+.btn-theme-toggle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: var(--border-default);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-theme-toggle:hover {
+  background: var(--color-bg-sunken);
+  transform: scale(1.05);
+}
+
+.btn-theme-toggle svg {
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+}
+
+.btn-theme-toggle .icon-sun {
+  display: none;
+}
+
+.btn-theme-toggle .icon-moon {
+  display: block;
+}
+
+[data-theme="dark"] .btn-theme-toggle .icon-sun {
+  display: block;
+  color: #F4BA4E;
+}
+
+[data-theme="dark"] .btn-theme-toggle .icon-moon {
+  display: none;
+}
+
+[data-theme="dark"] .blob {
+  opacity: 0.15;
+}
+
+[data-theme="dark"] .card-dark {
+  border: 1px solid var(--color-border-subtle);
+}
+
+[data-theme="dark"] .site-footer {
+  border: 1px solid var(--color-border-subtle);
+  border-bottom: none;
+}
+
+[data-theme="dark"] .nav-modul a[aria-current="page"] {
+  background: var(--color-primary);
+  color: #0E1611;
+  font-weight: 700;
+}
+
+[data-theme="dark"] .nav-modul a[aria-current="page"]:hover {
+  background: var(--color-primary-hover);
+}
+
+[data-theme="dark"] .chip[aria-pressed="true"],
+[data-theme="dark"] .chip--active {
+  background: var(--color-text-primary);
+  border-color: var(--color-text-primary);
+  color: #0E1611;
 }
 
 .avatar {
