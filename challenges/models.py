@@ -18,8 +18,12 @@ class Badge(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=60, unique=True)
-    requirement = models.CharField(max_length=200, help_text="Syarat memperoleh lencana")
-    icon = models.CharField(max_length=40, help_text="Nama simbol SVG, mis. train-front")
+    requirement = models.CharField(
+        max_length=200, help_text="Syarat memperoleh lencana"
+    )
+    icon = models.CharField(
+        max_length=40, help_text="Nama simbol SVG, mis. train-front"
+    )
     tone = models.CharField(max_length=10, choices=Tone.choices, default=Tone.MOSS)
 
     def __str__(self):
@@ -39,12 +43,21 @@ class Challenge(models.Model):
     description = models.TextField()
     category = models.CharField(max_length=20, choices=Category.choices)
     duration_days = models.PositiveIntegerField(default=7)
-    points = models.PositiveIntegerField(default=0, help_text="Hadiah poin saat selesai")
+    points = models.PositiveIntegerField(
+        default=0, help_text="Hadiah poin saat selesai"
+    )
     estimated_saving_kg = models.DecimalField(
-        max_digits=6, decimal_places=1, default=0, help_text="Perkiraan emisi yang dihemat (kg CO2e)"
+        max_digits=6,
+        decimal_places=1,
+        default=0,
+        help_text="Perkiraan emisi yang dihemat (kg CO2e)",
     )
     badge = models.ForeignKey(
-        Badge, null=True, blank=True, on_delete=models.SET_NULL, related_name="challenges"
+        Badge,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="challenges",
     )
     icon = models.CharField(max_length=40, help_text="Nama simbol SVG, mis. bike")
     tone = models.CharField(max_length=10, choices=Tone.choices, default=Tone.AMBER)
@@ -66,13 +79,17 @@ class Participation(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="participations"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="participations",
     )
     challenge = models.ForeignKey(
         Challenge, on_delete=models.CASCADE, related_name="participations"
     )
     started_at = models.DateField()
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.ACTIVE
+    )
 
     class Meta:
         ordering = ["-started_at"]
@@ -123,7 +140,9 @@ class UserBadge(models.Model):
     class Meta:
         ordering = ["-earned_at"]
         constraints = [
-            models.UniqueConstraint(fields=["user", "badge"], name="unique_badge_per_user"),
+            models.UniqueConstraint(
+                fields=["user", "badge"], name="unique_badge_per_user"
+            ),
         ]
 
     def __str__(self):

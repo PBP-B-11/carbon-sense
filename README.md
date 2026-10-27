@@ -6,16 +6,16 @@
 
 ### 1. Modul "Carbon Tracker" (Pencatat Jejak Karbon)
 
-- **Fokus Utama:** Fitur inti untuk mencatat emisi harian pengguna (transportasi, listrik, gas LPG).
+- **Fokus Utama:** Fitur inti untuk mencatat emisi harian pengguna (transportasi, listrik, daging ayam dan sapi).
 - **Komponen CRUD:**
   - **Create:** Menambahkan log aktivitas karbon (misal: "Naik mobil 15 km").
   - **Read:** Menampilkan tabel riwayat aktivitas dan total emisi (Dashboard).
   - **Update:** Mengedit log aktivitas jika salah ketik.
   - **Delete:** Menghapus log dari riwayat.
 
-Input Tracker menggunakan kilometer untuk mobil, kWh untuk listrik, dan kilogram gas yang dikonsumsi untuk LPG (bukan berat tabung atau jumlah pembelian isi ulang).
+Input Tracker menggunakan kilometer untuk mobil, kWh untuk listrik, serta perkiraan gram daging mentah untuk ayam dan sapi (bukan berat seluruh hidangan). Pilihan cepat 100 g, 150 g, dan 200 g adalah perkiraan yang dapat diubah pengguna, bukan ukuran porsi baku.
 
-Estimasi LPG menggunakan faktor pembakaran stasioner UK Government 2025 melalui Climatiq sebagai perkiraan berbasis data Inggris. Perhitungan ini tidak mencakup emisi produksi/distribusi gas dan bukan faktor khusus Indonesia. Sumber: [UK greenhouse gas conversion factors 2025](https://www.gov.uk/government/publications/greenhouse-gas-reporting-conversion-factors-2025).
+Estimasi daging menggunakan faktor total terpisah untuk ayam dan sapi dari CONCITO/2-0 LCA, Big Climate Database v1.2, wilayah Prancis, tahun 2024, melalui Climatiq. Faktor ini merupakan perkiraan referensi, bukan faktor khusus Indonesia atau perhitungan seluruh resep. Berat dikirim ke API dalam gram dan kedua jenis daging digabungkan pada kategori dashboard **Daging**. Sumber: [Big Climate Database](https://thebigclimatedatabase.com/).
 
 ### 2. Modul "Profile & Environment Settings" (Profil & Widget Udara)
 

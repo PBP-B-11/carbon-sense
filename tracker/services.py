@@ -21,6 +21,7 @@ def estimate_emissions(factor_id, parameters):
     response.raise_for_status()
     return response.json()
 
+
 def find_electricity_factors():
     response = requests.get(
         "https://api.climatiq.io/data/v1/search",
@@ -39,6 +40,7 @@ def find_electricity_factors():
     response.raise_for_status()
     return response.json()["results"]
 
+
 # Indonesia electricity production mix Ember, 2024
 ELECTRICITY_FACTOR_ID = "b51303e8-8cb4-8fce-be63-ff652cdec052"
 
@@ -49,7 +51,8 @@ def estimate_electricity(kwh):
         {"energy": float(kwh), "energy_unit": "kWh"},
     )
 
-#Cari faktor emisi mobil
+
+# Cari faktor emisi mobil
 def find_car_factors():
     response = requests.get(
         "https://api.climatiq.io/data/v1/search",
@@ -68,11 +71,12 @@ def find_car_factors():
     response.raise_for_status()
     return response.json()["results"]
 
-#Faktor mobil US EPA 2025 sebagai perkiraan berbasis data AS.
+
+# Faktor mobil US EPA 2025 sebagai perkiraan berbasis data AS.
 CAR_FACTOR_ID = "81caf960-fc4d-4a7b-8da2-85076a152774"
 
 
-#Hitung emisi perjalanan mobil menggunakan jarak kilometer
+# Hitung emisi perjalanan mobil menggunakan jarak kilometer
 def estimate_car_travel(km):
     return estimate_emissions(
         CAR_FACTOR_ID,
@@ -82,13 +86,20 @@ def estimate_car_travel(km):
         },
     )
 
-#Faktor pembakaran stasioner LPG UK Government 2025, bukan emisi produksi gas.
-LPG_FACTOR_ID = "62685eb5-8636-8aa1-8858-c4889af4e184"
+
+# Gunakan faktor total CONCITO/2-0 LCA 2024 wilayah Prancis, bukan satu tahap saja.
+MEAT_FACTOR_IDS = {
+    "chicken": "dd080bc1-e4bb-8e97-823d-0b913a97041a",
+    "beef": "a18cd59d-69b2-8e51-a296-c8c49901ffd5",
+}
 
 
-#Kirim berat gas yang dikonsumsi dalam kg; Climatiq menangani konversi satuan.
-def estimate_lpg(kg):
+# Pilih faktor sesuai jenis daging dan kirim gram agar satuannya tidak tertukar.
+def estimate_meat(activity_type, grams):
+    if activity_type not in MEAT_FACTOR_IDS:
+        raise ValueError("Unsupported meat type.")
+
     return estimate_emissions(
-        LPG_FACTOR_ID,
-        {"weight": float(kg), "weight_unit": "kg"},
+        MEAT_FACTOR_IDS[activity_type],
+        {"weight": float(grams), "weight_unit": "g"},
     )
