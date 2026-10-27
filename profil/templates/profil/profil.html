@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Carbon Sense: Profil dan Udara{% endblock %}
+
+{% block blobs %}<div class="blob blob--profile-1" aria-hidden="true"></div><div class="blob blob--profile-2" aria-hidden="true"></div>{% endblock %}
+
+{% block content %}
+<div class="container profile-page">
+  <div class="page-title profile-heading">
+    <div><span class="eyebrow t-teal">Modul 2, Profil dan Udara</span><h1>Profil dan lingkungan</h1></div>
+    <form method="post" action="{% url 'profil:logout' %}">{% csrf_token %}<button class="btn" type="submit">Keluar</button></form>
+  </div>
+
+  <section class="profile-top" aria-label="Profil dan kualitas udara">
+    <article class="card card--a profile-card">
+      <div class="profile-id">
+        <span class="avatar" aria-hidden="true">{{ request.user.username|slice:":2"|upper }}</span>
+        <div><h2>{{ request.user.username }}</h2><p class="handle">@{{ request.user.username }} · <span data-profile-city>{{ profile.city_name|default:"Kota belum dipilih" }}</span></p></div>
+      </div>
+      <p class="profile-bio">{{ profile.bio|default:"Belum ada bio. Tambahkan cerita singkat tentang diri Anda." }}</p>
+      <dl class="profile-details">
+        <div><dt>Email</dt><dd>{{ request.user.email }}</dd></div>
+        <div><dt>Kota domisili</dt><dd data-profile-city>{{ profile.city_name|default:"Belum dipilih" }}</dd></div>
+        <div><dt>Poin</dt><dd>{{ challenge_stats.poin }}</dd></div>
+        <div><dt>Streak</dt><dd>{{ challenge_stats.streak }} hari</dd></div>
+        <div><dt>Tantangan</dt><dd>{{ challenge_stats.diikuti }} diikuti, {{ challenge_stats.selesai }} selesai</dd></div>
+        <div><dt>Lencana</dt><dd>{{ challenge_stats.lencana }} dari {{ challenge_stats.total_lencana }}</dd></div>
+      </dl>
+    </article>
+    {% include 'profil/_air.html' %}
+  </section>
+
+  <section class="profile-settings" aria-label="Pengaturan profil">
+    <section class="card card--b profile-edit">
+      <h2>Ubah profil</h2>
+      <div class="profile-edit-grid">
+        <form class="profile-edit-form" method="post" action="{% url 'profil:update' %}">
+          {% csrf_token %}
+          <div class="profile-field"><label for="{{ email_form.email.id_for_label }}">Email</label>{{ email_form.email }}{{ email_form.email.errors }}</div>
+          <div class="profile-field"><label for="{{ profile_form.bio.id_for_label }}">Bio</label>{{ profile_form.bio }}{{ profile_form.bio.errors }}</div>
+          <button class="btn btn--primary" type="submit">Simpan perubahan</button>
+        </form>
+        <div class="profile-city" data-city-picker data-city-url="{% url 'profil:cities' %}">
+          <h3>Kota domisili</h3>
+          <label class="profile-field" for="city-query">Cari kota Indonesia<input id="city-query" type="search" data-city-query autocomplete="off" minlength="2" placeholder="Cari nama kota"></label>
+          <p class="profile-hint" data-city-status role="status" aria-live="polite">Ketik minimal 2 karakter untuk mencari.</p>
+          <form method="post" action="{% url 'profil:city' %}" data-city-save-form>{% csrf_token %}
+            <div class="profile-field"><label for="{{ city_form.city.id_for_label }}">Pilih kota</label>{{ city_form.city }}{{ city_form.city.errors }}</div>
+            <button class="btn btn--primary" type="submit">Simpan kota</button>
+            <p class="profile-hint" data-city-save-status role="status" aria-live="polite" hidden></p>
+          </form>
+          <p class="profile-hint">Pencarian kota oleh GeoNames melalui Open-Meteo.</p>
+        </div>
+      </div>
+      <a class="profile-password" href="{% url 'profil:password' %}">Ubah kata sandi <span aria-hidden="true">→</span></a>
+    </section>
+
+    <section class="danger profile-danger" aria-label="Zona berbahaya">
+      <h2>Zona berbahaya</h2>
+      <p>Menghapus akun akan menghapus semua log, tantangan, dan postinganmu secara permanen.</p>
+      <a class="btn btn--danger" href="{% url 'profil:delete' %}">Hapus akun</a>
+    </section>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}<script src="{% static 'js/city-search.js' %}" defer></script>{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Daftar | Carbon Sense{% endblock %}
+{% block content %}
+<div class="container login-page register-page">
+  <div class="login-layout register-layout">
+    <div class="login-intro register-intro">
+      <span class="eyebrow t-teal">Bergabung dengan Carbon Sense</span>
+      <h1>Mulai langkah <em>hijaumu.</em></h1>
+      <p>Buat akun untuk mencatat aktivitas harian dan melihat kondisi lingkungan di kotamu.</p>
+    </div>
+    <section class="login-card register-card" aria-labelledby="register-title">
+      <h2 id="register-title">Buat akun</h2>
+      <p>Isi data berikut untuk memulai.</p>
+      <div data-city-picker data-city-url="{% url 'profil:cities' %}">
+        <form class="login-form register-form" method="post">
+          {% csrf_token %}
+          {% if form.errors %}
+            <div class="form-errors" role="alert">
+              <strong>Periksa isian berikut:</strong>
+              <ul>
+                {% for field in form %}{% for error in field.errors %}<li>{{ field.label }}: {{ error }}</li>{% endfor %}{% endfor %}
+                {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+          <div class="register-grid">
+            <div class="login-field"><label for="{{ form.username.id_for_label }}">Nama pengguna</label>{{ form.username }}<span class="register-hint">Maks. 150 karakter; huruf, angka, dan @/./+/-/_.</span>{{ form.username.errors }}</div>
+            <div class="login-field"><label for="{{ form.email.id_for_label }}">Email</label>{{ form.email }}{{ form.email.errors }}</div>
+            <div class="login-field"><label for="{{ form.password1.id_for_label }}">Kata sandi</label>{{ form.password1 }}<span class="register-hint">Minimal 8 karakter. Hindari sandi umum, angka saja, atau yang mirip data pribadi.</span>{{ form.password1.errors }}</div>
+            <div class="login-field"><label for="{{ form.password2.id_for_label }}">Ulangi kata sandi</label>{{ form.password2 }}{{ form.password2.errors }}</div>
+            <div class="login-field"><label for="city-query">Cari kota Indonesia</label><input id="city-query" type="search" name="city_search" value="{{ city_search }}" data-city-query autocomplete="off" minlength="2" placeholder="Contoh: Depok"><span class="register-hint" data-city-status role="status" aria-live="polite">Ketik minimal 2 karakter untuk mencari.</span></div>
+            <div class="login-field"><label for="{{ form.city.id_for_label }}">Pilih kota</label>{{ form.city }}{{ form.city.errors }}</div>
+          </div>
+          <label class="register-toggle"><input type="checkbox" id="show-passwords"> Tampilkan kata sandi</label>
+          <p class="register-hint">Pencarian kota oleh GeoNames melalui Open-Meteo.</p>
+          <button class="btn btn--primary" type="submit">Buat akun</button>
+        </form>
+      </div>
+      <p class="login-signup">Sudah punya akun? <a href="{% url 'profil:login' %}">Masuk</a></p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/city-search.js' %}" defer></script>
+<script>
+document.querySelector('#show-passwords').addEventListener('change', event => {
+  for (const input of document.querySelectorAll('#id_password1, #id_password2')) {
+    input.type = event.target.checked ? 'text' : 'password';
+  }
+});
+</script>
+{% endblock %}

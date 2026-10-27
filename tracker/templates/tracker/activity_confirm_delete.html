@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Carbon Sense: Hapus Aktivitas{% endblock %}
+
+{% block blobs %}
+  <i class="blob blob--tracker-1" aria-hidden="true"></i>
+  <i class="blob blob--tracker-2" aria-hidden="true"></i>
+{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <div class="page-title">
+      <div>
+        <span class="eyebrow t-moss">Modul 1, Carbon Tracker</span>
+        <h1>Hapus aktivitas</h1>
+      </div>
+    </div>
+
+    <section class="card card--c form-card activity-confirm" data-delete-confirmation aria-labelledby="judul-hapus">
+      <h2 class="card-title" id="judul-hapus">Hapus aktivitas ini?</h2>
+      <p>Aktivitas ini akan dihapus dari riwayat dan total emisimu.</p>
+
+      <dl class="activity-confirm-details">
+        <dt>Aktivitas</dt>
+        <dd>{{ activity.description|default:activity.get_activity_type_display }}</dd>
+        <dt>Jenis</dt>
+        <dd>{{ activity.get_activity_type_display }}</dd>
+        <dt>Tanggal</dt>
+        <dd>{{ activity.date|date:"d M Y" }}</dd>
+        <dt>Jumlah</dt>
+        <dd>
+          {{ activity.quantity|floatformat:2 }}
+          {#Pisahkan gram daging dari kg CO2e agar berat dan emisi tidak tertukar.#}
+          {% if activity.activity_type == "car_travel" %}km{% elif activity.activity_type == "electricity" %}kWh{% elif activity.activity_type == "chicken" or activity.activity_type == "beef" %}g{% endif %}
+        </dd>
+        <dt>Emisi</dt>
+        <dd>{{ activity.emission_kg|floatformat:4 }} kg CO₂e</dd>
+      </dl>
+
+      <p class="hint">Aktivitas yang dihapus tidak dapat dikembalikan.</p>
+      <form method="post" data-delete-form action="{% url 'tracker:delete' activity.pk %}">
+        {% csrf_token %}
+        {#Tampilkan status dan kegagalan penghapusan tanpa meninggalkan dialog.#}
+        <div class="hint" data-delete-status role="status" hidden></div>
+        <div class="form-actions">
+          <a class="btn" data-tracker-cancel href="{% url 'tracker:index' %}#riwayat-aktivitas">Batal</a>
+          <button class="btn btn--danger" type="submit">Hapus aktivitas</button>
+        </div>
+      </form>
+    </section>
+  </div>
+{% endblock %}

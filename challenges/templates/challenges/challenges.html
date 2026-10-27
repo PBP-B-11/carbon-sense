@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Carbon Sense: Eco-Challenges{% endblock %}
+
+{% block blobs %}
+  <i class="blob blob--challenge-1" aria-hidden="true"></i>
+  <i class="blob blob--challenge-2" aria-hidden="true"></i>
+{% endblock %}
+
+{% block content %}
+    <div id="toast-component" class="toast-hidden" popover="manual" role="status" aria-live="polite">
+      <div id="toast-title"></div>
+      <div id="toast-message"></div>
+    </div>
+
+    <div class="container">
+      <div class="page-title">
+        <div>
+          <span class="eyebrow t-amber">Modul 3, Eco-Challenges</span>
+          <h1 class="hl-gap-18">Tantangan <span class="hl">minggu ini</span></h1>
+        </div>
+        <div class="page-tools page-tools--tight">
+          <span class="pill pill--amber"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-star"/></svg><span id="header-points">{{ total_points|intcomma }}</span> poin</span>
+          <span class="pill pill--streak"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-flame"/></svg><span id="header-streak-text">Streak {{ streak }} hari</span></span>
+          {% if request.user.is_superuser %}
+          <a class="btn btn--primary" href="{% url 'challenges:tambah' %}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>Tambah tantangan</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="alert-container">
+        {% for message in messages %}
+        <div class="alert" role="status">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-triangle-alert"/></svg>
+          <div><p>{{ message }}</p></div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <section class="challenge-top">
+        <article class="card-dark active-challenge" aria-labelledby="judul-aktif">
+          {% if active %}
+          <p class="eyebrow">Sedang kamu ikuti</p>
+          <h2 id="judul-aktif">{{ active.challenge.title }}</h2>
+          <div class="progress-line"><span><span id="active-done-days">{{ active.done_days }}</span> dari {{ active.total_days }} hari</span><span class="serif" id="active-percent">{{ active.percent }}%</span></div>
+          <div class="dots" id="active-dots" data-total-days="{{ active.total_days }}" role="img" aria-label="{{ active.done_days }} dari {{ active.total_days }} hari selesai">
+            {% for titik in active.dots %}<i{% if titik == "today" %} class="today"{% elif titik == "todo" %} class="todo"{% endif %}></i>{% endfor %}
+          </div>
+          <p class="desc">{{ active.challenge.description }} <span id="active-sisa">{% if active.sisa_hari %}{{ active.sisa_hari }} hari lagi{% else %}Selesai{% endif %}</span>, hemat ~{{ active.challenge.estimated_saving_kg|floatformat:1 }} kg CO₂e, dapat {{ active.challenge.points|intcomma }} poin{% if active.challenge.badge %} dan lencana {{ active.challenge.badge.name }}{% endif %}.</p>
+          <div class="actions">
+            <form method="post" data-challenge-form="checkin" data-challenge-id="{{ active.challenge.id }}">
+              {% csrf_token %}
+              <input type="hidden" name="aksi" value="checkin">
+              <input type="hidden" name="tantangan_id" value="{{ active.challenge.id }}">
+              <button class="btn btn--lichen" id="btn-checkin" type="submit"{% if active.checked_today %} disabled{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg><span id="btn-checkin-text">{% if active.checked_today %}Sudah check-in hari ini{% else %}Check-in hari ini{% endif %}</span></button>
+            </form>
+            <form method="post" data-challenge-form="berhenti" data-challenge-id="{{ active.challenge.id }}">
+              {% csrf_token %}
+              <input type="hidden" name="aksi" value="berhenti">
+              <input type="hidden" name="tantangan_id" value="{{ active.challenge.id }}">
+              <button class="stop" type="submit">Berhenti</button>
+            </form>
+          </div>
+          {% else %}
+          <p class="eyebrow">Sedang kamu ikuti</p>
+          <h2 id="judul-aktif">Belum ada <span class="hl">tantangan</span></h2>
+          <p class="desc">Pilih satu tantangan di bawah untuk mulai mengumpulkan poin dan lencana.</p>
+          {% endif %}
+        </article>
+
+        <section class="card card--b badges" aria-labelledby="judul-lencana">
+          <div class="badges-head"><h2 class="card-title" id="judul-lencana">Lencana</h2><span class="count"><span id="badge-owned-count">{{ owned_badge_count }}</span> dari {{ badges|length }}</span></div>
+          <ul class="badge-row">
+            {% for lencana in badges %}
+            {% if lencana.id in owned_badge_ids %}
+            <li class="badge" data-badge-name="{{ lencana.name }}" title="Lencana diperoleh: {{ lencana.requirement }}" aria-label="{{ lencana.name }} (diperoleh). {{ lencana.requirement }}"><span class="disc tone-{{ lencana.tone }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-{{ lencana.icon }}"/></svg></span>{{ lencana.name }}</li>
+            {% else %}
+            <li class="badge badge--locked" data-badge-name="{{ lencana.name }}" data-badge-icon="{{ lencana.icon }}" data-badge-tone="{{ lencana.tone }}" title="Terkunci: {{ lencana.requirement }}" aria-label="{{ lencana.name }} (terkunci). Syarat: {{ lencana.requirement }}"><span class="disc"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-lock"/></svg></span>{{ lencana.name }}</li>
+            {% endif %}
+            {% endfor %}
+          </ul>
+          {% if streak_at_risk %}
+          <div class="alert alert--streak-risk" id="alert-streak-risk" role="status">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-triangle-alert"/></svg>
+            <div>
+              <strong>Streak hampir putus</strong>
+              <p>Check-in sebelum pukul 23.59 supaya streak tetap jalan.</p>
+            </div>
+          </div>
+          {% endif %}
+        </section>
+      </section>
+
+      <section class="challenge-list" aria-labelledby="judul-daftar">
+        <div class="list-head">
+          <h2 class="sec-title" id="judul-daftar">Pilih tantangan <span class="hl">berikutnya</span></h2>
+          <div class="chips" role="group" aria-label="Filter kategori">
+            <a class="chip{% if not selected_category %} chip--active{% endif %}" href="{% url 'challenges:index' %}">Semua</a>
+            {% for nilai, nama in categories %}
+            <a class="chip{% if selected_category == nilai %} chip--active{% endif %}" href="?kategori={{ nilai }}">{{ nama }}</a>
+            {% endfor %}
+          </div>
+        </div>
+        <ul class="challenge-grid">
+          {% for tantangan in challenges %}
+          <li class="card card--{% cycle 'a' 'b' 'c' 'd' %}{% if tantangan.id in joined_ids %} card--emphasis{% endif %} challenge">
+            <div class="top">
+              <span class="icon-disc tone-{{ tantangan.tone }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-{{ tantangan.icon }}"/></svg></span>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <span class="pill pill--amber">+{{ tantangan.points|intcomma }} poin</span>
+                {% if request.user.is_superuser %}
+                <a class="btn-delete" href="{% url 'challenges:hapus' tantangan.id %}" title="Hapus tantangan" style="color: var(--color-error-text); display: inline-flex; align-items: center; padding: 4px;" aria-label="Hapus tantangan {{ tantangan.title }}">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash-2"/></svg>
+                </a>
+                {% endif %}
+              </div>
+            </div>
+            <h3>{{ tantangan.title }}</h3>
+            <p>{{ tantangan.description }}</p>
+            <div class="foot"><small>{{ tantangan.duration_days }} hari, {{ tantangan.participants|intcomma }} peserta</small>
+              {% if tantangan.id in joined_ids %}
+              <span class="join join--on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Diikuti</span>
+              {% else %}
+              <form method="post" data-challenge-form="ikut" data-challenge-id="{{ tantangan.id }}">
+                {% csrf_token %}
+                <input type="hidden" name="aksi" value="ikut">
+                <input type="hidden" name="tantangan_id" value="{{ tantangan.id }}">
+                <button class="join" type="submit">Ikuti</button>
+              </form>
+              {% endif %}
+            </div>
+          </li>
+          {% empty %}
+          <li class="card card--a challenge"><p>Belum ada tantangan di kategori ini.</p></li>
+          {% endfor %}
+        </ul>
+      </section>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'js/challenges.js' %}" defer></script>
+{% endblock %}
