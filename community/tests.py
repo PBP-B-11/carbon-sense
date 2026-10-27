@@ -416,7 +416,7 @@ class FeedFilterPaginationTests(TestCase):
 
     def test_filter_with_no_results_shows_note(self):
         data = self.client.get(self.url, {"category": "berita"}, **self.ajax).json()
-        self.assertIn("kategori ini", data["html"])
+        self.assertIn("yang cocok", data["html"])
 
     def test_unknown_category_is_ignored(self):
         res = self.client.get(self.url, {"category": "hack"})
@@ -514,3 +514,79 @@ class DetailLikeTests(TestCase):
     def test_anonymous_sees_like_button_unpressed(self):
         res = self.client.get(self.url)
         self.assertContains(res, 'aria-pressed="false"')
+
+
+class SearchSortCountTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.ana = User.objects.create_user("ana", password="x")
+        self.budi = User.objects.create_user("budi", password="x")
+        self.cici = User.objects.create_user("cici", password="x")
+        self.p_old = Post.objects.create(author=self.ana, category="tips", content="hemat listrik rumah")
+        self.p_mid = Post.objects.create(author=self.budi, category="diskusi", content="naik kereta ke kampus")
+        self.p_new = Post.objects.create(
+            author=self.ana, category="berita", content="", news_title="Hutan Kalimantan terbakar", news_source="M",
+            news_url="https://e.com/a",
+        )
+        # p_mid paling populer: 2 suka dan 3 komentar (menguji hitungan tidak berlipat karena join)
+        Like.objects.create(post=self.p_mid, user=self.ana)
+        Like.objects.create(post=self.p_mid, user=self.budi)
+        for i in range(3):
+            Comment.objects.create(post=self.p_mid, author=self.cici, content=f"k{i}")
+        self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+        self.url = reverse("community:index")
+
+    def _titles(self, **params):
+        html = self.client.get(self.url, params, **self.ajax).json()["html"]
+        return html
+
+    def test_counts_are_not_multiplied_by_joins(self):
+        res = self.client.get(self.url)
+        by_pk = {p.pk: p for p in res.context["posts"]}
+        self.assertEqual(by_pk[self.p_mid.pk].like_count, 2)
+        self.assertEqual(by_pk[self.p_mid.pk].comment_count, 3)
+        self.assertEqual(by_pk[self.p_old.pk].like_count, 0)
+
+    def test_search_matches_content(self):
+        html = self._titles(q="listrik")
+        self.assertIn("hemat listrik", html)
+        self.assertNotIn("naik kereta", html)
+
+    def test_search_matches_username_and_news_title(self):
+        self.assertIn("hemat listrik", self._titles(q="ana"))
+        html = self._titles(q="kalimantan")
+        self.assertIn("Hutan Kalimantan", html)
+        self.assertNotIn("hemat listrik", html)
+
+    def test_search_is_case_insensitive(self):
+        self.assertIn("naik kereta", self._titles(q="KERETA"))
+
+    def test_search_combines_with_category(self):
+        html = self._titles(q="ana", category="tips")
+        self.assertIn("hemat listrik", html)
+        self.assertNotIn("Hutan Kalimantan", html)
+
+    def test_no_match_shows_note(self):
+        self.assertIn("yang cocok", self._titles(q="tidak-ada-yang-begini"))
+
+    def test_default_sort_is_newest_first(self):
+        html = self._titles()
+        self.assertLess(html.index("Hutan Kalimantan"), html.index("naik kereta"))
+        self.assertLess(html.index("naik kereta"), html.index("hemat listrik"))
+
+    def test_popular_sort_puts_most_liked_first(self):
+        html = self._titles(sort="popular")
+        self.assertLess(html.index("naik kereta"), html.index("Hutan Kalimantan"))
+
+    def test_unknown_sort_falls_back_to_newest(self):
+        html = self._titles(sort="hack")
+        self.assertLess(html.index("Hutan Kalimantan"), html.index("hemat listrik"))
+
+    def test_full_page_keeps_query_in_inputs(self):
+        res = self.client.get(self.url, {"q": "listrik", "sort": "popular"})
+        self.assertContains(res, 'value="listrik"')
+        self.assertContains(res, '<option value="popular" selected>')
+
+    def test_very_long_query_is_truncated_not_error(self):
+        res = self.client.get(self.url, {"q": "x" * 500})
+        self.assertEqual(res.status_code, 200)

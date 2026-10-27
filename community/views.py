@@ -1,11 +1,13 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db.models import Count, Exists, OuterRef
+from django.db.models import Count, Exists, IntegerField, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.http import urlencode
 from django.views.decorators.http import require_POST
 
 from .forms import COMMENT_MAX_LENGTH, POST_MAX_LENGTH, CommentForm, PostForm
@@ -15,6 +17,8 @@ from .news import fetch_news, find_article
 
 PAGE_SIZE = 10
 CATEGORIES = {value for value, _ in Post.CATEGORY_CHOICES}
+SORTS = {"new", "popular"}
+SEARCH_MAX_LENGTH = 100
 
 
 def _is_ajax(request):
@@ -33,10 +37,22 @@ def _form_error(form, default):
     return errors[0] if errors else default
 
 
+def _count_of(model):
+    """Subquery penghitung baris per post; menghindari join ganda dan GROUP BY besar."""
+    counts = (
+        model.objects.filter(post=OuterRef("pk"))
+        .order_by()
+        .values("post")
+        .annotate(total=Count("pk"))
+        .values("total")
+    )
+    return Coalesce(Subquery(counts, output_field=IntegerField()), 0)
+
+
 def _feed_posts(user):
     posts = Post.objects.select_related("author").annotate(
-        like_count=Count("likes", distinct=True),
-        comment_count=Count("comments", distinct=True),
+        like_count=_count_of(Like),
+        comment_count=_count_of(Comment),
     )
     if user.is_authenticated:
         posts = posts.annotate(
@@ -55,10 +71,24 @@ def index(request):
     category = request.GET.get("category", "")
     if category not in CATEGORIES:
         category = ""
+    query = request.GET.get("q", "").strip()[:SEARCH_MAX_LENGTH]
+    sort = request.GET.get("sort", "")
+    if sort not in SORTS:
+        sort = "new"
 
     posts = _feed_posts(request.user)
     if category:
         posts = posts.filter(category=category)
+    if query:
+        posts = posts.filter(
+            Q(content__icontains=query)
+            | Q(news_title__icontains=query)
+            | Q(author__username__icontains=query)
+        )
+    if sort == "popular":
+        posts = posts.order_by("-like_count", "-created_at", "-pk")
+    else:
+        posts = posts.order_by("-created_at", "-pk")
     paginator = Paginator(posts, PAGE_SIZE)
 
     if _is_ajax(request):
@@ -67,7 +97,9 @@ def index(request):
         except (EmptyPage, PageNotAnInteger):
             return JsonResponse({"html": "", "has_next": False, "next_page": None})
         html = render_to_string(
-            "community/_post_list.html", {"posts": page, "category": category}, request=request
+            "community/_post_list.html",
+            {"posts": page, "category": category, "q": query},
+            request=request,
         )
         return JsonResponse(
             {
@@ -85,6 +117,11 @@ def index(request):
             "posts": page,
             "page": page,
             "category": category,
+            "q": query,
+            "sort": sort,
+            "base_qs": urlencode(
+                {k: v for k, v in (("q", query), ("sort", "" if sort == "new" else sort)) if v}
+            ),
             "categories": Post.CATEGORY_CHOICES,
             "form": PostForm(),
             "news": fetch_news(),

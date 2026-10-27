@@ -29,6 +29,10 @@ class Post(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["-created_at"], name="post_created_idx"),
+            models.Index(fields=["category", "-created_at"], name="post_cat_created_idx"),
+        ]
 
     def __str__(self):
         return f"{self.author} ({self.category}): {self.content[:40]}"

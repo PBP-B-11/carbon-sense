@@ -12,12 +12,14 @@ function ensureEmptyNote(list) {
   }
 }
 
-// Kartu baru hanya ditampilkan jika sesuai filter kategori yang sedang aktif
+// Kartu baru hanya disisipkan di atas jika urutannya terbaru, tanpa pencarian,
+// dan sesuai filter kategori yang sedang aktif
 function prependCard(list, html) {
   const card = htmlToEl(html);
+  const {category, query, sort} = list.dataset;
+  if (query || sort === 'popular') return;
   list.querySelector('.feed-empty')?.remove();
-  const filter = list.dataset.category;
-  if (!filter || filter === card.dataset.category) list.prepend(card);
+  if (!category || category === card.dataset.category) list.prepend(card);
 }
 
 function initCompose(feed, list) {
