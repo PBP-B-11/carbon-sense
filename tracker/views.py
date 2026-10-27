@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .activity_actions import process_activity_form
+from .assets import tracker_asset_version
 from .dashboard import build_dashboard_context
 from .forms import CarbonActivityForm
 from .models import CarbonActivity
@@ -86,6 +87,8 @@ def index(request, pk=None):
             "estimate": estimate,
             "activities": activities,
             "editing_activity": editing_activity,
+            # Samakan versi semua skrip Tracker agar perubahan frontend tidak tertahan cache.
+            "tracker_asset_version": tracker_asset_version(),
         }
     )
     return render(request, "tracker/tracker.html", context)

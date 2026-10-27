@@ -1,0 +1,5 @@
+{% for post in posts %}
+{% include "community/_post_card.html" %}
+{% empty %}
+<p class="card feed-note feed-empty">{% if category or q %}Tidak ada postingan yang cocok.{% else %}Belum ada postingan. Jadilah yang pertama bercerita.{% endif %}</p>
+{% endfor %}

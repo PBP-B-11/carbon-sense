@@ -280,10 +280,11 @@
       <p class="hint" data-edit-status role="status" hidden></p>
       <div data-edit-content></div>
     </dialog>
-    <script src="{% static 'js/tracker-dashboard.js' %}" defer></script>
-    <script src="{% static 'js/tracker-filters.js' %}" defer></script>
-    <script src="{% static 'js/tracker-form.js' %}" defer></script>
-    <script src="{% static 'js/tracker-preview.js' %}" defer></script>
-    <script src="{% static 'js/tracker-delete.js' %}" defer></script>
-    <script src="{% static 'js/tracker-modal.js' %}" defer></script>
+    {#Versi berbasis isi memaksa browser mengambil skrip baru setelah pembaruan.#}
+    <script src="{% static 'js/tracker-dashboard.js' %}?v={{ tracker_asset_version }}" defer></script>
+    <script src="{% static 'js/tracker-filters.js' %}?v={{ tracker_asset_version }}" defer></script>
+    <script src="{% static 'js/tracker-form.js' %}?v={{ tracker_asset_version }}" defer></script>
+    <script src="{% static 'js/tracker-preview.js' %}?v={{ tracker_asset_version }}" defer></script>
+    <script src="{% static 'js/tracker-delete.js' %}?v={{ tracker_asset_version }}" defer></script>
+    <script src="{% static 'js/tracker-modal.js' %}?v={{ tracker_asset_version }}" defer></script>
 {% endblock %}
