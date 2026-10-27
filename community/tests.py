@@ -673,3 +673,108 @@ class SearchSortCountTests(TestCase):
     def test_very_long_query_is_truncated_not_error(self):
         res = self.client.get(self.url, {"q": "x" * 500})
         self.assertEqual(res.status_code, 200)
+
+
+class NewlineLengthTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("me", password="x")
+        self.client.force_login(self.user)
+        self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+    def test_crlf_text_within_browser_limit_is_accepted_and_stored_as_lf(self):
+        # 990 karakter menurut browser (maxlength=1000), tetapi 1089 saat dikirim sebagai \r\n
+        text = ("x" * 9 + "\n") * 99
+        res = self.client.post(
+            reverse("community:create_post"),
+            {"content": text.replace("\n", "\r\n"), "category": "tips"},
+            **self.ajax,
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertNotIn("\r", Post.objects.get().content)
+
+    def test_comment_with_crlf_is_accepted(self):
+        from .forms import COMMENT_MAX_LENGTH
+
+        post = Post.objects.create(author=self.user, content="halo")
+        text = "ab\n" * (COMMENT_MAX_LENGTH // 3)
+        res = self.client.post(
+            reverse("community:add_comment", args=[post.pk]),
+            {"content": text.replace("\n", "\r\n")},
+            **self.ajax,
+        )
+        self.assertEqual(res.status_code, 200)
+
+    def test_text_over_limit_is_still_rejected(self):
+        from .forms import POST_MAX_LENGTH
+
+        res = self.client.post(
+            reverse("community:create_post"),
+            {"content": "x" * (POST_MAX_LENGTH + 1), "category": "tips"},
+            **self.ajax,
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_share_caption_crlf_is_normalized(self):
+        from django.core.cache import cache
+
+        cache.set(
+            "community:gnews",
+            [
+                {
+                    "title": "J",
+                    "snippet": "",
+                    "url": "https://e.com/a",
+                    "source": "M",
+                    "published_at": None,
+                }
+            ],
+        )
+        self.client.post(
+            reverse("community:share_news"),
+            {"url": "https://e.com/a", "content": "baris1\r\nbaris2"},
+            **self.ajax,
+        )
+        self.assertEqual(Post.objects.get().content, "baris1\nbaris2")
+
+
+class CommentPaginationTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("me", password="x")
+        self.post = Post.objects.create(author=self.user, content="halo")
+        for i in range(25):
+            Comment.objects.create(
+                post=self.post, author=self.user, content=f"komentar {i:02d}"
+            )
+        self.url = reverse("community:post_detail", args=[self.post.pk])
+        self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+    def test_first_page_shows_20_newest_first_and_total_count(self):
+        res = self.client.get(self.url)
+        html = res.content.decode()
+        self.assertEqual(html.count('<div class="comment">'), 20)
+        self.assertLess(html.index("komentar 24"), html.index("komentar 23"))
+        self.assertNotIn("komentar 04", html)
+        self.assertContains(res, '<span id="comment-count">25</span>')
+        self.assertContains(res, "js-load-more-comments")
+
+    def test_ajax_second_page_returns_the_oldest_five(self):
+        data = self.client.get(self.url, {"page": 2}, **self.ajax).json()
+        self.assertEqual(data["html"].count('<div class="comment">'), 5)
+        self.assertIn("komentar 00", data["html"])
+        self.assertFalse(data["has_next"])
+
+    def test_out_of_range_page_is_empty(self):
+        data = self.client.get(self.url, {"page": 99}, **self.ajax).json()
+        self.assertEqual(data, {"html": "", "has_next": False, "next_page": None})
+
+    def test_load_more_is_hidden_when_everything_fits(self):
+        Comment.objects.filter(post=self.post).exclude(content__endswith="00").delete()
+        res = self.client.get(self.url)
+        self.assertContains(res, 'id="comments-more" hidden')
+
+
+class ConsistencyTests(TestCase):
+    def test_delete_dialog_uses_indonesian_wording(self):
+        res = self.client.get(reverse("community:index"))
+        self.assertContains(res, "beserta suka dan komentarnya")
+        self.assertNotContains(res, "likes dan")

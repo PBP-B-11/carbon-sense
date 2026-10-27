@@ -6,16 +6,22 @@ from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
-from django.utils.http import url_has_allowed_host_and_scheme
-from django.utils.http import urlencode
+from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.http import require_POST
 
-from .forms import COMMENT_MAX_LENGTH, POST_MAX_LENGTH, CommentForm, PostForm
+from .forms import (
+    COMMENT_MAX_LENGTH,
+    POST_MAX_LENGTH,
+    CommentForm,
+    PostForm,
+    normalize_newlines,
+)
 from .models import Comment, Like, Post
 from .news import fetch_news, find_article
 
 
 PAGE_SIZE = 10
+COMMENT_PAGE_SIZE = 20
 CATEGORIES = {value for value, _ in Post.CATEGORY_CHOICES}
 SORTS = {"new", "popular"}
 SEARCH_MAX_LENGTH = 100
@@ -30,6 +36,21 @@ def _fail(request, message, to="community:index", **kwargs):
         return JsonResponse({"error": message}, status=400)
     messages.error(request, message)
     return redirect(to, **kwargs)
+
+
+def _page_json(request, paginator, render_page):
+    """Satu halaman hasil paginasi sebagai JSON; halaman di luar jangkauan dikembalikan kosong."""
+    try:
+        page = paginator.page(request.GET.get("page", 1))
+    except (EmptyPage, PageNotAnInteger):
+        return JsonResponse({"html": "", "has_next": False, "next_page": None})
+    return JsonResponse(
+        {
+            "html": render_page(page),
+            "has_next": page.has_next(),
+            "next_page": page.next_page_number() if page.has_next() else None,
+        }
+    )
 
 
 def _form_error(form, default):
@@ -94,21 +115,14 @@ def index(request):
     paginator = Paginator(posts, PAGE_SIZE)
 
     if _is_ajax(request):
-        try:
-            page = paginator.page(request.GET.get("page", 1))
-        except (EmptyPage, PageNotAnInteger):
-            return JsonResponse({"html": "", "has_next": False, "next_page": None})
-        html = render_to_string(
-            "community/_post_list.html",
-            {"posts": page, "category": category, "q": query},
-            request=request,
-        )
-        return JsonResponse(
-            {
-                "html": html,
-                "has_next": page.has_next(),
-                "next_page": page.next_page_number() if page.has_next() else None,
-            }
+        return _page_json(
+            request,
+            paginator,
+            lambda page: render_to_string(
+                "community/_post_list.html",
+                {"posts": page, "category": category, "q": query},
+                request=request,
+            ),
         )
 
     page = paginator.get_page(request.GET.get("page"))
@@ -194,14 +208,28 @@ def toggle_like(request, pk):
 
 def post_detail(request, pk):
     post = get_object_or_404(_feed_posts(request.user), pk=pk)
-    comments = post.comments.select_related("author")
+    comments = post.comments.select_related("author").order_by("-created_at", "-pk")
+    paginator = Paginator(comments, COMMENT_PAGE_SIZE)
+
+    if _is_ajax(request):
+        return _page_json(
+            request,
+            paginator,
+            lambda page: "".join(
+                render_to_string(
+                    "community/_comment.html", {"comment": c}, request=request
+                )
+                for c in page
+            ),
+        )
+
     return render(
         request,
         "community/post_detail.html",
         {
             "post": post,
-            "comments": comments,
-            "form": CommentForm(),
+            "comments": paginator.get_page(request.GET.get("page")),
+            "comment_total": paginator.count,
             "comment_max": COMMENT_MAX_LENGTH,
         },
     )
@@ -271,7 +299,7 @@ def share_news(request):
     if article is None:
         return _fail(request, "Berita tidak ditemukan atau sudah kedaluwarsa.")
 
-    content = request.POST.get("content", "").strip()
+    content = normalize_newlines(request.POST.get("content", "")).strip()
     if len(content) > POST_MAX_LENGTH:
         return _fail(request, f"Caption maksimal {POST_MAX_LENGTH} karakter.")
 

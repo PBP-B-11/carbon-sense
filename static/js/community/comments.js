@@ -1,10 +1,12 @@
-import {parse, sendForm} from './http.js';
+import {getJson, parse, sendForm} from './http.js';
 import {htmlToEl, toast} from './ui.js';
 
 export function initComments() {
   const list = document.getElementById('comments');
   const counter = document.getElementById('comment-count');
   const form = document.getElementById('comment-form');
+  const moreWrap = document.getElementById('comments-more');
+  const moreBtn = moreWrap.querySelector('.js-load-more-comments');
   let errorEl = null;
 
   function clearError() {
@@ -21,7 +23,8 @@ export function initComments() {
   }
 
   function ensureEmptyNote() {
-    if (!list.querySelector('.comment') && !list.querySelector('.comment-empty')) {
+    // Jika masih ada halaman komentar yang belum dimuat, daftar belum benar-benar kosong
+    if (moreWrap.hidden && !list.querySelector('.comment') && !list.querySelector('.comment-empty')) {
       const p = document.createElement('p');
       p.className = 'comment-empty';
       p.textContent = 'Belum ada komentar.';
@@ -42,12 +45,12 @@ export function initComments() {
       }
       clearError();
       list.querySelector('.comment-empty')?.remove();
-      list.appendChild(htmlToEl(result.data.html));
+      list.prepend(htmlToEl(result.data.html));
       counter.textContent = result.data.count;
       form.elements.content.value = '';
       toast('Komentar terkirim.', 'success');
     } catch {
-      form.submit();
+      toast('Gagal mengirim komentar. Coba lagi.', 'danger');
     } finally {
       btn.disabled = false;
     }
@@ -83,7 +86,7 @@ export function initComments() {
       editDialog.close();
       toast('Komentar diperbarui.', 'info');
     } catch {
-      editForm.submit();
+      toast('Gagal menyimpan komentar. Coba lagi.', 'danger');
     } finally {
       btn.disabled = false;
     }
@@ -136,5 +139,24 @@ export function initComments() {
   document.getElementById('comment-delete-cancel').addEventListener('click', () => {
     pending = null;
     deleteDialog.close();
+  });
+
+  moreBtn.addEventListener('click', async (event) => {
+    event.preventDefault();
+    const page = Number(moreBtn.dataset.nextPage);
+    if (!page) return;
+    moreBtn.setAttribute('aria-disabled', 'true');
+    try {
+      const res = await getJson(`${window.location.pathname}?page=${page}`);
+      if (!res.ok) throw new Error('load failed');
+      const data = await res.json();
+      list.insertAdjacentHTML('beforeend', data.html);
+      moreWrap.hidden = !data.has_next;
+      moreBtn.dataset.nextPage = data.next_page ?? '';
+    } catch {
+      toast('Gagal memuat komentar. Coba lagi.', 'danger');
+    } finally {
+      moreBtn.removeAttribute('aria-disabled');
+    }
   });
 }

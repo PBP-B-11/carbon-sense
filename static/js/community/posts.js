@@ -42,7 +42,7 @@ function initCompose(feed, list) {
       form.elements.content.value = '';
       toast('Postingan berhasil dibagikan.', 'success');
     } catch {
-      form.submit();
+      toast('Gagal mengirim postingan. Coba lagi.', 'danger');
     } finally {
       btn.disabled = false;
     }
@@ -90,7 +90,7 @@ function initEdit(feed, list) {
       dialog.close();
       toast('Postingan berhasil diperbarui.', 'info');
     } catch {
-      form.submit();
+      toast('Gagal menyimpan perubahan. Coba lagi.', 'danger');
     } finally {
       btn.disabled = false;
     }
@@ -174,7 +174,7 @@ function initShare(feed, list) {
       dialog.close();
       toast('Berita berhasil dibagikan ke feed.', 'success');
     } catch {
-      form.submit();
+      toast('Gagal membagikan berita. Coba lagi.', 'danger');
     } finally {
       btn.disabled = false;
     }
