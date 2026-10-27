@@ -657,8 +657,9 @@ class SearchSortCountTests(TestCase):
         self.assertLess(html.index("Hutan Kalimantan"), html.index("naik kereta"))
         self.assertLess(html.index("naik kereta"), html.index("hemat listrik"))
 
-    def test_popular_sort_puts_most_liked_first(self):
-        html = self._titles(sort="popular")
+    def test_oldest_sort_puts_oldest_first(self):
+        html = self._titles(sort="old")
+        self.assertLess(html.index("hemat listrik"), html.index("naik kereta"))
         self.assertLess(html.index("naik kereta"), html.index("Hutan Kalimantan"))
 
     def test_unknown_sort_falls_back_to_newest(self):
@@ -666,9 +667,9 @@ class SearchSortCountTests(TestCase):
         self.assertLess(html.index("Hutan Kalimantan"), html.index("hemat listrik"))
 
     def test_full_page_keeps_query_in_inputs(self):
-        res = self.client.get(self.url, {"q": "listrik", "sort": "popular"})
+        res = self.client.get(self.url, {"q": "listrik", "sort": "old"})
         self.assertContains(res, 'value="listrik"')
-        self.assertContains(res, '<option value="popular" selected>')
+        self.assertContains(res, '<option value="old" selected>')
 
     def test_very_long_query_is_truncated_not_error(self):
         res = self.client.get(self.url, {"q": "x" * 500})

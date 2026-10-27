@@ -23,7 +23,7 @@ from .news import fetch_news, find_article
 PAGE_SIZE = 10
 COMMENT_PAGE_SIZE = 20
 CATEGORIES = {value for value, _ in Post.CATEGORY_CHOICES}
-SORTS = {"new", "popular"}
+SORTS = {"new", "old"}
 SEARCH_MAX_LENGTH = 100
 
 
@@ -108,8 +108,8 @@ def index(request):
             | Q(news_title__icontains=query)
             | Q(author__username__icontains=query)
         )
-    if sort == "popular":
-        posts = posts.order_by("-like_count", "-created_at", "-pk")
+    if sort == "old":
+        posts = posts.order_by("created_at", "pk")
     else:
         posts = posts.order_by("-created_at", "-pk")
     paginator = Paginator(posts, PAGE_SIZE)

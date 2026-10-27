@@ -17,7 +17,7 @@ function ensureEmptyNote(list) {
 function prependCard(list, html) {
   const card = htmlToEl(html);
   const {category, query, sort} = list.dataset;
-  if (query || sort === 'popular') return;
+  if (query || sort !== 'new') return;
   list.querySelector('.feed-empty')?.remove();
   if (!category || category === card.dataset.category) list.prepend(card);
 }
