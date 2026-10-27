@@ -511,9 +511,16 @@ class DetailLikeTests(TestCase):
         res = self.client.post(reverse("community:toggle_like", args=[self.post.pk]), {"next": self.url})
         self.assertRedirects(res, self.url)
 
-    def test_anonymous_sees_like_button_unpressed(self):
+    def test_anonymous_gets_login_link_instead_of_like_form(self):
+        Like.objects.create(post=self.post, user=self.user)
         res = self.client.get(self.url)
-        self.assertContains(res, 'aria-pressed="false"')
+        self.assertNotContains(res, "js-like-form")
+        self.assertContains(res, reverse("profil:login") + "?next=")
+        self.assertContains(res, "1 suka")  # jumlah tetap terlihat
+
+    def test_anonymous_feed_has_no_like_form(self):
+        res = self.client.get(reverse("community:index"))
+        self.assertNotContains(res, "js-like-form")
 
 
 class SearchSortCountTests(TestCase):
