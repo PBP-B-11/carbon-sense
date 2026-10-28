@@ -990,6 +990,32 @@ main {
   height: 312px;
 }
 
+/* Kecilkan angka total sesuai jumlah karakternya agar tetap muat di lingkaran */
+.tracker-summary .seed .num {
+  white-space: nowrap;
+}
+
+.tracker-summary .seed .num[data-length="5"] {
+  font-size: 66px;
+}
+
+.tracker-summary .seed .num[data-length="6"] {
+  font-size: 54px;
+}
+
+.tracker-summary .seed .num[data-length="7"] {
+  font-size: 46px;
+}
+
+.tracker-summary .seed .num[data-length="8"] {
+  font-size: 38px;
+}
+
+.tracker-summary .seed .num[data-length="9"],
+.tracker-summary .seed .num[data-length="10"] {
+  font-size: 30px;
+}
+
 .tracker-summary .seed-text {
   position: relative;
   top: -2.5px;

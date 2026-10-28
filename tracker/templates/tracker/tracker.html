@@ -33,7 +33,10 @@
         <div class="seed-wrap">
           {#Gunakan total dan label periode yang sama dengan rincian kategori.#}
           <div class="seed" role="img" aria-label="{{ period_emissions|floatformat:2 }} kilogram CO2e, {{ period_label|lower }}">
-            <span class="num">{{ period_emissions|floatformat:1 }}</span>
+            {#Kirim panjang angka agar CSS bisa mengecilkan huruf pada angka besar.#}
+            {% with total=period_emissions|floatformat:1 %}
+            <span class="num" data-length="{{ total|length }}">{{ total }}</span>
+            {% endwith %}
             <span class="unit">kg CO₂e</span>
           </div>
           <div class="seed-text">
