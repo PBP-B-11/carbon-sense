@@ -6,6 +6,7 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from challenges.forms import TantanganForm
 from challenges.models import (
     Badge,
     Challenge,
@@ -321,7 +322,9 @@ class ChallengeViewsTests(TestCase):
     def test_ubah_tantangan_forbidden_untuk_user_biasa(self):
         """Memverifikasi bahwa pengguna biasa mendapat response 403 Forbidden saat mencoba mengubah tantangan."""
         self.client.force_login(self.user)
-        get_res = self.client.get(reverse("challenges:ubah", kwargs={"id": self.challenge1.id}))
+        get_res = self.client.get(
+            reverse("challenges:ubah", kwargs={"id": self.challenge1.id})
+        )
         self.assertEqual(get_res.status_code, 403)
 
         post_res = self.client.post(
@@ -333,7 +336,9 @@ class ChallengeViewsTests(TestCase):
     def test_ubah_tantangan_bisa_diakses_superuser(self):
         """Memverifikasi bahwa superuser dapat melihat form dan memperbarui data tantangan."""
         self.client.force_login(self.admin)
-        get_res = self.client.get(reverse("challenges:ubah", kwargs={"id": self.challenge1.id}))
+        get_res = self.client.get(
+            reverse("challenges:ubah", kwargs={"id": self.challenge1.id})
+        )
         self.assertEqual(get_res.status_code, 200)
         self.assertContains(get_res, "Perbarui detail tantangan")
 
@@ -354,6 +359,59 @@ class ChallengeViewsTests(TestCase):
         self.challenge1.refresh_from_db()
         self.assertEqual(self.challenge1.title, "Tantangan Transportasi Diperbarui")
         self.assertEqual(self.challenge1.points, 75)
+
+    def test_form_validasi_poin_transportasi_minimal_10(self):
+        """Memverifikasi validasi form jika poin transportasi kurang dari 10."""
+        data = {
+            "title": "Tantangan Gowes",
+            "description": "Deskripsi gowes",
+            "category": Challenge.Category.TRANSPORT,
+            "duration_days": 7,
+            "points": 5,
+            "estimated_saving_kg": 2.0,
+            "icon": "bike",
+            "tone": "moss",
+        }
+        form = TantanganForm(data=data)
+        self.assertFalse(form.is_valid())
+        self.assertIn("points", form.errors)
+        self.assertIn("minimal 10 poin", form.errors["points"][0])
+
+    def test_form_validasi_perkiraan_hemat_tidak_boleh_negatif(self):
+        """Memverifikasi validasi form jika perkiraan hemat bernilai negatif."""
+        data = {
+            "title": "Tantangan Listrik",
+            "description": "Deskripsi hemat listrik",
+            "category": Challenge.Category.ENERGY,
+            "duration_days": 7,
+            "points": 20,
+            "estimated_saving_kg": -1.5,
+            "icon": "zap",
+            "tone": "amber",
+        }
+        form = TantanganForm(data=data)
+        self.assertFalse(form.is_valid())
+        self.assertIn("estimated_saving_kg", form.errors)
+        self.assertIn("tidak boleh negatif", form.errors["estimated_saving_kg"][0])
+
+    def test_form_validasi_judul_unik(self):
+        """Memverifikasi bahwa judul tidak boleh duplikat, tetapi boleh sama pada instance yang sama saat diedit."""
+        data = {
+            "title": self.challenge1.title,
+            "description": "Duplikat judul",
+            "category": Challenge.Category.ENERGY,
+            "duration_days": 5,
+            "points": 30,
+            "estimated_saving_kg": 1.0,
+            "icon": "leaf",
+            "tone": "moss",
+        }
+        form_baru = TantanganForm(data=data)
+        self.assertFalse(form_baru.is_valid())
+        self.assertIn("title", form_baru.errors)
+
+        form_edit = TantanganForm(data=data, instance=self.challenge1)
+        self.assertTrue(form_edit.is_valid())
 
 
 class ChallengeAPITests(TestCase):

@@ -1,7 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
 from django.db.models import Count
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -9,8 +8,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .forms import TantanganForm
-from .models import Badge, Challenge, CheckIn, Participation, PointEntry, UserBadge
-from .utils import hitung_progres, hitung_streak, proses_checkin, sudah_checkin_hari_ini, total_poin
+from .models import Badge, Challenge, CheckIn, Participation, UserBadge
+from .utils import hitung_progres, hitung_streak, proses_checkin, total_poin
 
 
 def ikuti(request, tantangan):
@@ -60,7 +59,6 @@ def checkin(request, tantangan):
         messages.success(request, "Check-in hari ini tercatat.")
 
 
-
 def berhenti(request, tantangan):
     updated = Participation.objects.filter(
         user=request.user, challenge=tantangan, status=Participation.Status.ACTIVE
@@ -100,7 +98,9 @@ def ubah_tantangan(request, id):
         form.save()
         messages.success(request, f'Tantangan "{tantangan.title}" berhasil diperbarui.')
         return redirect("challenges:index")
-    return render(request, "challenges/ubah.html", {"form": form, "challenge": tantangan})
+    return render(
+        request, "challenges/ubah.html", {"form": form, "challenge": tantangan}
+    )
 
 
 @login_required
@@ -145,7 +145,9 @@ def _ambil_data_pengguna(user):
         .order_by("-started_at")
     )
     hari_ini = timezone.localdate()
-    ada_checkin = CheckIn.objects.filter(participation__user=user, date=hari_ini).exists()
+    ada_checkin = CheckIn.objects.filter(
+        participation__user=user, date=hari_ini
+    ).exists()
     streak = hitung_streak(user)
     pertama = aktif.first()
 
@@ -188,14 +190,18 @@ def daftar_tantangan(request):
     if kategori in Challenge.Category.values:
         tantangan = tantangan.filter(category=kategori)
 
-    personal = _ambil_data_pengguna(user) if user.is_authenticated else {
-        "joined_ids": set(),
-        "owned_badge_ids": set(),
-        "streak": 0,
-        "streak_at_risk": False,
-        "total_points": 0,
-        "active": None,
-    }
+    personal = (
+        _ambil_data_pengguna(user)
+        if user.is_authenticated
+        else {
+            "joined_ids": set(),
+            "owned_badge_ids": set(),
+            "streak": 0,
+            "streak_at_risk": False,
+            "total_points": 0,
+            "active": None,
+        }
+    )
 
     context = {
         "challenges": tantangan,

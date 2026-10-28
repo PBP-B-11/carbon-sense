@@ -118,7 +118,9 @@ def proses_checkin(partisipasi, user):
                 reason=f'Menyelesaikan "{partisipasi.challenge.title}"',
             )
             if partisipasi.challenge.badge:
-                UserBadge.objects.get_or_create(user=user, badge=partisipasi.challenge.badge)
+                UserBadge.objects.get_or_create(
+                    user=user, badge=partisipasi.challenge.badge
+                )
                 lencana_tantangan = partisipasi.challenge.badge.name
 
         return {

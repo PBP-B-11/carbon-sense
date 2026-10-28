@@ -1,13 +1,12 @@
 from django.core.exceptions import ValidationError
-from django.db import transaction
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import Challenge, Participation, PointEntry, UserBadge
-from .utils import hitung_progres, hitung_streak, proses_checkin, total_poin
+from .models import Challenge, Participation
+from .utils import proses_checkin
 
 
 def _ambil_tantangan_atau_none(pk):
@@ -55,7 +54,12 @@ def api_detail_tantangan(request, id):
     if challenge is None:
         return JsonResponse({"error": "Tantangan tidak ditemukan."}, status=404)
 
-    participants_count = Participation.objects.filter(challenge=challenge).values("user").distinct().count()
+    participants_count = (
+        Participation.objects.filter(challenge=challenge)
+        .values("user")
+        .distinct()
+        .count()
+    )
     return JsonResponse(
         {
             "id": str(challenge.id),
@@ -210,7 +214,9 @@ def api_hapus(request, id):
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Autentikasi diperlukan."}, status=401)
     if not request.user.is_superuser:
-        return JsonResponse({"error": "Hanya superuser yang dapat menghapus tantangan."}, status=403)
+        return JsonResponse(
+            {"error": "Hanya superuser yang dapat menghapus tantangan."}, status=403
+        )
 
     challenge = _ambil_tantangan_atau_none(id)
     if challenge is None:
@@ -225,4 +231,3 @@ def api_hapus(request, id):
         },
         status=200,
     )
-
