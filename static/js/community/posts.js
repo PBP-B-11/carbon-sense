@@ -3,6 +3,7 @@ import {clearNote, htmlToEl, showNote, toast} from './ui.js';
 
 const EMPTY_TEXT = 'Belum ada postingan. Jadilah yang pertama bercerita.';
 
+// Tampilkan pesan "belum ada postingan" jika daftar kosong
 function ensureEmptyNote(list) {
   if (!list.querySelector('article.post') && !list.querySelector('.feed-empty')) {
     const note = document.createElement('p');
@@ -22,6 +23,7 @@ function prependCard(list, html) {
   if (!category || category === card.dataset.category) list.prepend(card);
 }
 
+// Form buat postingan baru
 function initCompose(feed, list) {
   const form = feed.querySelector('.js-compose-form');
   if (!form) return;
@@ -49,6 +51,7 @@ function initCompose(feed, list) {
   });
 }
 
+// Tombol Edit membuka dialog yang diisi data post; hasilnya menggantikan kartu lama
 function initEdit(feed, list) {
   const dialog = document.getElementById('edit-dialog');
   const form = document.getElementById('edit-form');
@@ -144,6 +147,7 @@ function initDelete(feed, list) {
   });
 }
 
+// Tombol "Bagikan ke feed" di sidebar berita; yang dikirim ke server hanya URL dan caption
 function initShare(feed, list) {
   const dialog = document.getElementById('share-dialog');
   const form = dialog.querySelector('form');
@@ -183,6 +187,7 @@ function initShare(feed, list) {
   document.getElementById('share-cancel').addEventListener('click', () => dialog.close());
 }
 
+// Pasang semua aksi post di feed: buat, edit, hapus, dan bagikan berita
 export function initPosts(feed) {
   const list = document.getElementById('post-list');
   initCompose(feed, list);

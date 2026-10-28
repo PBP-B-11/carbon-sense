@@ -3,6 +3,7 @@ import {toast} from './ui.js';
 
 const SEARCH_DELAY = 300;
 
+// Filter kategori, pencarian, urutan, dan "Muat lebih banyak" di feed tanpa reload halaman
 export function initFilter() {
   const list = document.getElementById('post-list');
   const moreWrap = document.getElementById('load-more-wrap');

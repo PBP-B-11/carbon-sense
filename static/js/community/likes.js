@@ -1,6 +1,7 @@
 import {parse, sendForm} from './http.js';
 import {toast} from './ui.js';
 
+// Samakan tampilan tombol suka dengan status dan jumlah yang diberikan
 function render(btn, counter, liked, count) {
   btn.classList.toggle('liked', liked);
   btn.setAttribute('aria-pressed', String(liked));

@@ -1,3 +1,4 @@
+// Notifikasi singkat yang hilang sendiri setelah 3 detik; `type`: success, info, atau danger
 export function toast(text, type = 'success') {
   const region = document.getElementById('toast-region');
   if (!region) return;
@@ -11,6 +12,7 @@ export function toast(text, type = 'success') {
   }, 3000);
 }
 
+// Ubah string HTML dari server menjadi elemen DOM (elemen pertamanya saja)
 export function htmlToEl(html) {
   const tpl = document.createElement('template');
   tpl.innerHTML = html.trim();
