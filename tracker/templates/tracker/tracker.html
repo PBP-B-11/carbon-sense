@@ -88,7 +88,7 @@
             <div class="chart-series" style="--chart-columns: {{ daily_chart|length }}">
               <div class="bars" role="img" aria-describedby="chart-note" aria-label="Emisi {% if period == 'year' %}bulanan{% else %}harian{% endif %} {{ period_label|lower }}: {% for day in daily_chart %}{{ day.label }}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO2e{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}">
                 {% for day in daily_chart %}
-                  <span class="bar {% if day.emissions %}bar--recorded{% else %}bar--zero{% endif %}" style="height: {{ day.height }}px" title="{% if period == 'year' %}{{ day.label }} {{ day.date|date:'Y' }}{% else %}{{ day.date|date:'d M Y' }}{% endif %}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO₂e{% endif %}">
+                  <span class="bar {% if day.emissions %}bar--recorded{% else %}bar--zero{% endif %}" style="--bar-height: {{ day.height }}px" title="{% if period == 'year' %}{{ day.label }} {{ day.date|date:'Y' }}{% else %}{{ day.date|date:'d M Y' }}{% endif %}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO₂e{% endif %}">
                     {#Ringkas label besar (rb = ribu, jt = juta); nilai lengkap ada di title.#}
                     <b>{% if day.is_future %}—{% elif day.emissions >= 1000000 %}{% widthratio day.emissions 1000000 1 %}jt{% elif day.emissions >= 1000 %}{% widthratio day.emissions 1000 1 %}rb{% else %}{{ day.emissions|floatformat:1 }}{% endif %}</b>
                   </span>
@@ -120,7 +120,7 @@
                 <div class="progress" role="img" aria-label="{{ category.label }}: {{ category.percentage|floatformat:1 }}% dari total emisi {{ period_label|lower }}">
                   {#Persentase CSS memakai titik desimal; kategori nol tidak diisi.#}
                   {% if category.emissions %}
-                    <i class="{% if category.icon == 'i-zap' %}fill-moss-mid{% elif category.icon == 'i-utensils' %}fill-moss-light{% endif %}" style="width: {{ category.percentage|unlocalize }}%"></i>
+                    <i class="{% if category.icon == 'i-zap' %}fill-moss-mid{% elif category.icon == 'i-utensils' %}fill-moss-light{% endif %}" style="--fill-width: {{ category.percentage|unlocalize }}%"></i>
                   {% endif %}
                 </div>
               </li>
