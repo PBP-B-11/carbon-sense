@@ -1,0 +1,14 @@
+{% load community_tags %}
+<div class="comment">
+  <strong>{{ comment.author.username }}</strong> <small>{{ comment.created_at|ago }}</small>
+  <p>{{ comment.content|linebreaksbr }}</p>
+  {% if comment.author_id == user.id %}
+  <span class="comment-actions">
+    <button type="button" class="js-comment-edit" data-action="{% url 'community:edit_comment' comment.pk %}" data-content="{{ comment.content }}">Edit</button>
+    <form method="post" action="{% url 'community:delete_comment' comment.pk %}" class="js-comment-delete-form">
+      {% csrf_token %}
+      <button type="submit">Hapus</button>
+    </form>
+  </span>
+  {% endif %}
+</div>

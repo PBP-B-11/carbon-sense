@@ -1,13 +1,20 @@
 (() => {
+  const updateHandlers = new WeakMap();
+
   function initializeForm(form) {
-    if (!form || form.dataset.fieldsReady) return;
-    form.dataset.fieldsReady = "true";
+    if (!form) return;
+    //Formulir yang dipertahankan AJAX tetap perlu diselaraskan dengan pilihan terbaru.
+    if (updateHandlers.has(form)) {
+      updateHandlers.get(form)();
+      return;
+    }
 
     const quantity = form.querySelector('[name="quantity"]');
     const label = form.querySelector("[data-quantity-label]");
     const unit = form.querySelector("[data-quantity-unit]");
     const factorNote = form.querySelector("[data-factor-note]");
     const meatPortions = form.querySelector("[data-meat-portions]");
+    if (!quantity || !label || !unit) return;
 
     //Siapkan satuan dan sumber faktor untuk setiap aktivitas.
     const activityFields = {
@@ -55,9 +62,22 @@
       });
     });
 
-    form.addEventListener("change", (event) => {
+    //Batasi pemilih tanggal sampai hari ini (waktu lokal); server tetap memvalidasi.
+    const dateInput = form.querySelector('[name="date"]');
+    if (dateInput) {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      dateInput.max = now.toISOString().slice(0, 10);
+    }
+
+    const handleSelection = (event) => {
       if (event.target.name === "activity_type") updateQuantityField();
-    });
+    };
+    form.addEventListener("input", handleSelection);
+    form.addEventListener("change", handleSelection);
+    form.addEventListener("reset", () => window.requestAnimationFrame(updateQuantityField));
+    updateHandlers.set(form, updateQuantityField);
+    form.dataset.fieldsReady = "true";
     updateQuantityField();
   }
 
@@ -66,5 +86,10 @@
     document.querySelectorAll("[data-tracker-form]").forEach(initializeForm);
   }
   document.addEventListener("tracker:form-ready", initializeForms);
+  //Browser dapat memulihkan radio tanpa change ketika halaman dibuka kembali.
+  window.addEventListener("pageshow", () => {
+    initializeForms();
+    window.requestAnimationFrame(initializeForms);
+  });
   initializeForms();
 })();

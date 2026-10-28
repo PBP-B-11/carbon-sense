@@ -1,0 +1,9 @@
+{% if user.is_authenticated %}
+<form method="post" action="{% url 'community:toggle_like' post.pk %}" class="js-like-form">
+  {% csrf_token %}
+  {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+  <button type="submit" aria-pressed="{% if post.is_liked %}true{% else %}false{% endif %}"{% if post.is_liked %} class="liked"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-leaf"/></svg><span class="like-count">{{ post.like_count }}</span> suka</button>
+</form>
+{% else %}
+<a href="{% url 'profil:login' %}?next={{ request.get_full_path|urlencode }}" title="Masuk untuk menyukai postingan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-leaf"/></svg>{{ post.like_count }} suka</a>
+{% endif %}
