@@ -2,7 +2,6 @@ from django import forms
 
 from .models import Challenge
 
-# Simbol ikon yang tersedia di sprite base.html
 IKON_PILIHAN = [
     ("bike", "Sepeda"),
     ("train-front", "Kereta"),
@@ -54,3 +53,32 @@ class TantanganForm(forms.ModelForm):
         if durasi < 1:
             raise forms.ValidationError("Durasi minimal 1 hari.")
         return durasi
+
+    def clean_points(self):
+        points = self.cleaned_data.get("points")
+        category = self.cleaned_data.get("category")
+        if (
+            category == Challenge.Category.TRANSPORT
+            and points is not None
+            and points < 10
+        ):
+            raise forms.ValidationError(
+                "Tantangan transportasi harus memiliki minimal 10 poin."
+            )
+        return points
+
+    def clean_estimated_saving_kg(self):
+        estimated_saving_kg = self.cleaned_data.get("estimated_saving_kg")
+        if estimated_saving_kg is not None and estimated_saving_kg < 0:
+            raise forms.ValidationError("Perkiraan hemat tidak boleh negatif.")
+        return estimated_saving_kg
+
+    def clean_title(self):
+        title = self.cleaned_data.get("title")
+        if title:
+            qs = Challenge.objects.filter(title__iexact=title)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError("Judul tantangan sudah ada.")
+        return title

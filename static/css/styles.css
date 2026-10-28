@@ -80,6 +80,60 @@
   --page-margin: 64px;
 }
 
+html[data-theme="dark"],
+[data-theme="dark"] {
+  /* Warna Tema Gelap (Forest Night / Organic Dark) */
+  --color-primary: #3DA366;
+  --color-primary-hover: #4EB87A;
+  --color-primary-subtle: #193323;
+  --color-secondary: #32A2C4;
+  --color-secondary-subtle: #13333F;
+  --color-secondary-text: #7AD5EE;
+  --color-tertiary: #F4BA4E;
+  --color-tertiary-subtle: #3D2D12;
+  --color-tertiary-text: #FAD37C;
+  --color-highlight: #8EA725;
+  --color-accent: #E06C46;
+  --color-bg-page: #0E1611;
+  --color-bg-surface: #17231C;
+  --color-bg-sunken: #111B14;
+  --color-bg-inverse: #1F3326;
+  --color-text-primary: #ECE7D9;
+  --color-text-secondary: #9EA898;
+  --color-text-inverse: #ECE7D9;
+  --color-text-inverse-muted: #8AA878;
+  --color-border-subtle: #27372D;
+  --color-border-default: #445448;
+  --color-border-strong: #728477;
+  --color-error: #D94843;
+  --color-error-subtle: #3E1B1A;
+  --color-error-text: #F7938F;
+  --color-warning-subtle: #3D2D12;
+  --color-warning-text: #FAD37C;
+  --color-streak-bg: #3E2114;
+  --color-streak-text: #F6A378;
+
+  --level-low-bg: #153823;
+  --level-low-text: #66C58B;
+  --level-medium-bg: #3D3114;
+  --level-medium-text: #F7CB66;
+  --level-high-bg: #3D2114;
+  --level-high-text: #F6A378;
+  --level-very-high-bg: #3D1917;
+  --level-very-high-text: #F7938F;
+
+  --chart-low: #3FA66B;
+  --chart-medium: #E8B23A;
+  --chart-high: #E0703A;
+  --chart-very-high: #C8413B;
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background-color: #0E1611 !important;
+  color: #ECE7D9 !important;
+}
+
 *,
 *::before,
 *::after {
@@ -269,6 +323,80 @@ main {
   display: grid;
   place-items: center;
   padding: 0;
+}
+
+.btn-theme-toggle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: var(--border-default);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-theme-toggle:hover {
+  background: var(--color-bg-sunken);
+  transform: scale(1.05);
+}
+
+.btn-theme-toggle svg {
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+}
+
+.btn-theme-toggle .icon-sun {
+  display: none;
+}
+
+.btn-theme-toggle .icon-moon {
+  display: block;
+}
+
+[data-theme="dark"] .btn-theme-toggle .icon-sun {
+  display: block;
+  color: #F4BA4E;
+}
+
+[data-theme="dark"] .btn-theme-toggle .icon-moon {
+  display: none;
+}
+
+[data-theme="dark"] .blob {
+  opacity: 0.15;
+}
+
+[data-theme="dark"] .card-dark {
+  border: 1px solid var(--color-border-subtle);
+}
+
+[data-theme="dark"] .site-footer {
+  border: 1px solid var(--color-border-subtle);
+  border-bottom: none;
+}
+
+[data-theme="dark"] .nav-modul a[aria-current="page"] {
+  background: var(--color-primary);
+  color: #0E1611;
+  font-weight: 700;
+}
+
+[data-theme="dark"] .nav-modul a[aria-current="page"]:hover {
+  background: var(--color-primary-hover);
+}
+
+[data-theme="dark"] .chip[aria-pressed="true"],
+[data-theme="dark"] .chip--active {
+  background: var(--color-text-primary);
+  border-color: var(--color-text-primary);
+  color: #0E1611;
 }
 
 .avatar {
@@ -1051,7 +1179,12 @@ main {
 }
 
 .stat {
-  padding: 21px 28px 24px;  /* ruang bawah agar teks tidak menyentuh sudut melengkung */
+  padding: 20px 28px 22px 30px;
+  min-height: 140px;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .stat .eyebrow {
@@ -1099,24 +1232,26 @@ main {
   margin-top: 3px;
   font-weight: 700;
   font-size: 14px;
-  line-height: 17px;
+  line-height: 18px;
   color: var(--color-primary);
 }
 
 .stat .note--muted {
   font-weight: 400;
   font-size: 13px;
-  line-height: 16px;
+  line-height: 17px;
   color: var(--color-text-secondary);
 }
 
 /* min-height: kartu boleh memanjang saat catatan terbungkus dua baris */
 .stat--1 {
   min-height: 142px;
+  height: auto;
 }
 
 .stat--2 {
-  min-height: 140px;
+  min-height: 144px;
+  height: auto;
 }
 
 /*Biarkan teks kategori dan total dinamis tetap berada di dalam kartu.*/
@@ -3333,6 +3468,17 @@ textarea:focus-visible {
     order: 3;
     width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .nav-modul::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-modul a {
+    flex-shrink: 0;
   }
 
   .home-hero,
@@ -3779,4 +3925,202 @@ textarea:focus-visible {
 #toast-message {
   font-size: 14px;
   line-height: 1.4;
+}
+
+
+/* ---------- Responsif Mobile: Eco-Challenges (≤ 768px & 390px) ---------- */
+@media (max-width: 768px) {
+  :root {
+    --page-margin: 16px;
+  }
+
+  .site-header {
+    padding-top: 16px;
+  }
+
+  .site-header .container {
+    gap: 12px;
+  }
+
+  .brand {
+    font-size: 20px;
+    gap: 10px;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .brand-mark svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .akun {
+    gap: 8px;
+  }
+
+  .btn-theme-toggle,
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .btn-theme-toggle svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .avatar--48 {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .nav-modul {
+    height: 46px;
+    padding: 3px;
+  }
+
+  .nav-modul a {
+    height: 38px;
+    padding: 0 14px;
+    font-size: 13.5px;
+  }
+
+  .stat {
+    padding: 20px 24px 22px 28px;
+    min-height: 144px;
+    height: auto;
+  }
+
+  .stat--1,
+  .stat--2 {
+    height: auto;
+    min-height: 144px;
+  }
+
+  .page-title h1 {
+    font-size: clamp(32px, 8vw, 44px);
+    line-height: 1.15;
+  }
+
+  .page-tools {
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .active-challenge {
+    height: auto;
+    min-height: 0;
+    padding: 24px 20px;
+  }
+
+  .active-challenge h2 {
+    font-size: 28px;
+    line-height: 1.2;
+  }
+
+  .active-challenge .desc {
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  .active-challenge .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .active-challenge .actions form {
+    width: 100%;
+  }
+
+  .active-challenge .actions button,
+  .active-challenge .actions .stop {
+    width: 100%;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .dots {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .dots i {
+    width: 24px;
+    height: 24px;
+  }
+
+  .badges {
+    height: auto;
+    min-height: 0;
+    padding: 24px 20px;
+  }
+
+  .badge-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .list-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .list-head .chips {
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .list-head .chips .chip {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .challenge-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .challenge {
+    padding: 24px 20px;
+  }
+
+  .challenge .foot {
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .challenge .join {
+    min-height: 44px;
+    min-width: 80px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #toast-component {
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .form-card .form-grid {
+    grid-template-columns: 1fr;
+  }
 }

@@ -88,6 +88,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function perbaruiDOMCheckin(detail) {
+    if (!detail) return;
+    const headerPoints = document.getElementById('header-points');
+    if (headerPoints && typeof detail.total_points !== 'undefined') {
+      headerPoints.textContent = formatAngkaId(detail.total_points);
+    }
+
+    const headerStreak = document.getElementById('header-streak-text');
+    if (headerStreak && typeof detail.streak !== 'undefined') {
+      headerStreak.textContent = `Streak ${detail.streak} hari`;
+    }
+
+    const doneDaysEl = document.getElementById('active-done-days');
+    if (doneDaysEl && typeof detail.done_days !== 'undefined') {
+      doneDaysEl.textContent = detail.done_days;
+    }
+
+    const percentEl = document.getElementById('active-percent');
+    if (percentEl && typeof detail.percent !== 'undefined') {
+      percentEl.textContent = `${detail.percent}%`;
+    }
+
+    const sisaEl = document.getElementById('active-sisa');
+    if (sisaEl && typeof detail.total_days !== 'undefined' && typeof detail.done_days !== 'undefined') {
+      const sisa = detail.total_days - detail.done_days;
+      sisaEl.textContent = sisa > 0 ? `${sisa} hari lagi` : 'Selesai';
+    }
+
+    const dotsContainer = document.getElementById('active-dots');
+    if (dotsContainer && typeof detail.total_days !== 'undefined') {
+      dotsContainer.innerHTML = '';
+      for (let i = 0; i < detail.total_days; i++) {
+        const dot = document.createElement('i');
+        if (i >= detail.done_days) {
+          dot.className = 'todo';
+        }
+        dotsContainer.appendChild(dot);
+      }
+    }
+
+    const riskAlert = document.getElementById('alert-streak-risk');
+    if (riskAlert) {
+      riskAlert.remove();
+    }
+
+    if (detail.badge) {
+      bukaLencanaDiDOM(detail.badge);
+    }
+    if (Array.isArray(detail.streak_badges)) {
+      detail.streak_badges.forEach(bukaLencanaDiDOM);
+    }
+  }
+
   document.querySelectorAll('form[data-challenge-form]').forEach((form) => {
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -125,57 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
               submitButton.disabled = true;
             }
 
-            if (data.data) {
-              const headerPoints = document.getElementById('header-points');
-              if (headerPoints && typeof data.data.total_points !== 'undefined') {
-                headerPoints.textContent = formatAngkaId(data.data.total_points);
-              }
-
-              const headerStreak = document.getElementById('header-streak-text');
-              if (headerStreak && typeof data.data.streak !== 'undefined') {
-                headerStreak.textContent = `Streak ${data.data.streak} hari`;
-              }
-
-              const doneDaysEl = document.getElementById('active-done-days');
-              if (doneDaysEl && typeof data.data.done_days !== 'undefined') {
-                doneDaysEl.textContent = data.data.done_days;
-              }
-
-              const percentEl = document.getElementById('active-percent');
-              if (percentEl && typeof data.data.percent !== 'undefined') {
-                percentEl.textContent = `${data.data.percent}%`;
-              }
-
-              const sisaEl = document.getElementById('active-sisa');
-              if (sisaEl) {
-                const sisa = data.data.total_days - data.data.done_days;
-                sisaEl.textContent = sisa > 0 ? `${sisa} hari lagi` : 'Selesai';
-              }
-
-              const dotsContainer = document.getElementById('active-dots');
-              if (dotsContainer && typeof data.data.total_days !== 'undefined') {
-                dotsContainer.innerHTML = '';
-                for (let i = 0; i < data.data.total_days; i++) {
-                  const dot = document.createElement('i');
-                  if (i >= data.data.done_days) {
-                    dot.className = 'todo';
-                  }
-                  dotsContainer.appendChild(dot);
-                }
-              }
-
-              const riskAlert = document.getElementById('alert-streak-risk');
-              if (riskAlert) {
-                riskAlert.remove();
-              }
-
-              if (data.data.badge) {
-                bukaLencanaDiDOM(data.data.badge);
-              }
-              if (Array.isArray(data.data.streak_badges)) {
-                data.data.streak_badges.forEach(bukaLencanaDiDOM);
-              }
-            }
+            perbaruiDOMCheckin(data.data);
           } else if (aksi === 'ikut' || aksi === 'berhenti') {
             sessionStorage.setItem('pending_toast', JSON.stringify({
               title: 'Berhasil',
