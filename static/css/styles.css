@@ -323,6 +323,7 @@ main {
 
 .page-tools {
   display: flex;
+  flex-wrap: wrap;  /* tombol turun ke baris baru saat layar sempit */
   align-items: center;
   gap: 16px;
   margin-bottom: 8px;
@@ -989,6 +990,36 @@ main {
   height: 312px;
 }
 
+/* Kecilkan angka total sesuai jumlah karakternya agar tetap muat di lingkaran */
+.tracker-summary .seed .num {
+  white-space: nowrap;
+}
+
+.tracker-summary .seed .num[data-length="5"] {
+  font-size: 66px;
+}
+
+/* Panjang dihitung termasuk titik ribuan, misalnya 18.552,4 = 8 karakter */
+.tracker-summary .seed .num[data-length="6"],
+.tracker-summary .seed .num[data-length="7"] {
+  font-size: 54px;
+}
+
+.tracker-summary .seed .num[data-length="8"] {
+  font-size: 46px;
+}
+
+.tracker-summary .seed .num[data-length="9"],
+.tracker-summary .seed .num[data-length="10"] {
+  font-size: 40px;
+}
+
+.tracker-summary .seed .num[data-length="11"],
+.tracker-summary .seed .num[data-length="12"],
+.tracker-summary .seed .num[data-length="13"] {
+  font-size: 32px;
+}
+
 .tracker-summary .seed-text {
   position: relative;
   top: -2.5px;
@@ -1020,7 +1051,7 @@ main {
 }
 
 .stat {
-  padding: 21px 28px 0;
+  padding: 21px 28px 24px;  /* ruang bawah agar teks tidak menyentuh sudut melengkung */
 }
 
 .stat .eyebrow {
@@ -1030,6 +1061,7 @@ main {
 .stat .val {
   margin-top: 2px;
   display: flex;
+  flex-wrap: wrap;  /* satuan turun ke bawah saat angka panjang */
   align-items: baseline;
   gap: 6px;
   font-family: var(--font-display);
@@ -1037,6 +1069,22 @@ main {
   font-weight: 700;
   font-size: 40px;
   line-height: 49px;
+}
+
+/* Kecilkan angka sangat besar agar tidak keluar dari kartu */
+.stat .val [data-length] {
+  white-space: nowrap;
+}
+
+.stat .val [data-length="10"],
+.stat .val [data-length="11"] {
+  font-size: 34px;
+}
+
+.stat .val [data-length="12"],
+.stat .val [data-length="13"],
+.stat .val [data-length="14"] {
+  font-size: 28px;
 }
 
 .stat .val small {
@@ -1062,12 +1110,13 @@ main {
   color: var(--color-text-secondary);
 }
 
+/* min-height: kartu boleh memanjang saat catatan terbungkus dua baris */
 .stat--1 {
-  height: 142px;
+  min-height: 142px;
 }
 
 .stat--2 {
-  height: 140px;
+  min-height: 140px;
 }
 
 /*Biarkan teks kategori dan total dinamis tetap berada di dalam kartu.*/
@@ -1189,6 +1238,7 @@ main {
 }
 
 .bar b {
+  white-space: nowrap;
   position: absolute;
   left: 0;
   right: 0;
@@ -3340,6 +3390,18 @@ textarea:focus-visible {
   }
 }
 
+/* ---------- Layar ponsel: judul halaman mengecil ---------- */
+@media (max-width: 600px) {
+  .page-title h1 {
+    font-size: clamp(44px, 12vw, 68px);
+  }
+
+  /* Jarak tambahan tidak perlu saat kata penekanan turun ke baris baru */
+  .page-title .hl {
+    margin-left: 0;
+  }
+}
+
 /* ---------- Warna teks dan penekanan per modul ---------- */
 .t-moss {
   color: var(--color-primary);
@@ -3471,6 +3533,7 @@ textarea:focus-visible {
 
 .page-tools .chips {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
