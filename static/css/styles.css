@@ -999,21 +999,25 @@ main {
   font-size: 66px;
 }
 
-.tracker-summary .seed .num[data-length="6"] {
+/* Panjang dihitung termasuk titik ribuan, misalnya 18.552,4 = 8 karakter */
+.tracker-summary .seed .num[data-length="6"],
+.tracker-summary .seed .num[data-length="7"] {
   font-size: 54px;
 }
 
-.tracker-summary .seed .num[data-length="7"] {
-  font-size: 46px;
-}
-
 .tracker-summary .seed .num[data-length="8"] {
-  font-size: 38px;
+  font-size: 46px;
 }
 
 .tracker-summary .seed .num[data-length="9"],
 .tracker-summary .seed .num[data-length="10"] {
-  font-size: 30px;
+  font-size: 40px;
+}
+
+.tracker-summary .seed .num[data-length="11"],
+.tracker-summary .seed .num[data-length="12"],
+.tracker-summary .seed .num[data-length="13"] {
+  font-size: 32px;
 }
 
 .tracker-summary .seed-text {
@@ -1057,6 +1061,7 @@ main {
 .stat .val {
   margin-top: 2px;
   display: flex;
+  flex-wrap: wrap;  /* satuan turun ke bawah saat angka panjang */
   align-items: baseline;
   gap: 6px;
   font-family: var(--font-display);
@@ -1064,6 +1069,22 @@ main {
   font-weight: 700;
   font-size: 40px;
   line-height: 49px;
+}
+
+/* Kecilkan angka sangat besar agar tidak keluar dari kartu */
+.stat .val [data-length] {
+  white-space: nowrap;
+}
+
+.stat .val [data-length="10"],
+.stat .val [data-length="11"] {
+  font-size: 34px;
+}
+
+.stat .val [data-length="12"],
+.stat .val [data-length="13"],
+.stat .val [data-length="14"] {
+  font-size: 28px;
 }
 
 .stat .val small {
@@ -1217,6 +1238,7 @@ main {
 }
 
 .bar b {
+  white-space: nowrap;
   position: absolute;
   left: 0;
   right: 0;
