@@ -39,3 +39,7 @@ class CommentForm(forms.ModelForm):
     class Meta:
         model = Comment
         fields = ["content"]
+
+
+class ShareNewsForm(forms.Form):
+    content = NormalizedCharField(max_length=POST_MAX_LENGTH, required=False)

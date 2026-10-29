@@ -8,13 +8,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.http import require_POST
+from django.views.decorators.vary import vary_on_headers
 
 from .forms import (
     COMMENT_MAX_LENGTH,
     POST_MAX_LENGTH,
     CommentForm,
     PostForm,
-    normalize_newlines,
+    ShareNewsForm,
 )
 from .models import Comment, Like, Post
 from .news import fetch_news, find_article
@@ -95,6 +96,7 @@ def _post_card_json(request, post):
     return JsonResponse({"html": html})
 
 
+@vary_on_headers("X-Requested-With")
 def index(request):
     """Feed komunitas dengan filter kategori, pencarian, urutan, dan paginasi.
 
@@ -222,6 +224,7 @@ def toggle_like(request, pk):
     return redirect("community:index")
 
 
+@vary_on_headers("X-Requested-With")
 def post_detail(request, pk):
     """Halaman satu postingan dengan komentarnya (terbaru dulu, dipaginasi)."""
     post = get_object_or_404(_feed_posts(request.user), pk=pk)
@@ -322,14 +325,14 @@ def share_news(request):
     if article is None:
         return _fail(request, "Berita tidak ditemukan atau sudah kedaluwarsa.")
 
-    content = normalize_newlines(request.POST.get("content", "")).strip()
-    if len(content) > POST_MAX_LENGTH:
-        return _fail(request, f"Caption maksimal {POST_MAX_LENGTH} karakter.")
+    form = ShareNewsForm(request.POST)
+    if not form.is_valid():
+        return _fail(request, _form_error(form, "Caption tidak valid."))
 
     post = Post.objects.create(
         author=request.user,
         category="berita",
-        content=content,
+        content=form.cleaned_data["content"],
         news_title=article["title"][:255],
         news_source=article["source"][:100],
         news_url=article["url"],

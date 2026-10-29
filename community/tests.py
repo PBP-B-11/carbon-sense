@@ -752,7 +752,7 @@ class CommentPaginationTests(TestCase):
     def test_first_page_shows_20_newest_first_and_total_count(self):
         res = self.client.get(self.url)
         html = res.content.decode()
-        self.assertEqual(html.count('<div class="comment">'), 20)
+        self.assertEqual(html.count('class="comment"'), 20)
         self.assertLess(html.index("komentar 24"), html.index("komentar 23"))
         self.assertNotIn("komentar 04", html)
         self.assertContains(res, '<span id="comment-count">25</span>')
@@ -760,7 +760,7 @@ class CommentPaginationTests(TestCase):
 
     def test_ajax_second_page_returns_the_oldest_five(self):
         data = self.client.get(self.url, {"page": 2}, **self.ajax).json()
-        self.assertEqual(data["html"].count('<div class="comment">'), 5)
+        self.assertEqual(data["html"].count('class="comment"'), 5)
         self.assertIn("komentar 00", data["html"])
         self.assertFalse(data["has_next"])
 
@@ -779,3 +779,91 @@ class ConsistencyTests(TestCase):
         res = self.client.get(reverse("community:index"))
         self.assertContains(res, "beserta suka dan komentarnya")
         self.assertNotContains(res, "likes dan")
+
+
+@override_settings(GNEWS_API_KEY="test-key")
+class NewsRobustnessTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+
+    @staticmethod
+    def _response(articles):
+        class Resp:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"articles": articles}
+
+        return Resp()
+
+    def _fetch(self, articles):
+        from unittest.mock import patch
+
+        from .news import fetch_news
+
+        with patch(
+            "community.news.requests.get", return_value=self._response(articles)
+        ):
+            return fetch_news()
+
+    def test_null_fields_do_not_crash(self):
+        got = self._fetch(
+            [
+                {"title": "A", "url": None, "description": None},
+                {
+                    "title": "B",
+                    "url": "https://e.com/b",
+                    "description": None,
+                    "source": None,
+                    "publishedAt": None,
+                },
+            ]
+        )
+        self.assertEqual([a["url"] for a in got], ["https://e.com/b"])
+        self.assertEqual(got[0]["snippet"], "")
+        self.assertEqual(got[0]["source"], "")
+
+    def test_url_longer_than_column_is_dropped(self):
+        long_url = "https://e.com/" + "a" * 200
+        got = self._fetch([{"title": "A", "url": long_url}])
+        self.assertEqual(got, [])
+
+    def test_share_rejects_null_character_in_caption(self):
+        from django.core.cache import cache
+
+        cache.set(
+            "community:gnews",
+            [
+                {
+                    "title": "J",
+                    "snippet": "",
+                    "url": "https://e.com/a",
+                    "source": "M",
+                    "published_at": None,
+                }
+            ],
+        )
+        user = get_user_model().objects.create_user("u", password="x")
+        self.client.force_login(user)
+        res = self.client.post(
+            reverse("community:share_news"),
+            {"url": "https://e.com/a", "content": "a\x00b"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(Post.objects.exists())
+
+
+class VaryHeaderTests(TestCase):
+    def test_feed_and_detail_vary_on_ajax_header(self):
+        user = get_user_model().objects.create_user("u", password="x")
+        post = Post.objects.create(author=user, content="halo")
+        for url in (
+            reverse("community:index"),
+            reverse("community:post_detail", args=[post.pk]),
+        ):
+            res = self.client.get(url)
+            self.assertIn("X-Requested-With", res.headers["Vary"])

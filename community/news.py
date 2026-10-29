@@ -11,6 +11,8 @@ CACHE_KEY = "community:gnews"
 CACHE_SECONDS = 10 * 60
 FAILED_KEY = "community:gnews:failed"
 FAILED_SECONDS = 2 * 60
+# Sama dengan max_length URLField di Post.news_url; Postgres menolak yang lebih panjang
+URL_MAX_LENGTH = 200
 
 
 def fetch_news(limit=5):
@@ -39,16 +41,19 @@ def fetch_news(limit=5):
         cache.set(FAILED_KEY, True, FAILED_SECONDS)
         return []
 
+    # GNews kadang mengirim null, bukan string kosong, jadi pakai `or` bukan default get()
     articles = [
         {
-            "title": a.get("title", ""),
-            "snippet": a.get("description", ""),
-            "url": a.get("url", ""),
-            "source": (a.get("source") or {}).get("name", ""),
-            "published_at": parse_datetime(a.get("publishedAt", "")),
+            "title": a.get("title") or "",
+            "snippet": a.get("description") or "",
+            "url": a.get("url") or "",
+            "source": (a.get("source") or {}).get("name") or "",
+            "published_at": parse_datetime(a.get("publishedAt") or ""),
         }
         for a in data.get("articles", [])
-        if a.get("title") and a.get("url", "").startswith(("http://", "https://"))
+        if a.get("title")
+        and (a.get("url") or "").startswith(("http://", "https://"))
+        and len(a["url"]) <= URL_MAX_LENGTH
     ]
     cache.set(CACHE_KEY, articles, CACHE_SECONDS)
     return articles[:limit]

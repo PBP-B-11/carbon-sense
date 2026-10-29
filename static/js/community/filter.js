@@ -1,5 +1,5 @@
 import {getJson} from './http.js';
-import {toast} from './ui.js';
+import {appendNew, toast} from './ui.js';
 
 const SEARCH_DELAY = 300;
 
@@ -101,7 +101,7 @@ export function initFilter() {
     moreBtn.setAttribute('aria-disabled', 'true');
     try {
       const data = await fetchPage(currentCategory(), page);
-      list.insertAdjacentHTML('beforeend', data.html);
+      appendNew(list, data.html);
       showMore(data);
     } catch {
       toast('Gagal memuat postingan. Coba lagi.', 'danger');
