@@ -4,6 +4,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 
+from .models import Post
+
 logger = logging.getLogger(__name__)
 
 GNEWS_URL = "https://gnews.io/api/v4/search"
@@ -11,8 +13,8 @@ CACHE_KEY = "community:gnews"
 CACHE_SECONDS = 10 * 60
 FAILED_KEY = "community:gnews:failed"
 FAILED_SECONDS = 2 * 60
-# Sama dengan max_length URLField di Post.news_url; Postgres menolak yang lebih panjang
-URL_MAX_LENGTH = 200
+# Postgres menolak URL yang melebihi kolom news_url
+URL_MAX_LENGTH = Post._meta.get_field("news_url").max_length
 
 
 def fetch_news(limit=5):

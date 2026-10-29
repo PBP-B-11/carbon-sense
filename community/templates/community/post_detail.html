@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load community_tags static %}
+{% load humanize static %}
 
 {% block title %}Carbon Sense: Postingan{% endblock %}
 
@@ -14,7 +14,7 @@
       <article class="card post">
         <header class="post-head">
           <span class="avatar avatar--46" aria-hidden="true">{{ post.author.username|slice:":2"|upper }}</span>
-          <div class="who"><strong>{{ post.author.username }}</strong><small>{{ post.created_at|ago }}</small></div>
+          <div class="who"><strong>{{ post.author.username }}</strong><small>{{ post.created_at|naturaltime }}</small></div>
           <span class="pill {% if post.category == 'tips' %}pill--moss{% elif post.category == 'diskusi' %}pill--teal{% else %}pill--amber{% endif %}">{{ post.get_category_display }}</span>
         </header>
         <p>{{ post.content|linebreaksbr }}</p>
