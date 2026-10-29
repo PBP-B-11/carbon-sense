@@ -2,6 +2,7 @@ import uuid
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db import IntegrityError
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -181,6 +182,7 @@ class ChallengeViewsTests(TestCase):
     """Pengujian view berbasis template dan proteksi role superuser."""
 
     def setUp(self):
+        cache.clear()
         self.client = Client()
         self.user = User.objects.create_user(
             username="user_biasa", email="biasa@example.com", password="password123"
@@ -419,6 +421,7 @@ class ChallengeAPITests(TestCase):
     """Pengujian seluruh endpoint JSON API tantangan (/api/tantangan/)."""
 
     def setUp(self):
+        cache.clear()
         self.client = Client()
         self.user = User.objects.create_user(
             username="user_api", email="api@example.com", password="password123"
@@ -662,3 +665,124 @@ class ChallengeAPITests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("duration_days", form.errors)
         self.assertIn("minimal 1 hari", form.errors["duration_days"][0])
+
+
+class AdvancedSecurityAndSerializationTests(TestCase):
+    """Pengujian serializer XML/JSON standar PBP, custom security decorators, dan rate limiting."""
+
+    def setUp(self):
+        cache.clear()
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username="regular_user", password="password123"
+        )
+        self.superuser = User.objects.create_superuser(
+            username="super_user", password="password123"
+        )
+        self.challenge = Challenge.objects.create(
+            title="Hemat Listrik Kamar",
+            description="Matikan lampu belajar saat tidak dipakai.",
+            category=Challenge.Category.ENERGY,
+            duration_days=3,
+            points=25,
+            estimated_saving_kg="1.5",
+            icon="zap",
+            tone="teal",
+        )
+
+    def test_show_xml_returns_valid_xml(self):
+        """Memverifikasi endpoint /challenges/xml/ mengembalikan format XML Django."""
+        res = self.client.get(reverse("challenges:show_xml"))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res["Content-Type"], "application/xml")
+        self.assertIn(b"<django-objects", res.content)
+        self.assertIn(b"Hemat Listrik Kamar", res.content)
+
+    def test_show_xml_by_id_returns_specific_challenge(self):
+        """Memverifikasi endpoint /challenges/xml/<id>/ mengembalikan objek spesifik."""
+        res = self.client.get(
+            reverse("challenges:show_xml_by_id", kwargs={"id": self.challenge.id})
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res["Content-Type"], "application/xml")
+        self.assertIn(b"Hemat Listrik Kamar", res.content)
+
+    def test_show_xml_by_id_not_found(self):
+        """Memverifikasi bahwa request ID yang tidak ada pada XML mengembalikan 404."""
+        res = self.client.get(
+            reverse("challenges:show_xml_by_id", kwargs={"id": uuid.uuid4()})
+        )
+        self.assertEqual(res.status_code, 404)
+
+    def test_show_json_by_id_returns_specific_challenge(self):
+        """Memverifikasi endpoint /challenges/json/<id>/ mengembalikan JSON serializer."""
+        res = self.client.get(
+            reverse("challenges:show_json_by_id", kwargs={"id": self.challenge.id})
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res["Content-Type"], "application/json")
+        data = res.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["fields"]["title"], "Hemat Listrik Kamar")
+
+    def test_api_search_filter_by_keyword(self):
+        """Memverifikasi bahwa query parameter 'q' memfilter judul dan deskripsi."""
+        res = self.client.get(reverse("challenges_api:list") + "?q=Lampu")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["title"], "Hemat Listrik Kamar")
+
+        res_empty = self.client.get(
+            reverse("challenges_api:list") + "?q=KataKunciTakAda"
+        )
+        self.assertEqual(res_empty.status_code, 200)
+        self.assertEqual(len(res_empty.json()), 0)
+
+    def test_api_sort_by_points(self):
+        """Memverifikasi sorting data tantangan berdasarkan poin."""
+        Challenge.objects.create(
+            title="Tantangan Poin Tinggi",
+            description="Deskripsi",
+            category=Challenge.Category.TRANSPORT,
+            duration_days=7,
+            points=100,
+            estimated_saving_kg="10.0",
+        )
+        res = self.client.get(reverse("challenges_api:list") + "?sort=poin")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data[0]["points"], 100)
+
+    def test_require_superuser_security_decorator_blocks_regular_user(self):
+        """Memverifikasi bahwa pengguna biasa diblokir dengan 403 saat mengakses aksi superuser."""
+        self.client.force_login(self.user)
+        url_tambah = reverse("challenges:tambah")
+        res_tambah = self.client.get(url_tambah)
+        self.assertEqual(res_tambah.status_code, 403)
+
+        url_hapus_api = reverse(
+            "challenges_api:hapus", kwargs={"id": self.challenge.id}
+        )
+        res_hapus = self.client.post(url_hapus_api)
+        self.assertEqual(res_hapus.status_code, 403)
+        self.assertEqual(
+            res_hapus.json()["error"],
+            "Akses ditolak: Hanya superuser yang memiliki izin.",
+        )
+
+    def test_ratelimit_decorator_triggers_429(self):
+        """Memverifikasi bahwa melebihi batas panggilan memicu respons HTTP 429 Too Many Requests."""
+        cache.clear()
+        self.client.force_login(self.user)
+        url = reverse("challenges_api:ikut", kwargs={"id": self.challenge.id})
+
+        # Kirim 25 request (batas threshold ratelimit)
+        for _ in range(25):
+            self.client.post(url)
+
+        # Request ke-26 harus terkena rate limiting
+        res_blocked = self.client.post(url)
+        self.assertEqual(res_blocked.status_code, 429)
+        self.assertEqual(res_blocked.json()["status"], "rate_limited")
+        cache.clear()
