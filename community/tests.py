@@ -867,3 +867,16 @@ class VaryHeaderTests(TestCase):
         ):
             res = self.client.get(url)
             self.assertIn("X-Requested-With", res.headers["Vary"])
+
+
+class TimestampTests(TestCase):
+    def test_times_are_shown_as_wib_date_and_hour(self):
+        from datetime import datetime, timezone
+
+        user = get_user_model().objects.create_user("u", password="x")
+        post = Post.objects.create(author=user, content="halo")
+        Post.objects.filter(pk=post.pk).update(
+            created_at=datetime(2026, 10, 29, 23, 30, tzinfo=timezone.utc)
+        )
+        res = self.client.get(reverse("community:index"))
+        self.assertContains(res, "30 Okt 2026, 06:30")
