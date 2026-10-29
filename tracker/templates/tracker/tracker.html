@@ -33,7 +33,10 @@
         <div class="seed-wrap">
           {#Gunakan total dan label periode yang sama dengan rincian kategori.#}
           <div class="seed" role="img" aria-label="{{ period_emissions|floatformat:2 }} kilogram CO2e, {{ period_label|lower }}">
-            <span class="num">{{ period_emissions|floatformat:1 }}</span>
+            {#Kirim panjang angka agar CSS bisa mengecilkan huruf pada angka besar.#}
+            {% with total=period_emissions|floatformat:"1g" %}
+            <span class="num" data-length="{{ total|length }}">{{ total }}</span>
+            {% endwith %}
             <span class="unit">kg CO₂e</span>
           </div>
           <div class="seed-text">
@@ -45,12 +48,17 @@
         <div class="stat-stack">
           <article class="card card--a stat stat--1">
             <p class="eyebrow">Hari ini</p>
-            <p class="val">{{ today_emissions|floatformat:2 }} <small>kg CO₂e</small></p>
+            {#Panjang angka mengecilkan huruf agar nilai besar tetap muat di kartu.#}
+            {% with value=today_emissions|floatformat:"2g" %}
+            <p class="val"><span data-length="{{ value|length }}">{{ value }}</span> <small>kg CO₂e</small></p>
+            {% endwith %}
             <p class="note note--muted">Berdasarkan aktivitas tersimpan</p>
           </article>
           <article class="card card--c stat stat--2">
             <p class="eyebrow">Rata-rata harian</p>
-            <p class="val">{{ average_daily_emissions|floatformat:2 }} <small>kg CO₂e</small></p>
+            {% with value=average_daily_emissions|floatformat:"2g" %}
+            <p class="val"><span data-length="{{ value|length }}">{{ value }}</span> <small>kg CO₂e</small></p>
+            {% endwith %}
             <p class="note note--muted">7 hari terakhir, termasuk hari tanpa aktivitas</p>
           </article>
         </div>
@@ -59,7 +67,7 @@
           {#Tampilkan kategori terbesar hanya jika periode terpilih memiliki emisi.#}
           {% if top_category %}
             <h2><span class="hl">{{ top_category.label }}</span> sumber emisi terbesar.</h2>
-            <p class="meta">{{ top_category.emissions|floatformat:2 }} kg CO₂e, {{ top_category.percentage|floatformat:1 }}% dari total {{ period_label|lower }}</p>
+            <p class="meta">{{ top_category.emissions|floatformat:"2g" }} kg CO₂e, {{ top_category.percentage|floatformat:1 }}% dari total {{ period_label|lower }}</p>
             <a class="btn btn--lichen" href="#riwayat-aktivitas">Lihat riwayat</a>
           {% else %}
             <h2>Belum ada <span class="hl">emisi {{ period_label|lower }}.</span></h2>
@@ -80,8 +88,9 @@
             <div class="chart-series" style="--chart-columns: {{ daily_chart|length }}">
               <div class="bars" role="img" aria-describedby="chart-note" aria-label="Emisi {% if period == 'year' %}bulanan{% else %}harian{% endif %} {{ period_label|lower }}: {% for day in daily_chart %}{{ day.label }}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO2e{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}">
                 {% for day in daily_chart %}
-                  <span class="bar {% if day.emissions %}bar--recorded{% else %}bar--zero{% endif %}" style="height: {{ day.height }}px" title="{% if period == 'year' %}{{ day.label }} {{ day.date|date:'Y' }}{% else %}{{ day.date|date:'d M Y' }}{% endif %}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO₂e{% endif %}">
-                    <b>{% if day.is_future %}—{% else %}{{ day.emissions|floatformat:1 }}{% endif %}</b>
+                  <span class="bar {% if day.emissions %}bar--recorded{% else %}bar--zero{% endif %}" style="--bar-height: {{ day.height }}px" title="{% if period == 'year' %}{{ day.label }} {{ day.date|date:'Y' }}{% else %}{{ day.date|date:'d M Y' }}{% endif %}: {% if day.is_future %}belum berlangsung{% else %}{{ day.emissions|floatformat:4 }} kg CO₂e{% endif %}">
+                    {#Ringkas label besar (rb = ribu, jt = juta); nilai lengkap ada di title.#}
+                    <b>{% if day.is_future %}—{% elif day.emissions >= 1000000 %}{% widthratio day.emissions 1000000 1 %}jt{% elif day.emissions >= 1000 %}{% widthratio day.emissions 1000 1 %}rb{% else %}{{ day.emissions|floatformat:1 }}{% endif %}</b>
                   </span>
                 {% endfor %}
               </div>
@@ -106,12 +115,12 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#{{ category.icon }}"/></svg>
                     {{ category.label }}
                   </span>
-                  <span class="kg">{{ category.emissions|floatformat:2 }} kg</span>
+                  <span class="kg">{{ category.emissions|floatformat:"2g" }} kg</span>
                 </div>
                 <div class="progress" role="img" aria-label="{{ category.label }}: {{ category.percentage|floatformat:1 }}% dari total emisi {{ period_label|lower }}">
                   {#Persentase CSS memakai titik desimal; kategori nol tidak diisi.#}
                   {% if category.emissions %}
-                    <i class="{% if category.icon == 'i-zap' %}fill-moss-mid{% elif category.icon == 'i-utensils' %}fill-moss-light{% endif %}" style="width: {{ category.percentage|unlocalize }}%"></i>
+                    <i class="{% if category.icon == 'i-zap' %}fill-moss-mid{% elif category.icon == 'i-utensils' %}fill-moss-light{% endif %}" style="--fill-width: {{ category.percentage|unlocalize }}%"></i>
                   {% endif %}
                 </div>
               </li>
@@ -194,7 +203,7 @@
           <p class="hint" id="preview-status" data-preview-status role="status" hidden></p>
           <p class="hint" id="preview-result" data-preview-result role="status"{% if not estimate %} hidden{% endif %}>
             Estimasi emisi:
-            <strong id="preview-value" data-preview-value>{% if estimate %}{{ estimate.co2e|floatformat:4 }} kg CO₂e{% endif %}</strong>
+            <strong id="preview-value" data-preview-value>{% if estimate %}{{ estimate.co2e|floatformat:"4g" }} kg CO₂e{% endif %}</strong>
           </p>
           <div class="actions">
             {% if editing_activity %}
@@ -213,7 +222,7 @@
           <h2 class="card-title" id="judul-riwayat">Riwayat aktivitas</h2>
           <p class="hint history-total">
             Total emisi seluruh waktu:
-            <strong>{{ total_emissions|floatformat:4 }} kg CO₂e</strong>
+            <strong>{{ total_emissions|floatformat:"4g" }} kg CO₂e</strong>
           </p>
           <div class="history-table-wrap" role="region" aria-label="Tabel riwayat aktivitas" tabindex="0">
             <table class="table">
@@ -232,7 +241,8 @@
                 {% for activity in activities %}
                   <tr>
                     <td>{{ activity.date|date:"d M Y" }}</td>
-                    <td>{{ activity.description|default:activity.get_activity_type_display }}</td>
+                    {#Tanpa catatan, tampilkan nama aktivitas berbahasa Indonesia.#}
+                    <td>{% if activity.description %}{{ activity.description }}{% elif activity.activity_type == "car_travel" %}Perjalanan mobil{% elif activity.activity_type == "electricity" %}Pemakaian listrik{% elif activity.activity_type == "chicken" %}Daging ayam{% elif activity.activity_type == "beef" %}Daging sapi{% else %}{{ activity.get_activity_type_display }}{% endif %}</td>
                     <td>
                       {% if activity.activity_type == "car_travel" %}
                         Transportasi
@@ -243,10 +253,10 @@
                       {% endif %}
                     </td>
                     <td>
-                      {{ activity.quantity|floatformat:2 }}
+                      {{ activity.quantity|floatformat:"2g" }}
                       {% if activity.activity_type == "car_travel" %}km{% elif activity.activity_type == "electricity" %}kWh{% elif activity.activity_type == "chicken" or activity.activity_type == "beef" %}g{% endif %}
                     </td>
-                    <td><strong>{{ activity.emission_kg|floatformat:4 }} kg</strong></td>
+                    <td><strong>{{ activity.emission_kg|floatformat:"4g" }} kg</strong></td>
                     <td>
                       <span class="acts">
                         <a class="history-edit" href="{% url 'tracker:edit' activity.pk %}?period={{ period }}#catat-cepat" aria-label="Edit aktivitas tanggal {{ activity.date|date:'d M Y' }}">Edit</a>

@@ -62,6 +62,14 @@
       });
     });
 
+    //Batasi pemilih tanggal sampai hari ini (waktu lokal); server tetap memvalidasi.
+    const dateInput = form.querySelector('[name="date"]');
+    if (dateInput) {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      dateInput.max = now.toISOString().slice(0, 10);
+    }
+
     const handleSelection = (event) => {
       if (event.target.name === "activity_type") updateQuantityField();
     };

@@ -1,25 +1,17 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
-from django.db.models import Count
-from django.http import Http404
+from django.core import serializers
+from django.core.exceptions import ValidationError
+from django.db.models import Count, Q
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
+from .decorators import require_superuser_html
 from .forms import TantanganForm
-from .models import Badge, Challenge, Participation, PointEntry, UserBadge
-from .utils import hitung_streak, sudah_checkin_hari_ini, total_poin
-
-
-def hitung_progres(partisipasi):
-    selesai = partisipasi.check_ins.count()
-    total = partisipasi.challenge.duration_days
-    return {
-        "done_days": selesai,
-        "total_days": total,
-        "percent": min(selesai * 100 // total, 100) if total else 0,
-    }
+from .models import Badge, Challenge, CheckIn, Participation, UserBadge
+from .utils import hitung_progres, hitung_streak, proses_checkin, total_poin
 
 
 def ikuti(request, tantangan):
@@ -58,33 +50,15 @@ def checkin(request, tantangan):
         messages.error(request, "Kamu belum mengikuti tantangan ini.")
         return
 
-    with transaction.atomic():
-        checkin_objek, baru_dibuat = partisipasi.check_ins.get_or_create(
-            date=timezone.localdate()
+    hasil = proses_checkin(partisipasi, request.user)
+    if not hasil["baru_dibuat"]:
+        messages.warning(request, "Kamu sudah check-in hari ini.")
+    elif hasil["selesai"]:
+        messages.success(
+            request, f'Selamat, "{tantangan.title}" selesai! +{tantangan.points} poin.'
         )
-        if not baru_dibuat:
-            messages.warning(request, "Kamu sudah check-in hari ini.")
-            return
-
-        progres = hitung_progres(partisipasi)
-        if progres["done_days"] >= progres["total_days"]:
-            partisipasi.status = Participation.Status.COMPLETED
-            partisipasi.save(update_fields=["status"])
-            PointEntry.objects.create(
-                user=request.user,
-                delta=tantangan.points,
-                reason=f'Menyelesaikan "{tantangan.title}"',
-            )
-            if tantangan.badge:
-                UserBadge.objects.get_or_create(
-                    user=request.user, badge=tantangan.badge
-                )
-            messages.success(
-                request,
-                f'Selamat, "{tantangan.title}" selesai! +{tantangan.points} poin.',
-            )
-        else:
-            messages.success(request, "Check-in hari ini tercatat.")
+    else:
+        messages.success(request, "Check-in hari ini tercatat.")
 
 
 def berhenti(request, tantangan):
@@ -101,11 +75,9 @@ AKSI = {"ikut": ikuti, "checkin": checkin, "berhenti": berhenti}
 
 
 @login_required
+@require_superuser_html
 def tambah_tantangan(request):
     """Halaman tambah tantangan, dibatasi khusus untuk superuser."""
-    if not request.user.is_superuser:
-        raise PermissionDenied("Hanya superuser yang dapat menambahkan tantangan baru.")
-
     form = TantanganForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         tantangan = form.save()
@@ -115,11 +87,24 @@ def tambah_tantangan(request):
 
 
 @login_required
+@require_superuser_html
+def ubah_tantangan(request, id):
+    """Halaman ubah tantangan, dibatasi khusus untuk superuser."""
+    tantangan = get_object_or_404(Challenge, pk=id)
+    form = TantanganForm(request.POST or None, instance=tantangan)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, f'Tantangan "{tantangan.title}" berhasil diperbarui.')
+        return redirect("challenges:index")
+    return render(
+        request, "challenges/ubah.html", {"form": form, "challenge": tantangan}
+    )
+
+
+@login_required
+@require_superuser_html
 def hapus_tantangan(request, id):
     """Menghapus tantangan dari katalog, dibatasi khusus untuk superuser."""
-    if not request.user.is_superuser:
-        raise PermissionDenied("Hanya superuser yang dapat menghapus tantangan.")
-
     tantangan = get_object_or_404(Challenge, pk=id)
     if request.method == "POST":
         judul = tantangan.title
@@ -130,11 +115,61 @@ def hapus_tantangan(request, id):
     return render(request, "challenges/hapus.html", {"challenge": tantangan})
 
 
-@login_required
+def _bangun_kartu_aktif(partisipasi, hari_ini):
+    """Menghitung progres dan status titik indikator untuk tantangan aktif pengguna."""
+    progres = hitung_progres(partisipasi)
+    sudah_checkin = partisipasi.check_ins.filter(date=hari_ini).exists()
+    titik = ["done"] * progres["done_days"]
+    if progres["done_days"] < progres["total_days"]:
+        titik.append("todo" if sudah_checkin else "today")
+    titik += ["todo"] * (progres["total_days"] - len(titik))
+    return {
+        "participation": partisipasi,
+        "challenge": partisipasi.challenge,
+        "checked_today": sudah_checkin,
+        "dots": titik,
+        "sisa_hari": progres["total_days"] - progres["done_days"],
+        **progres,
+    }
+
+
+def _ambil_data_pengguna(user):
+    """Mengambil seluruh data progres personal pengguna terautentikasi dengan query teroptimasi."""
+    aktif = (
+        Participation.objects.filter(user=user, status=Participation.Status.ACTIVE)
+        .select_related("challenge", "challenge__badge")
+        .prefetch_related("check_ins")
+        .order_by("-started_at")
+    )
+    hari_ini = timezone.localdate()
+    ada_checkin = CheckIn.objects.filter(
+        participation__user=user, date=hari_ini
+    ).exists()
+    streak = hitung_streak(user)
+    pertama = aktif.first()
+
+    return {
+        "joined_ids": set(aktif.values_list("challenge_id", flat=True)),
+        "owned_badge_ids": set(
+            UserBadge.objects.filter(user=user).values_list("badge_id", flat=True)
+        ),
+        "streak": streak,
+        "streak_at_risk": streak > 0 and not ada_checkin,
+        "total_points": total_poin(user),
+        "active": _bangun_kartu_aktif(pertama, hari_ini) if pertama else None,
+    }
+
+
 def daftar_tantangan(request):
+    """Menampilkan katalog tantangan publik dan progres pribadi pengguna terautentikasi.
+
+    Mendukung dynamic filtering berdasarkan kategori, query pencarian (q), dan sorting.
+    """
     user = request.user
 
     if request.method == "POST":
+        if not user.is_authenticated:
+            return redirect(f"{reverse('profil:login')}?next={request.path}")
         aksi = AKSI.get(request.POST.get("aksi"))
         if aksi is None:
             messages.error(request, "Aksi tidak dikenal.")
@@ -148,52 +183,86 @@ def daftar_tantangan(request):
             aksi(request, tantangan)
         return redirect("challenges:index")
 
-    kategori = request.GET.get("kategori", "")
+    kategori = request.GET.get("kategori", "").strip()
+    q = request.GET.get("q", "").strip()
+    sort = request.GET.get("sort", "").strip()
+
     tantangan = Challenge.objects.annotate(
         participants=Count("participations__user", distinct=True)
-    )
+    ).select_related("badge")
+
     if kategori in Challenge.Category.values:
         tantangan = tantangan.filter(category=kategori)
 
-    aktif = (
-        Participation.objects.filter(user=user, status=Participation.Status.ACTIVE)
-        .select_related("challenge")
-        .order_by("-started_at")
-    )
-    lencana_dimiliki = set(
-        UserBadge.objects.filter(user=user).values_list("badge_id", flat=True)
-    )
-    streak = hitung_streak(user)
-    sudah_checkin_sekarang = sudah_checkin_hari_ini(user)
+    if q:
+        tantangan = tantangan.filter(
+            Q(title__icontains=q) | Q(description__icontains=q)
+        )
 
-    kartu_aktif = None
-    pertama = aktif.first()
-    if pertama:
-        progres = hitung_progres(pertama)
-        titik = ["done"] * progres["done_days"]
-        if progres["done_days"] < progres["total_days"]:
-            titik.append("todo" if sudah_checkin_sekarang else "today")
-        titik += ["todo"] * (progres["total_days"] - len(titik))
-        kartu_aktif = {
-            "participation": pertama,
-            "challenge": pertama.challenge,
-            "checked_today": sudah_checkin_sekarang,
-            "dots": titik,
-            "sisa_hari": progres["total_days"] - progres["done_days"],
-            **progres,
+    if sort == "poin":
+        tantangan = tantangan.order_by("-points")
+    elif sort == "durasi":
+        tantangan = tantangan.order_by("duration_days")
+    elif sort == "peserta":
+        tantangan = tantangan.order_by("-participants")
+
+    personal = (
+        _ambil_data_pengguna(user)
+        if user.is_authenticated
+        else {
+            "joined_ids": set(),
+            "owned_badge_ids": set(),
+            "streak": 0,
+            "streak_at_risk": False,
+            "total_points": 0,
+            "active": None,
         }
+    )
 
     context = {
         "challenges": tantangan,
         "categories": Challenge.Category.choices,
         "selected_category": kategori,
-        "joined_ids": set(aktif.values_list("challenge_id", flat=True)),
+        "search_query": q,
+        "selected_sort": sort,
         "badges": Badge.objects.all(),
-        "owned_badge_ids": lencana_dimiliki,
-        "owned_badge_count": len(lencana_dimiliki),
-        "total_points": total_poin(user),
-        "streak": streak,
-        "streak_at_risk": streak > 0 and not sudah_checkin_sekarang,
-        "active": kartu_aktif,
+        "owned_badge_count": len(personal["owned_badge_ids"]),
+        **personal,
     }
     return render(request, "challenges/challenges.html", context)
+
+
+def show_xml(request):
+    """Mengembalikan daftar seluruh tantangan dalam format XML standar Django."""
+    data = Challenge.objects.all()
+    return HttpResponse(
+        serializers.serialize("xml", data), content_type="application/xml"
+    )
+
+
+def show_json(request):
+    """Mengembalikan seluruh tantangan dalam format JSON bawaan Django serializers."""
+    data = Challenge.objects.all()
+    return HttpResponse(
+        serializers.serialize("json", data), content_type="application/json"
+    )
+
+
+def show_xml_by_id(request, id):
+    """Mengembalikan detail tantangan spesifik berdasarkan UUID dalam format XML."""
+    data = Challenge.objects.filter(pk=id)
+    if not data.exists():
+        raise Http404("Tantangan tidak ditemukan.")
+    return HttpResponse(
+        serializers.serialize("xml", data), content_type="application/xml"
+    )
+
+
+def show_json_by_id(request, id):
+    """Mengembalikan detail tantangan spesifik berdasarkan UUID dalam format JSON serializers."""
+    data = Challenge.objects.filter(pk=id)
+    if not data.exists():
+        raise Http404("Tantangan tidak ditemukan.")
+    return HttpResponse(
+        serializers.serialize("json", data), content_type="application/json"
+    )

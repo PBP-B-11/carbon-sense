@@ -1,11 +1,14 @@
+import uuid
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db import IntegrityError
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from challenges.forms import TantanganForm
 from challenges.models import (
     Badge,
     Challenge,
@@ -179,6 +182,7 @@ class ChallengeViewsTests(TestCase):
     """Pengujian view berbasis template dan proteksi role superuser."""
 
     def setUp(self):
+        cache.clear()
         self.client = Client()
         self.user = User.objects.create_user(
             username="user_biasa", email="biasa@example.com", password="password123"
@@ -201,10 +205,22 @@ class ChallengeViewsTests(TestCase):
             points=30,
         )
 
-    def test_daftar_tantangan_login_required(self):
-        """Memverifikasi redirect ke halaman login untuk user yang belum terautentikasi."""
+    def test_daftar_tantangan_public_catalog_untuk_guest(self):
+        """Memverifikasi bahwa katalog publik dapat dilihat oleh guest tetapi data pribadi disembunyikan."""
         response = self.client.get(reverse("challenges:index"))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tantangan Transportasi")
+        self.assertContains(response, "Masuk akun")
+        self.assertIsNone(response.context["active"])
+        self.assertEqual(response.context["total_points"], 0)
+
+        # POST aksi oleh guest wajib diredirect ke login
+        post_response = self.client.post(
+            reverse("challenges:index"),
+            {"aksi": "ikut", "tantangan_id": str(self.challenge1.id)},
+        )
+        self.assertEqual(post_response.status_code, 302)
+        self.assertIn(reverse("profil:login"), post_response.url)
 
     def test_daftar_tantangan_get_authenticated(self):
         """Memverifikasi halaman daftar tantangan berhasil dirender untuk user terautentikasi."""
@@ -306,11 +322,106 @@ class ChallengeViewsTests(TestCase):
         self.assertEqual(post_res.status_code, 302)
         self.assertFalse(Challenge.objects.filter(id=self.challenge1.id).exists())
 
+    def test_ubah_tantangan_forbidden_untuk_user_biasa(self):
+        """Memverifikasi bahwa pengguna biasa mendapat response 403 Forbidden saat mencoba mengubah tantangan."""
+        self.client.force_login(self.user)
+        get_res = self.client.get(
+            reverse("challenges:ubah", kwargs={"id": self.challenge1.id})
+        )
+        self.assertEqual(get_res.status_code, 403)
+
+        post_res = self.client.post(
+            reverse("challenges:ubah", kwargs={"id": self.challenge1.id}),
+            {"title": "Diubah Hacker"},
+        )
+        self.assertEqual(post_res.status_code, 403)
+
+    def test_ubah_tantangan_bisa_diakses_superuser(self):
+        """Memverifikasi bahwa superuser dapat melihat form dan memperbarui data tantangan."""
+        self.client.force_login(self.admin)
+        get_res = self.client.get(
+            reverse("challenges:ubah", kwargs={"id": self.challenge1.id})
+        )
+        self.assertEqual(get_res.status_code, 200)
+        self.assertContains(get_res, "Perbarui detail tantangan")
+
+        post_data = {
+            "title": "Tantangan Transportasi Diperbarui",
+            "description": "Deskripsi transportasi baru",
+            "category": Challenge.Category.TRANSPORT,
+            "duration_days": 10,
+            "points": 75,
+            "estimated_saving_kg": "3.5",
+            "icon": "bike",
+            "tone": "amber",
+        }
+        post_res = self.client.post(
+            reverse("challenges:ubah", kwargs={"id": self.challenge1.id}), post_data
+        )
+        self.assertEqual(post_res.status_code, 302)
+        self.challenge1.refresh_from_db()
+        self.assertEqual(self.challenge1.title, "Tantangan Transportasi Diperbarui")
+        self.assertEqual(self.challenge1.points, 75)
+
+    def test_form_validasi_poin_transportasi_minimal_10(self):
+        """Memverifikasi validasi form jika poin transportasi kurang dari 10."""
+        data = {
+            "title": "Tantangan Gowes",
+            "description": "Deskripsi gowes",
+            "category": Challenge.Category.TRANSPORT,
+            "duration_days": 7,
+            "points": 5,
+            "estimated_saving_kg": 2.0,
+            "icon": "bike",
+            "tone": "moss",
+        }
+        form = TantanganForm(data=data)
+        self.assertFalse(form.is_valid())
+        self.assertIn("points", form.errors)
+        self.assertIn("minimal 10 poin", form.errors["points"][0])
+
+    def test_form_validasi_perkiraan_hemat_tidak_boleh_negatif(self):
+        """Memverifikasi validasi form jika perkiraan hemat bernilai negatif."""
+        data = {
+            "title": "Tantangan Listrik",
+            "description": "Deskripsi hemat listrik",
+            "category": Challenge.Category.ENERGY,
+            "duration_days": 7,
+            "points": 20,
+            "estimated_saving_kg": -1.5,
+            "icon": "zap",
+            "tone": "amber",
+        }
+        form = TantanganForm(data=data)
+        self.assertFalse(form.is_valid())
+        self.assertIn("estimated_saving_kg", form.errors)
+        self.assertIn("tidak boleh negatif", form.errors["estimated_saving_kg"][0])
+
+    def test_form_validasi_judul_unik(self):
+        """Memverifikasi bahwa judul tidak boleh duplikat, tetapi boleh sama pada instance yang sama saat diedit."""
+        data = {
+            "title": self.challenge1.title,
+            "description": "Duplikat judul",
+            "category": Challenge.Category.ENERGY,
+            "duration_days": 5,
+            "points": 30,
+            "estimated_saving_kg": 1.0,
+            "icon": "leaf",
+            "tone": "moss",
+        }
+        form_baru = TantanganForm(data=data)
+        self.assertFalse(form_baru.is_valid())
+        self.assertIn("title", form_baru.errors)
+
+        form_edit = TantanganForm(data=data, instance=self.challenge1)
+        self.assertTrue(form_edit.is_valid())
+
 
 class ChallengeAPITests(TestCase):
     """Pengujian seluruh endpoint JSON API tantangan (/api/tantangan/)."""
 
     def setUp(self):
+        cache.clear()
         self.client = Client()
         self.user = User.objects.create_user(
             username="user_api", email="api@example.com", password="password123"
@@ -332,6 +443,36 @@ class ChallengeAPITests(TestCase):
             icon="bike",
             tone="amber",
         )
+
+    def test_api_daftar_dan_detail_json(self):
+        """Memverifikasi endpoint GET daftar tantangan JSON dan detail satu tantangan."""
+        # Uji list JSON
+        url_list = reverse("challenges_api:list")
+        res_list = self.client.get(url_list)
+        self.assertEqual(res_list.status_code, 200)
+        data = res_list.json()
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["title"], "Sepeda ke kampus")
+        self.assertEqual(data[0]["category"], "transportasi")
+
+        # Uji filter kategori JSON
+        res_filter_match = self.client.get(f"{url_list}?kategori=transportasi")
+        self.assertEqual(len(res_filter_match.json()), 1)
+
+        res_filter_empty = self.client.get(f"{url_list}?kategori=energi")
+        self.assertEqual(len(res_filter_empty.json()), 0)
+
+        # Uji detail JSON
+        url_detail = reverse("challenges_api:detail", kwargs={"id": self.challenge.id})
+        res_detail = self.client.get(url_detail)
+        self.assertEqual(res_detail.status_code, 200)
+        self.assertEqual(res_detail.json()["id"], str(self.challenge.id))
+        self.assertEqual(res_detail.json()["badge"], "Pesepeda")
+
+        # Uji alias /tantangan/json/
+        res_alias = self.client.get(reverse("challenges:json"))
+        self.assertEqual(res_alias.status_code, 200)
 
     def test_api_requires_authentication(self):
         """Memverifikasi bahwa endpoint mengembalikan HTTP 401 saat belum terautentikasi."""
@@ -414,3 +555,234 @@ class ChallengeAPITests(TestCase):
         self.assertEqual(res.status_code, 200)
         partisipasi.refresh_from_db()
         self.assertEqual(partisipasi.status, Participation.Status.STOPPED)
+
+    def test_api_hapus_forbidden_untuk_user_biasa(self):
+        """Memverifikasi bahwa API hapus mengembalikan 403 untuk user biasa."""
+        self.client.force_login(self.user)
+        url = reverse("challenges_api:hapus", kwargs={"id": self.challenge.id})
+        res = self.client.post(url)
+        self.assertEqual(res.status_code, 403)
+        self.assertTrue(Challenge.objects.filter(id=self.challenge.id).exists())
+
+    def test_api_hapus_success_untuk_superuser(self):
+        """Memverifikasi bahwa API hapus berhasil menghapus tantangan untuk superuser."""
+        admin = User.objects.create_superuser(
+            username="admin_api", email="admin_api@example.com", password="password123"
+        )
+        self.client.force_login(admin)
+        url = reverse("challenges_api:hapus", kwargs={"id": self.challenge.id})
+        res = self.client.post(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["status"], "success")
+        self.assertFalse(Challenge.objects.filter(id=self.challenge.id).exists())
+
+    def test_berhenti_lalu_ikut_kembali_dapat_checkin(self):
+        """Memverifikasi bahwa peserta yang berhenti dan ikut kembali di hari yang sama dapat melakukan check-in."""
+        self.client.force_login(self.user)
+
+        p1 = Participation.objects.create(
+            user=self.user, challenge=self.challenge, started_at=timezone.localdate()
+        )
+        CheckIn.objects.create(participation=p1, date=timezone.localdate())
+
+        p1.status = Participation.Status.STOPPED
+        p1.save()
+
+        p2 = Participation.objects.create(
+            user=self.user, challenge=self.challenge, started_at=timezone.localdate()
+        )
+
+        self.assertFalse(sudah_checkin_hari_ini(self.user))
+
+        res_page = self.client.get(reverse("challenges:index"))
+        self.assertEqual(res_page.status_code, 200)
+        self.assertFalse(res_page.context["active"]["checked_today"])
+        self.assertNotContains(res_page, 'disabled aria-disabled="true"')
+
+        res_checkin = self.client.post(
+            reverse("challenges:index"),
+            {"aksi": "checkin", "tantangan_id": str(self.challenge.id)},
+        )
+        self.assertEqual(res_checkin.status_code, 302)
+        self.assertEqual(p2.check_ins.count(), 1)
+
+    def test_api_daftar_tantangan_includes_is_joined_flag(self):
+        """Memverifikasi bahwa API daftar tantangan menyertakan flag is_joined untuk user yang login."""
+        self.client.force_login(self.user)
+        Participation.objects.create(
+            user=self.user, challenge=self.challenge, started_at=timezone.localdate()
+        )
+        url = reverse("challenges_api:list")
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+        items = res.json()
+        item = next(i for i in items if i["id"] == str(self.challenge.id))
+        self.assertTrue(item["is_joined"])
+
+    def test_api_detail_not_found_returns_404(self):
+        """Memverifikasi bahwa request detail untuk ID yang tidak ditemukan mengembalikan JSON 404."""
+        url = reverse("challenges_api:detail", kwargs={"id": uuid.uuid4()})
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["error"], "Tantangan tidak ditemukan.")
+
+    def test_api_checkin_not_found_returns_404(self):
+        """Memverifikasi bahwa request checkin untuk ID yang tidak ditemukan mengembalikan JSON 404."""
+        self.client.force_login(self.user)
+        url = reverse("challenges_api:checkin", kwargs={"id": uuid.uuid4()})
+        res = self.client.post(url)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["error"], "Tantangan tidak ditemukan.")
+
+    def test_api_ikut_not_found_returns_404(self):
+        """Memverifikasi bahwa request ikut untuk ID yang tidak ditemukan mengembalikan JSON 404."""
+        self.client.force_login(self.user)
+        url = reverse("challenges_api:ikut", kwargs={"id": uuid.uuid4()})
+        res = self.client.post(url)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["error"], "Tantangan tidak ditemukan.")
+
+    def test_api_filter_kategori_tidak_valid_mengabaikan_filter(self):
+        """Memverifikasi bahwa kategori tidak valid pada query param diabaikan dan mengembalikan seluruh data."""
+        url = reverse("challenges_api:list") + "?kategori=kategori_palsu"
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertGreaterEqual(len(res.json()), 1)
+
+    def test_form_validasi_duration_days_minimal_1(self):
+        """Memverifikasi bahwa form menolak durasi kurang dari 1 hari."""
+        data = {
+            "title": "Tantangan Singkat",
+            "description": "Deskripsi singkat",
+            "category": Challenge.Category.ENERGY,
+            "duration_days": 0,
+            "points": 20,
+            "estimated_saving_kg": 1.0,
+            "icon": "zap",
+            "tone": "amber",
+        }
+        form = TantanganForm(data=data)
+        self.assertFalse(form.is_valid())
+        self.assertIn("duration_days", form.errors)
+        self.assertIn("minimal 1 hari", form.errors["duration_days"][0])
+
+
+class AdvancedSecurityAndSerializationTests(TestCase):
+    """Pengujian serializer XML/JSON standar PBP, custom security decorators, dan rate limiting."""
+
+    def setUp(self):
+        cache.clear()
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username="regular_user", password="password123"
+        )
+        self.superuser = User.objects.create_superuser(
+            username="super_user", password="password123"
+        )
+        self.challenge = Challenge.objects.create(
+            title="Hemat Listrik Kamar",
+            description="Matikan lampu belajar saat tidak dipakai.",
+            category=Challenge.Category.ENERGY,
+            duration_days=3,
+            points=25,
+            estimated_saving_kg="1.5",
+            icon="zap",
+            tone="teal",
+        )
+
+    def test_show_xml_returns_valid_xml(self):
+        """Memverifikasi endpoint /challenges/xml/ mengembalikan format XML Django."""
+        res = self.client.get(reverse("challenges:show_xml"))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res["Content-Type"], "application/xml")
+        self.assertIn(b"<django-objects", res.content)
+        self.assertIn(b"Hemat Listrik Kamar", res.content)
+
+    def test_show_xml_by_id_returns_specific_challenge(self):
+        """Memverifikasi endpoint /challenges/xml/<id>/ mengembalikan objek spesifik."""
+        res = self.client.get(
+            reverse("challenges:show_xml_by_id", kwargs={"id": self.challenge.id})
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res["Content-Type"], "application/xml")
+        self.assertIn(b"Hemat Listrik Kamar", res.content)
+
+    def test_show_xml_by_id_not_found(self):
+        """Memverifikasi bahwa request ID yang tidak ada pada XML mengembalikan 404."""
+        res = self.client.get(
+            reverse("challenges:show_xml_by_id", kwargs={"id": uuid.uuid4()})
+        )
+        self.assertEqual(res.status_code, 404)
+
+    def test_show_json_by_id_returns_specific_challenge(self):
+        """Memverifikasi endpoint /challenges/json/<id>/ mengembalikan JSON serializer."""
+        res = self.client.get(
+            reverse("challenges:show_json_by_id", kwargs={"id": self.challenge.id})
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res["Content-Type"], "application/json")
+        data = res.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["fields"]["title"], "Hemat Listrik Kamar")
+
+    def test_api_search_filter_by_keyword(self):
+        """Memverifikasi bahwa query parameter 'q' memfilter judul dan deskripsi."""
+        res = self.client.get(reverse("challenges_api:list") + "?q=Lampu")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["title"], "Hemat Listrik Kamar")
+
+        res_empty = self.client.get(
+            reverse("challenges_api:list") + "?q=KataKunciTakAda"
+        )
+        self.assertEqual(res_empty.status_code, 200)
+        self.assertEqual(len(res_empty.json()), 0)
+
+    def test_api_sort_by_points(self):
+        """Memverifikasi sorting data tantangan berdasarkan poin."""
+        Challenge.objects.create(
+            title="Tantangan Poin Tinggi",
+            description="Deskripsi",
+            category=Challenge.Category.TRANSPORT,
+            duration_days=7,
+            points=100,
+            estimated_saving_kg="10.0",
+        )
+        res = self.client.get(reverse("challenges_api:list") + "?sort=poin")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data[0]["points"], 100)
+
+    def test_require_superuser_security_decorator_blocks_regular_user(self):
+        """Memverifikasi bahwa pengguna biasa diblokir dengan 403 saat mengakses aksi superuser."""
+        self.client.force_login(self.user)
+        url_tambah = reverse("challenges:tambah")
+        res_tambah = self.client.get(url_tambah)
+        self.assertEqual(res_tambah.status_code, 403)
+
+        url_hapus_api = reverse(
+            "challenges_api:hapus", kwargs={"id": self.challenge.id}
+        )
+        res_hapus = self.client.post(url_hapus_api)
+        self.assertEqual(res_hapus.status_code, 403)
+        self.assertEqual(
+            res_hapus.json()["error"],
+            "Akses ditolak: Hanya superuser yang memiliki izin.",
+        )
+
+    def test_ratelimit_decorator_triggers_429(self):
+        """Memverifikasi bahwa melebihi batas panggilan memicu respons HTTP 429 Too Many Requests."""
+        cache.clear()
+        self.client.force_login(self.user)
+        url = reverse("challenges_api:ikut", kwargs={"id": self.challenge.id})
+
+        # Kirim 25 request (batas threshold ratelimit)
+        for _ in range(25):
+            self.client.post(url)
+
+        # Request ke-26 harus terkena rate limiting
+        res_blocked = self.client.post(url)
+        self.assertEqual(res_blocked.status_code, 429)
+        self.assertEqual(res_blocked.json()["status"], "rate_limited")
+        cache.clear()

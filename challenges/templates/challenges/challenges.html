@@ -22,10 +22,14 @@
           <h1 class="hl-gap-18">Tantangan <span class="hl">minggu ini</span></h1>
         </div>
         <div class="page-tools page-tools--tight">
+          {% if request.user.is_authenticated %}
           <span class="pill pill--amber"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-star"/></svg><span id="header-points">{{ total_points|intcomma }}</span> poin</span>
           <span class="pill pill--streak"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-flame"/></svg><span id="header-streak-text">Streak {{ streak }} hari</span></span>
           {% if request.user.is_superuser %}
           <a class="btn btn--primary" href="{% url 'challenges:tambah' %}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-plus"/></svg>Tambah tantangan</a>
+          {% endif %}
+          {% else %}
+          <a class="btn btn--primary" href="{% url 'profil:login' %}?next={{ request.path }}">Masuk akun</a>
           {% endif %}
         </div>
       </div>
@@ -41,32 +45,41 @@
 
       <section class="challenge-top">
         <article class="card-dark active-challenge" aria-labelledby="judul-aktif">
-          {% if active %}
-          <p class="eyebrow">Sedang kamu ikuti</p>
-          <h2 id="judul-aktif">{{ active.challenge.title }}</h2>
-          <div class="progress-line"><span><span id="active-done-days">{{ active.done_days }}</span> dari {{ active.total_days }} hari</span><span class="serif" id="active-percent">{{ active.percent }}%</span></div>
-          <div class="dots" id="active-dots" data-total-days="{{ active.total_days }}" role="img" aria-label="{{ active.done_days }} dari {{ active.total_days }} hari selesai">
-            {% for titik in active.dots %}<i{% if titik == "today" %} class="today"{% elif titik == "todo" %} class="todo"{% endif %}></i>{% endfor %}
-          </div>
-          <p class="desc">{{ active.challenge.description }} <span id="active-sisa">{% if active.sisa_hari %}{{ active.sisa_hari }} hari lagi{% else %}Selesai{% endif %}</span>, hemat ~{{ active.challenge.estimated_saving_kg|floatformat:1 }} kg CO₂e, dapat {{ active.challenge.points|intcomma }} poin{% if active.challenge.badge %} dan lencana {{ active.challenge.badge.name }}{% endif %}.</p>
-          <div class="actions">
-            <form method="post" data-challenge-form="checkin" data-challenge-id="{{ active.challenge.id }}">
-              {% csrf_token %}
-              <input type="hidden" name="aksi" value="checkin">
-              <input type="hidden" name="tantangan_id" value="{{ active.challenge.id }}">
-              <button class="btn btn--lichen" id="btn-checkin" type="submit"{% if active.checked_today %} disabled{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg><span id="btn-checkin-text">{% if active.checked_today %}Sudah check-in hari ini{% else %}Check-in hari ini{% endif %}</span></button>
-            </form>
-            <form method="post" data-challenge-form="berhenti" data-challenge-id="{{ active.challenge.id }}">
-              {% csrf_token %}
-              <input type="hidden" name="aksi" value="berhenti">
-              <input type="hidden" name="tantangan_id" value="{{ active.challenge.id }}">
-              <button class="stop" type="submit">Berhenti</button>
-            </form>
-          </div>
+          {% if request.user.is_authenticated %}
+            {% if active %}
+            <p class="eyebrow">Sedang kamu ikuti</p>
+            <h2 id="judul-aktif">{{ active.challenge.title }}</h2>
+            <div class="progress-line"><span><span id="active-done-days">{{ active.done_days }}</span> dari {{ active.total_days }} hari</span><span class="serif" id="active-percent">{{ active.percent }}%</span></div>
+            <div class="dots" id="active-dots" data-total-days="{{ active.total_days }}" role="img" aria-label="{{ active.done_days }} dari {{ active.total_days }} hari selesai">
+              {% for titik in active.dots %}<i{% if titik == "today" %} class="today"{% elif titik == "todo" %} class="todo"{% endif %}></i>{% endfor %}
+            </div>
+            <p class="desc">{{ active.challenge.description }} <span id="active-sisa">{% if active.sisa_hari %}{{ active.sisa_hari }} hari lagi{% else %}Selesai{% endif %}</span>, hemat ~{{ active.challenge.estimated_saving_kg|floatformat:1 }} kg CO₂e, dapat {{ active.challenge.points|intcomma }} poin{% if active.challenge.badge %} dan lencana {{ active.challenge.badge.name }}{% endif %}.</p>
+            <div class="actions">
+              <form method="post" data-challenge-form="checkin" data-challenge-id="{{ active.challenge.id }}">
+                {% csrf_token %}
+                <input type="hidden" name="aksi" value="checkin">
+                <input type="hidden" name="tantangan_id" value="{{ active.challenge.id }}">
+                <button class="btn btn--lichen" id="btn-checkin" type="submit"{% if active.checked_today %} disabled{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg><span id="btn-checkin-text">{% if active.checked_today %}Sudah check-in hari ini{% else %}Check-in hari ini{% endif %}</span></button>
+              </form>
+              <form method="post" data-challenge-form="berhenti" data-challenge-id="{{ active.challenge.id }}">
+                {% csrf_token %}
+                <input type="hidden" name="aksi" value="berhenti">
+                <input type="hidden" name="tantangan_id" value="{{ active.challenge.id }}">
+                <button class="stop" type="submit">Berhenti</button>
+              </form>
+            </div>
+            {% else %}
+            <p class="eyebrow">Sedang kamu ikuti</p>
+            <h2 id="judul-aktif">Belum ada <span class="hl">tantangan</span></h2>
+            <p class="desc">Pilih satu tantangan di bawah untuk mulai mengumpulkan poin dan lencana.</p>
+            {% endif %}
           {% else %}
-          <p class="eyebrow">Sedang kamu ikuti</p>
-          <h2 id="judul-aktif">Belum ada <span class="hl">tantangan</span></h2>
-          <p class="desc">Pilih satu tantangan di bawah untuk mulai mengumpulkan poin dan lencana.</p>
+            <p class="eyebrow">Eco-Challenges</p>
+            <h2 id="judul-aktif">Ayo mulai <span class="hl">kebiasaan hijau</span></h2>
+            <p class="desc">Masuk untuk mengikuti tantangan, mencatat check-in harian, dan membuka lencana prestasi.</p>
+            <div class="actions">
+              <a href="{% url 'profil:login' %}?next={{ request.path }}" class="btn btn--lichen" style="text-decoration: none;">Masuk akun untuk mulai</a>
+            </div>
           {% endif %}
         </article>
 
@@ -94,16 +107,22 @@
       </section>
 
       <section class="challenge-list" aria-labelledby="judul-daftar">
-        <div class="list-head">
+        <div class="list-head" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
           <h2 class="sec-title" id="judul-daftar">Pilih tantangan <span class="hl">berikutnya</span></h2>
-          <div class="chips" role="group" aria-label="Filter kategori">
-            <a class="chip{% if not selected_category %} chip--active{% endif %}" href="{% url 'challenges:index' %}">Semua</a>
-            {% for nilai, nama in categories %}
-            <a class="chip{% if selected_category == nilai %} chip--active{% endif %}" href="?kategori={{ nilai }}">{{ nama }}</a>
-            {% endfor %}
+          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div style="position: relative; display: inline-flex; align-items: center;">
+              <input type="text" id="challenge-search-input" placeholder="Cari tantangan..." value="{{ search_query }}" aria-label="Cari tantangan" style="padding: 7px 12px 7px 32px; border-radius: 999px; border: 1px solid var(--color-stone-border); background: var(--color-surface); font-size: 13px; color: var(--color-text-primary); outline: none; width: 170px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 10px; color: var(--color-stone-text-subtle); pointer-events: none;" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+            <div class="chips" role="group" aria-label="Filter kategori" id="challenge-category-chips">
+              <a class="chip{% if not selected_category %} chip--active{% endif %}" href="{% url 'challenges:index' %}" data-category="">Semua</a>
+              {% for nilai, nama in categories %}
+              <a class="chip{% if selected_category == nilai %} chip--active{% endif %}" href="?kategori={{ nilai }}" data-category="{{ nilai }}">{{ nama }}</a>
+              {% endfor %}
+            </div>
           </div>
         </div>
-        <ul class="challenge-grid">
+        <ul class="challenge-grid" id="challenge-grid" data-is-authenticated="{% if request.user.is_authenticated %}true{% else %}false{% endif %}" data-is-superuser="{% if request.user.is_superuser %}true{% else %}false{% endif %}" data-login-url="{% url 'profil:login' %}?next={{ request.path }}">
           {% for tantangan in challenges %}
           <li class="card card--{% cycle 'a' 'b' 'c' 'd' %}{% if tantangan.id in joined_ids %} card--emphasis{% endif %} challenge">
             <div class="top">
@@ -111,6 +130,9 @@
               <div style="display: flex; gap: 8px; align-items: center;">
                 <span class="pill pill--amber">+{{ tantangan.points|intcomma }} poin</span>
                 {% if request.user.is_superuser %}
+                <a class="btn-edit" href="{% url 'challenges:ubah' tantangan.id %}" title="Ubah tantangan" style="color: var(--color-stone-text-subtle); display: inline-flex; align-items: center; padding: 4px;" aria-label="Ubah tantangan {{ tantangan.title }}">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-pencil"/></svg>
+                </a>
                 <a class="btn-delete" href="{% url 'challenges:hapus' tantangan.id %}" title="Hapus tantangan" style="color: var(--color-error-text); display: inline-flex; align-items: center; padding: 4px;" aria-label="Hapus tantangan {{ tantangan.title }}">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash-2"/></svg>
                 </a>
@@ -120,15 +142,19 @@
             <h3>{{ tantangan.title }}</h3>
             <p>{{ tantangan.description }}</p>
             <div class="foot"><small>{{ tantangan.duration_days }} hari, {{ tantangan.participants|intcomma }} peserta</small>
-              {% if tantangan.id in joined_ids %}
-              <span class="join join--on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Diikuti</span>
+              {% if request.user.is_authenticated %}
+                {% if tantangan.id in joined_ids %}
+                <span class="join join--on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-check"/></svg>Diikuti</span>
+                {% else %}
+                <form method="post" data-challenge-form="ikut" data-challenge-id="{{ tantangan.id }}">
+                  {% csrf_token %}
+                  <input type="hidden" name="aksi" value="ikut">
+                  <input type="hidden" name="tantangan_id" value="{{ tantangan.id }}">
+                  <button class="join" type="submit">Ikuti</button>
+                </form>
+                {% endif %}
               {% else %}
-              <form method="post" data-challenge-form="ikut" data-challenge-id="{{ tantangan.id }}">
-                {% csrf_token %}
-                <input type="hidden" name="aksi" value="ikut">
-                <input type="hidden" name="tantangan_id" value="{{ tantangan.id }}">
-                <button class="join" type="submit">Ikuti</button>
-              </form>
+                <a class="join" href="{% url 'profil:login' %}?next={{ request.path }}">Ikuti</a>
               {% endif %}
             </div>
           </li>

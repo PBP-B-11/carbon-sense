@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Carbon Sense: Ubah Tantangan{% endblock %}
+
+{% block blobs %}
+  <i class="blob blob--challenge-1" aria-hidden="true"></i>
+  <i class="blob blob--challenge-2" aria-hidden="true"></i>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+      <div class="page-title">
+        <div>
+          <span class="eyebrow t-amber">Modul 3, Eco-Challenges</span>
+          <h1 class="hl-gap-18">Ubah <span class="hl">tantangan</span></h1>
+        </div>
+      </div>
+
+      <section class="card card--a form-card" aria-labelledby="judul-form">
+        <h2 class="card-title" id="judul-form">Perbarui detail tantangan</h2>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+          <p class="field-error" role="alert">{{ form.non_field_errors|join:" " }}</p>
+          {% endif %}
+          <div class="form-grid">
+            {% for field in form %}
+            <label class="field{% if field.name == 'title' or field.name == 'description' %} field--wide{% endif %}" for="{{ field.id_for_label }}">{{ field.label }}
+              <span class="input{% if field.name == 'description' %} input--area{% endif %}">{{ field }}</span>
+              {% if field.help_text %}<span class="hint">{{ field.help_text }}</span>{% endif %}
+              {% for error in field.errors %}<span class="field-error" role="alert">{{ error }}</span>{% endfor %}
+            </label>
+            {% endfor %}
+          </div>
+          <div class="form-actions">
+            <a class="btn" href="{% url 'challenges:index' %}">Batal</a>
+            <button class="btn btn--primary" type="submit">Simpan perubahan</button>
+          </div>
+        </form>
+      </section>
+    </div>
+{% endblock %}

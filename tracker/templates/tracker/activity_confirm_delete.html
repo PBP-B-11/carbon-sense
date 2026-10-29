@@ -29,12 +29,12 @@
         <dd>{{ activity.date|date:"d M Y" }}</dd>
         <dt>Jumlah</dt>
         <dd>
-          {{ activity.quantity|floatformat:2 }}
+          {{ activity.quantity|floatformat:"2g" }}
           {#Pisahkan gram daging dari kg CO2e agar berat dan emisi tidak tertukar.#}
           {% if activity.activity_type == "car_travel" %}km{% elif activity.activity_type == "electricity" %}kWh{% elif activity.activity_type == "chicken" or activity.activity_type == "beef" %}g{% endif %}
         </dd>
         <dt>Emisi</dt>
-        <dd>{{ activity.emission_kg|floatformat:4 }} kg CO₂e</dd>
+        <dd>{{ activity.emission_kg|floatformat:"4g" }} kg CO₂e</dd>
       </dl>
 
       <p class="hint">Aktivitas yang dihapus tidak dapat dikembalikan.</p>

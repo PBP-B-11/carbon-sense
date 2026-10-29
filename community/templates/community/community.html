@@ -41,20 +41,35 @@
           <p class="card card--a feed-note">Masuk untuk membuat postingan, menyukai, dan berkomentar.</p>
           {% endif %}
 
-          <nav class="feed-filter" aria-label="Filter kategori">
-            <a class="chip js-filter{% if not category %} chip--active{% endif %}" href="{% url 'community:index' %}" data-category=""{% if not category %} aria-current="true"{% endif %}>Semua</a>
-            {% for value, label in categories %}
-            <a class="chip js-filter{% if category == value %} chip--active{% endif %}" href="?category={{ value }}" data-category="{{ value }}"{% if category == value %} aria-current="true"{% endif %}>{{ label }}</a>
-            {% endfor %}
-          </nav>
+          <div class="feed-tools">
+            <form class="feed-search" method="get" action="{% url 'community:index' %}" role="search">
+              {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+              <label class="sr-only" for="feed-q">Cari postingan</label>
+              <input id="feed-q" type="search" name="q" value="{{ q }}" placeholder="Cari postingan..." maxlength="100" autocomplete="off">
+              <label class="sr-only" for="feed-sort">Urutkan</label>
+              <select id="feed-sort" name="sort">
+                <option value="new"{% if sort == "new" %} selected{% endif %}>Newest</option>
+                <option value="old"{% if sort == "old" %} selected{% endif %}>Oldest</option>
+                <option value="popular"{% if sort == "popular" %} selected{% endif %}>Most liked</option>
+                <option value="komen"{% if sort == "komen" %} selected{% endif %}>Most commented</option>
+              </select>
+              <button class="btn" type="submit">Cari</button>
+            </form>
+            <nav class="feed-filter" aria-label="Filter kategori">
+              <a class="chip js-filter{% if not category %} chip--active{% endif %}" href="{% url 'community:index' %}{% if base_qs %}?{{ base_qs }}{% endif %}" data-category=""{% if not category %} aria-current="true"{% endif %}>Semua</a>
+              {% for value, label in categories %}
+              <a class="chip js-filter{% if category == value %} chip--active{% endif %}" href="?{% if base_qs %}{{ base_qs }}&amp;{% endif %}category={{ value }}" data-category="{{ value }}"{% if category == value %} aria-current="true"{% endif %}>{{ label }}</a>
+              {% endfor %}
+            </nav>
+          </div>
 
-          <div class="post-list" id="post-list" data-category="{{ category }}">
+          <div class="post-list" id="post-list" data-category="{{ category }}" data-query="{{ q }}" data-sort="{{ sort }}">
             {% include "community/_post_list.html" %}
           </div>
 
           <div class="load-more" id="load-more-wrap"{% if not page.has_next %} hidden{% endif %}>
             {% if page.has_next %}
-            <a class="btn js-load-more" href="?page={{ page.next_page_number }}{% if category %}&category={{ category }}{% endif %}" data-next-page="{{ page.next_page_number }}">Muat lebih banyak</a>
+            <a class="btn js-load-more" href="?page={{ page.next_page_number }}{% if category %}&amp;category={{ category }}{% endif %}{% if base_qs %}&amp;{{ base_qs }}{% endif %}" data-next-page="{{ page.next_page_number }}">Muat lebih banyak</a>
             {% else %}
             <a class="btn js-load-more" href="#" data-next-page="">Muat lebih banyak</a>
             {% endif %}
@@ -83,7 +98,7 @@
     <div class="toast-region" id="toast-region" role="status" aria-live="polite"></div>
 
     <dialog class="edit-dialog" id="edit-dialog" aria-labelledby="edit-title">
-      <form method="post" id="edit-form" class="js-edit-form">
+      <form method="post" id="edit-form">
         {% csrf_token %}
         <h2 id="edit-title">Edit postingan</h2>
         <textarea name="content" aria-label="Isi postingan" maxlength="{{ post_max }}" required></textarea>
@@ -100,7 +115,7 @@
     <dialog class="edit-dialog" id="delete-dialog" aria-labelledby="delete-title">
       <form id="delete-confirm-form">
         <h2 id="delete-title">Hapus postingan?</h2>
-        <p>Postingan ini akan dihapus beserta likes dan komentarnya. Tindakan ini tidak bisa dibatalkan.</p>
+        <p>Postingan ini akan dihapus beserta suka dan komentarnya. Tindakan ini tidak bisa dibatalkan.</p>
         <div class="cat-choice">
           <button class="btn btn--danger" type="submit">Hapus</button>
           <button class="btn" type="button" id="delete-cancel">Batal</button>

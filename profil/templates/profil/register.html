@@ -29,8 +29,15 @@
             <div class="login-field"><label for="{{ form.email.id_for_label }}">Email</label>{{ form.email }}{{ form.email.errors }}</div>
             <div class="login-field"><label for="{{ form.password1.id_for_label }}">Kata sandi</label>{{ form.password1 }}<span class="register-hint">Minimal 8 karakter. Hindari sandi umum, angka saja, atau yang mirip data pribadi.</span>{{ form.password1.errors }}</div>
             <div class="login-field"><label for="{{ form.password2.id_for_label }}">Ulangi kata sandi</label>{{ form.password2 }}{{ form.password2.errors }}</div>
-            <div class="login-field"><label for="city-query">Cari kota Indonesia</label><input id="city-query" type="search" name="city_search" value="{{ city_search }}" data-city-query autocomplete="off" minlength="2" placeholder="Contoh: Depok"><span class="register-hint" data-city-status role="status" aria-live="polite">Ketik minimal 2 karakter untuk mencari.</span></div>
-            <div class="login-field"><label for="{{ form.city.id_for_label }}">Pilih kota</label>{{ form.city }}{{ form.city.errors }}</div>
+            <div class="login-field register-city">
+              <label for="city-query">Cari kota Indonesia</label>
+              <div class="city-search">
+                <input id="city-query" type="search" name="city_search" value="{{ city_search }}" data-city-query autocomplete="off" minlength="2" placeholder="Contoh: Depok" aria-autocomplete="list" aria-controls="city-suggestions" aria-expanded="false" aria-describedby="city-status">
+                <div class="city-suggestions" id="city-suggestions" data-city-suggestions hidden></div>
+              </div>
+              <span class="register-hint" id="city-status" data-city-status role="status" aria-live="polite">Ketik minimal 2 karakter untuk mencari.</span>
+              {{ form.city }}
+            </div>
           </div>
           <label class="register-toggle"><input type="checkbox" id="show-passwords"> Tampilkan kata sandi</label>
           <p class="register-hint">Pencarian kota oleh GeoNames melalui Open-Meteo.</p>
@@ -44,7 +51,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/city-search.js' %}" defer></script>
+<script src="{% static 'js/city-search.js' %}?v=20261029b" defer></script>
 <script>
 document.querySelector('#show-passwords').addEventListener('change', event => {
   for (const input of document.querySelectorAll('#id_password1, #id_password2')) {
