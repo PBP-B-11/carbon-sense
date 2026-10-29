@@ -2369,6 +2369,7 @@ main {
 .profile-air {
   min-width: 0;
   min-height: 318px;
+  align-self: start;
   padding: 30px;
   border: var(--border-strong);
   border-radius: 32px 72px 40px 48px;
