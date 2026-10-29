@@ -32,6 +32,22 @@
 
 ---
 
+## Tampilan Antarmuka Aplikasi
+
+| Beranda | Eco-Challenges (Modul 3) |
+| :---: | :---: |
+| ![Beranda](static/img/screenshots/home.png) | ![Eco-Challenges](static/img/screenshots/challenges.png) |
+
+| Carbon Tracker (Modul 1) | Green Community (Modul 4) |
+| :---: | :---: |
+| ![Carbon Tracker](static/img/screenshots/tracker.png) | ![Green Community](static/img/screenshots/community.png) |
+
+| Profil & Kualitas Udara (Modul 2) |
+| :---: |
+| ![Profil](static/img/screenshots/profil.png) |
+
+---
+
 ## Daftar Modul & Komponen CRUD
 
 ### 1. Modul "Carbon Tracker" (Pencatat Jejak Karbon)
@@ -59,8 +75,8 @@ Estimasi daging menggunakan faktor total terpisah untuk ayam dan sapi dari CONCI
 - **Komponen CRUD:**
   - **Create:** Pengguna mendaftar (*join*) ke sebuah tantangan yang tersedia. Superuser dapat membuat tantangan baru ke dalam katalog.
   - **Read:** Menampilkan katalog tantangan dengan filter kategori dinamis (AJAX/Fetch tanpa reload), detail tantangan aktif, bilah progres, status titik harian (*dots*), total poin, streak berturut-turut, serta galeri lencana prestasi (8 lencana).
-  - **Update:** Pengguna menekan tombol "Check-in" untuk menambah progres harian tantangan secara asinkron. Superuser dapat mengedit detail tantangan di katalog.
-  - **Delete:** Pengguna dapat membatalkan/berhenti dari tantangan di tengah jalan. Superuser dapat menghapus tantangan dari katalog.
+  - **Update:** Pengguna menekan tombol "Check-in" untuk menambah progres harian tantangan secara asinkron (didukung *optimistic UI*). Superuser dapat mengedit detail tantangan di katalog.
+  - **Delete:** Pengguna dapat membatalkan/berhenti dari tantangan di tengah jalan (*soft-delete* status partisipasi). Superuser dapat menghapus tantangan dari katalog.
 
 ### 4. Modul "Green Community" (Forum & Hot News)
 - **Fokus Utama:** Ruang sosial (*feed*) bagi pengguna untuk berbagi tips dan berdiskusi isu lingkungan.
@@ -139,3 +155,37 @@ Untuk menguji modul spesifik (misal: Modul 3 Eco-Challenges):
 ```bash
 python manage.py test challenges
 ```
+
+---
+
+## AI Disclosure (Pernyataan Penggunaan AI)
+
+Sesuai dengan ketentuan transparansi akademik dan rubrik evaluasi proyek PBP:
+
+### 1. Alat Bantu AI & Coding Assistant yang Digunakan
+Secara kolaboratif, anggota tim memanfaatkan beberapa platform AI dan *coding assistant* untuk mendukung proses rekayasa perangkat lunak proyek Carbon Sense, antara lain:
+- **Google Antigravity Coding Assistant**
+- **Anthropic Claude**
+- **OpenAI ChatGPT & GitHub Copilot**
+
+Secara umum di seluruh modul, alat-alat bantu AI tersebut dimanfaatkan oleh tim untuk:
+- Akselerasi penulisan kode *boilerplate* (seperti serializers data, skema model Django, dan formulir validasi).
+- Perancangan arsitektur dan *refactoring* logika bisnis (seperti decorator keamanan, *rate limiting*, dan optimasi query).
+- Pembuatan struktur awal template HTML/CSS berbasis desain sistem Figma serta interaktivitas JavaScript modular (*optimistic UI updates*).
+- Penyusunan skenario pengujian unit (*test cases*) komprehensif untuk memvalidasi kasus batas (*boundary conditions*, hak akses pengguna, dan penanganan kode status HTTP).
+
+### 2. Strategi Prompting Terstruktur
+- **Specification-First Prompting:** Setiap permintaan ke AI diawali dengan menyertakan dokumen spesifikasi teknis (PRD/TRD), definisi model data, serta konvensi token desain Figma (`styles.css`) agar kode yang dihasilkan konsisten secara arsitektural.
+- **Test-Driven Development (TDD) Prompting:** Asisten AI diarahkan untuk merumuskan test case lengkap terlebih dahulu (mencakup kasus positif, kasus batas, input tak valid, dan status HTTP 400, 401, 403, 404, 409, 429) sebelum logika view diimplementasikan.
+- **Design System Conformance:** Instruksi prompt secara ketat membatasi AI agar menggunakan kelas komponen dan variabel CSS bawaan proyek tanpa memasukkan library CSS eksternal baru yang dapat merusak konsistensi tata letak.
+
+### 3. Analisis Kritis Batasan AI (*AI Limitations*)
+Dalam proses pengembangan, tim menemukan beberapa batasan nyata dari kode yang di-generate oleh AI:
+1. **URL Routing Mismatch:** Asisten AI sempat menghasilkan pola URL terbalik pada kode JavaScript kartu dinamis (`/challenges/ubah/${id}/` alih-alih `/challenges/${id}/ubah/`), yang berpotensi menghasilkan galat 404 Not Found jika tidak diaudit secara teliti terhadap `urls.py`.
+2. **State Leakage pada Cache Runner Unit Test:** Saat mengimplementasikan decorator *rate limiting*, AI tidak mengantisipasi bahwa backend `LocMemCache` pada Django test runner mempertahankan state antar-metode pengujian, sehingga pengujian berikutnya terkena pemblokiran 429 tanpa pembersihan cache yang eksplisit.
+3. **Kerapuhan Tata Letak Responsif Mobile:** Template HTML yang diusulkan AI awalnya mengalami sedikit *overflow* pada layar sempit (<390px) karena ukuran padding yang terlalu kaku dan belum memperhitungkan *touch target* minimal 44px.
+
+### 4. Verifikasi dan Intervensi Manual (*Manual Fixes*)
+- Seluruh kode yang dihasilkan asisten AI tidak pernah langsung di-merge, melainkan wajib melalui peninjauan manual (*peer review*) oleh anggota tim di GitHub Pull Request.
+- Anggota tim melakukan audit baris demi baris, memperbaiki rute URL di `challenges.js`, menambahkan manajemen isolasi cache (`cache.clear()`) pada test suite, serta menyesuaikan media query CSS secara mandiri.
+- Setiap perubahan divalidasi kelulusannya melalui eksekusi pengujian otomatis (`python manage.py test`) dengan 45 test case berstatus lulus 100% serta pemeriksaan linter *Ruff* sebelum kode dipublikasikan ke branch utama.
