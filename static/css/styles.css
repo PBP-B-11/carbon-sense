@@ -1335,6 +1335,15 @@ main {
   min-width: calc(var(--chart-columns) * 60px);
 }
 
+/* Tinggi batang dan lebar progres dikirim template lewat variabel CSS */
+.chart-series .bar {
+  height: var(--bar-height, 4px);
+}
+
+.breakdown .progress > i {
+  width: var(--fill-width, 0%);
+}
+
 .chart-series .bars,
 .chart-series .days {
   grid-template-columns: repeat(var(--chart-columns), minmax(0, 1fr));
