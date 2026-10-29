@@ -23,15 +23,17 @@ from .news import fetch_news, find_article
 PAGE_SIZE = 10
 COMMENT_PAGE_SIZE = 20
 CATEGORIES = {value for value, _ in Post.CATEGORY_CHOICES}
-SORTS = {"new", "old"}
+SORTS = {"new", "old", "popular", "komen"}
 SEARCH_MAX_LENGTH = 100
 
 
 def _is_ajax(request):
+    """Request dari fetch() di JavaScript; dijawab JSON, bukan redirect."""
     return request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
 
 def _fail(request, message, to="community:index", **kwargs):
+    """Respons gagal: JSON 400 untuk AJAX, atau pesan flash lalu redirect."""
     if _is_ajax(request):
         return JsonResponse({"error": message}, status=400)
     messages.error(request, message)
@@ -54,6 +56,7 @@ def _page_json(request, paginator, render_page):
 
 
 def _form_error(form, default):
+    """Pesan error pertama dari form, atau `default` jika tidak ada."""
     errors = [e for field_errors in form.errors.values() for e in field_errors]
     return errors[0] if errors else default
 
@@ -71,6 +74,7 @@ def _count_of(model):
 
 
 def _feed_posts(user):
+    """Queryset post lengkap dengan jumlah suka/komentar dan status suka milik `user`."""
     posts = Post.objects.select_related("author").annotate(
         like_count=_count_of(Like),
         comment_count=_count_of(Comment),
@@ -83,6 +87,7 @@ def _feed_posts(user):
 
 
 def _post_card_json(request, post):
+    """Kartu post hasil render ulang, dikirim ke JS untuk disisipkan atau menggantikan kartu lama."""
     post = _feed_posts(request.user).get(pk=post.pk)
     html = render_to_string(
         "community/_post_card.html", {"post": post}, request=request
@@ -91,6 +96,9 @@ def _post_card_json(request, post):
 
 
 def index(request):
+    """Feed komunitas dengan filter kategori, pencarian, urutan, dan paginasi.
+
+    AJAX hanya mendapat satu halaman potongan HTML; request biasa mendapat halaman penuh."""
     category = request.GET.get("category", "")
     if category not in CATEGORIES:
         category = ""
@@ -110,6 +118,10 @@ def index(request):
         )
     if sort == "old":
         posts = posts.order_by("created_at", "pk")
+    elif sort == "popular":
+        posts = posts.order_by("-like_count", "pk")
+    elif sort == "komen":
+        posts = posts.order_by("-comment_count", "pk")
     else:
         posts = posts.order_by("-created_at", "-pk")
     paginator = Paginator(posts, PAGE_SIZE)
@@ -153,6 +165,7 @@ def index(request):
 @login_required
 @require_POST
 def create_post(request):
+    """Buat postingan baru atas nama user yang login."""
     form = PostForm(request.POST)
     if form.is_valid():
         post = form.save(commit=False)
@@ -167,6 +180,7 @@ def create_post(request):
 @login_required
 @require_POST
 def edit_post(request, pk):
+    """Ubah postingan; hanya author yang bisa (selain itu 404)."""
     post = get_object_or_404(Post, pk=pk, author=request.user)
     form = PostForm(request.POST, instance=post)
     if form.is_valid():
@@ -180,6 +194,7 @@ def edit_post(request, pk):
 @login_required
 @require_POST
 def delete_post(request, pk):
+    """Hapus postingan beserta suka dan komentarnya; hanya author yang bisa."""
     post = get_object_or_404(Post, pk=pk, author=request.user)
     post.delete()
 
@@ -191,6 +206,7 @@ def delete_post(request, pk):
 @login_required
 @require_POST
 def toggle_like(request, pk):
+    """Suka jika belum, batal suka jika sudah. Redirect `next` hanya ke host yang sama."""
     post = get_object_or_404(Post, pk=pk)
     like, created = Like.objects.get_or_create(post=post, user=request.user)
     if not created:
@@ -207,6 +223,7 @@ def toggle_like(request, pk):
 
 
 def post_detail(request, pk):
+    """Halaman satu postingan dengan komentarnya (terbaru dulu, dipaginasi)."""
     post = get_object_or_404(_feed_posts(request.user), pk=pk)
     comments = post.comments.select_related("author").order_by("-created_at", "-pk")
     paginator = Paginator(comments, COMMENT_PAGE_SIZE)
@@ -238,6 +255,7 @@ def post_detail(request, pk):
 @login_required
 @require_POST
 def add_comment(request, pk):
+    """Tambah komentar pada postingan; AJAX mendapat HTML komentar dan jumlah terbaru."""
     post = get_object_or_404(Post, pk=pk)
     form = CommentForm(request.POST)
     if form.is_valid():
@@ -262,6 +280,7 @@ def add_comment(request, pk):
 @login_required
 @require_POST
 def edit_comment(request, pk):
+    """Ubah komentar; hanya author yang bisa."""
     comment = get_object_or_404(Comment, pk=pk, author=request.user)
     form = CommentForm(request.POST, instance=comment)
     if not form.is_valid():
@@ -283,6 +302,7 @@ def edit_comment(request, pk):
 @login_required
 @require_POST
 def delete_comment(request, pk):
+    """Hapus komentar; hanya author yang bisa. AJAX mendapat jumlah komentar terbaru."""
     comment = get_object_or_404(Comment, pk=pk, author=request.user)
     post_id = comment.post_id
     comment.delete()
@@ -295,6 +315,9 @@ def delete_comment(request, pk):
 @login_required
 @require_POST
 def share_news(request):
+    """Bagikan berita GNews sebagai post kategori berita.
+
+    Data berita diambil dari cache server berdasarkan URL, bukan dari kiriman klien."""
     article = find_article(request.POST.get("url", ""))
     if article is None:
         return _fail(request, "Berita tidak ditemukan atau sudah kedaluwarsa.")

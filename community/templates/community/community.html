@@ -48,8 +48,10 @@
               <input id="feed-q" type="search" name="q" value="{{ q }}" placeholder="Cari postingan..." maxlength="100" autocomplete="off">
               <label class="sr-only" for="feed-sort">Urutkan</label>
               <select id="feed-sort" name="sort">
-                <option value="new"{% if sort == "new" %} selected{% endif %}>Terbaru</option>
-                <option value="old"{% if sort == "old" %} selected{% endif %}>Terlama</option>
+                <option value="new"{% if sort == "new" %} selected{% endif %}>Newest</option>
+                <option value="old"{% if sort == "old" %} selected{% endif %}>Oldest</option>
+                <option value="popular"{% if sort == "popular" %} selected{% endif %}>Most liked</option>
+                <option value="komen"{% if sort == "komen" %} selected{% endif %}>Most commented</option>
               </select>
               <button class="btn" type="submit">Cari</button>
             </form>

@@ -1,6 +1,7 @@
 import {getJson, parse, sendForm} from './http.js';
 import {htmlToEl, toast} from './ui.js';
 
+// Aksi komentar di halaman detail: kirim, edit, hapus, dan muat komentar berikutnya
 export function initComments() {
   const list = document.getElementById('comments');
   const counter = document.getElementById('comment-count');
