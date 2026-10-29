@@ -33,21 +33,24 @@
 
   <section class="profile-settings" aria-label="Pengaturan profil">
     <section class="card card--b profile-edit">
-      <h2>Ubah profil</h2>
       <div class="profile-edit-grid">
+        <h2>Ubah profil</h2>
         <form class="profile-edit-form" method="post" action="{% url 'profil:update' %}">
           {% csrf_token %}
           <div class="profile-field"><label for="{{ email_form.email.id_for_label }}">Email</label>{{ email_form.email }}{{ email_form.email.errors }}</div>
           <div class="profile-field"><label for="{{ profile_form.bio.id_for_label }}">Bio</label>{{ profile_form.bio }}{{ profile_form.bio.errors }}</div>
           <button class="btn btn--primary" type="submit">Simpan perubahan</button>
         </form>
+        <h3>Kota domisili</h3>
         <div class="profile-city" data-city-picker data-city-url="{% url 'profil:cities' %}">
-          <h3>Kota domisili</h3>
-          <label class="profile-field" for="city-query">Cari kota Indonesia<input id="city-query" type="search" data-city-query autocomplete="off" minlength="2" placeholder="Cari nama kota"></label>
-          <p class="profile-hint" data-city-status role="status" aria-live="polite">Ketik minimal 2 karakter untuk mencari.</p>
+          <div class="city-search">
+            <label class="profile-field" for="city-query">Cari kota Indonesia<input id="city-query" type="search" data-city-query autocomplete="off" minlength="2" placeholder="Cari nama kota" aria-autocomplete="list" aria-controls="city-suggestions" aria-expanded="false" aria-describedby="city-status"></label>
+            <div class="city-suggestions" id="city-suggestions" data-city-suggestions hidden></div>
+          </div>
+          <p class="profile-hint" id="city-status" data-city-status role="status" aria-live="polite">Ketik minimal 2 karakter untuk mencari.</p>
           <form method="post" action="{% url 'profil:city' %}" data-city-save-form>{% csrf_token %}
-            <div class="profile-field"><label for="{{ city_form.city.id_for_label }}">Pilih kota</label>{{ city_form.city }}{{ city_form.city.errors }}</div>
-            <button class="btn btn--primary" type="submit">Simpan kota</button>
+            {{ city_form.city }}
+            <button class="btn btn--primary" type="submit" disabled>Simpan kota</button>
             <p class="profile-hint" data-city-save-status role="status" aria-live="polite" hidden></p>
           </form>
           <p class="profile-hint">Pencarian kota oleh GeoNames melalui Open-Meteo.</p>
@@ -65,4 +68,4 @@
 </div>
 {% endblock %}
 
-{% block scripts %}<script src="{% static 'js/city-search.js' %}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/city-search.js' %}?v=20261029b" defer></script>{% endblock %}
