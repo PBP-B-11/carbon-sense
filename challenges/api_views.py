@@ -1,7 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db.models import Count
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
@@ -10,9 +9,9 @@ from .utils import proses_checkin
 
 
 def _ambil_tantangan_atau_none(pk):
-    """Mengambil objek Challenge berdasarkan primary key UUID, atau None jika tidak valid."""
+    """Mengambil objek Challenge berdasarkan primary key UUID, atau None jika tidak valid atau tidak ditemukan."""
     try:
-        return get_object_or_404(Challenge, pk=pk)
+        return Challenge.objects.filter(pk=pk).first()
     except (ValidationError, ValueError):
         return None
 
@@ -26,6 +25,14 @@ def api_daftar_tantangan(request):
     ).select_related("badge")
     if kategori in Challenge.Category.values:
         qs = qs.filter(category=kategori)
+
+    joined_ids = set()
+    if request.user.is_authenticated:
+        joined_ids = set(
+            Participation.objects.filter(user=request.user).values_list(
+                "challenge_id", flat=True
+            )
+        )
 
     data = [
         {
@@ -41,6 +48,7 @@ def api_daftar_tantangan(request):
             "icon": c.icon,
             "tone": c.tone,
             "participants": c.participants,
+            "is_joined": c.id in joined_ids,
         }
         for c in qs
     ]

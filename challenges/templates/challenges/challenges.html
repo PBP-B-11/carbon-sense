@@ -109,14 +109,14 @@
       <section class="challenge-list" aria-labelledby="judul-daftar">
         <div class="list-head">
           <h2 class="sec-title" id="judul-daftar">Pilih tantangan <span class="hl">berikutnya</span></h2>
-          <div class="chips" role="group" aria-label="Filter kategori">
-            <a class="chip{% if not selected_category %} chip--active{% endif %}" href="{% url 'challenges:index' %}">Semua</a>
+          <div class="chips" role="group" aria-label="Filter kategori" id="challenge-category-chips">
+            <a class="chip{% if not selected_category %} chip--active{% endif %}" href="{% url 'challenges:index' %}" data-category="">Semua</a>
             {% for nilai, nama in categories %}
-            <a class="chip{% if selected_category == nilai %} chip--active{% endif %}" href="?kategori={{ nilai }}">{{ nama }}</a>
+            <a class="chip{% if selected_category == nilai %} chip--active{% endif %}" href="?kategori={{ nilai }}" data-category="{{ nilai }}">{{ nama }}</a>
             {% endfor %}
           </div>
         </div>
-        <ul class="challenge-grid">
+        <ul class="challenge-grid" id="challenge-grid" data-is-authenticated="{% if request.user.is_authenticated %}true{% else %}false{% endif %}" data-is-superuser="{% if request.user.is_superuser %}true{% else %}false{% endif %}" data-login-url="{% url 'profil:login' %}?next={{ request.path }}">
           {% for tantangan in challenges %}
           <li class="card card--{% cycle 'a' 'b' 'c' 'd' %}{% if tantangan.id in joined_ids %} card--emphasis{% endif %} challenge">
             <div class="top">
