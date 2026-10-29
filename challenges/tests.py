@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -601,3 +602,63 @@ class ChallengeAPITests(TestCase):
         )
         self.assertEqual(res_checkin.status_code, 302)
         self.assertEqual(p2.check_ins.count(), 1)
+
+    def test_api_daftar_tantangan_includes_is_joined_flag(self):
+        """Memverifikasi bahwa API daftar tantangan menyertakan flag is_joined untuk user yang login."""
+        self.client.force_login(self.user)
+        Participation.objects.create(
+            user=self.user, challenge=self.challenge, started_at=timezone.localdate()
+        )
+        url = reverse("challenges_api:list")
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+        items = res.json()
+        item = next(i for i in items if i["id"] == str(self.challenge.id))
+        self.assertTrue(item["is_joined"])
+
+    def test_api_detail_not_found_returns_404(self):
+        """Memverifikasi bahwa request detail untuk ID yang tidak ditemukan mengembalikan JSON 404."""
+        url = reverse("challenges_api:detail", kwargs={"id": uuid.uuid4()})
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["error"], "Tantangan tidak ditemukan.")
+
+    def test_api_checkin_not_found_returns_404(self):
+        """Memverifikasi bahwa request checkin untuk ID yang tidak ditemukan mengembalikan JSON 404."""
+        self.client.force_login(self.user)
+        url = reverse("challenges_api:checkin", kwargs={"id": uuid.uuid4()})
+        res = self.client.post(url)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["error"], "Tantangan tidak ditemukan.")
+
+    def test_api_ikut_not_found_returns_404(self):
+        """Memverifikasi bahwa request ikut untuk ID yang tidak ditemukan mengembalikan JSON 404."""
+        self.client.force_login(self.user)
+        url = reverse("challenges_api:ikut", kwargs={"id": uuid.uuid4()})
+        res = self.client.post(url)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["error"], "Tantangan tidak ditemukan.")
+
+    def test_api_filter_kategori_tidak_valid_mengabaikan_filter(self):
+        """Memverifikasi bahwa kategori tidak valid pada query param diabaikan dan mengembalikan seluruh data."""
+        url = reverse("challenges_api:list") + "?kategori=kategori_palsu"
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertGreaterEqual(len(res.json()), 1)
+
+    def test_form_validasi_duration_days_minimal_1(self):
+        """Memverifikasi bahwa form menolak durasi kurang dari 1 hari."""
+        data = {
+            "title": "Tantangan Singkat",
+            "description": "Deskripsi singkat",
+            "category": Challenge.Category.ENERGY,
+            "duration_days": 0,
+            "points": 20,
+            "estimated_saving_kg": 1.0,
+            "icon": "zap",
+            "tone": "amber",
+        }
+        form = TantanganForm(data=data)
+        self.assertFalse(form.is_valid())
+        self.assertIn("duration_days", form.errors)
+        self.assertIn("minimal 1 hari", form.errors["duration_days"][0])
