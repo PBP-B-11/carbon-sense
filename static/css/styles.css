@@ -2085,6 +2085,22 @@ main {
   line-height: 1.4;
 }
 
+.password-help {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.password-help ul {
+  padding-left: 18px;
+  list-style: disc;
+}
+
+.password-help li + li {
+  margin-top: 4px;
+}
+
 @media (max-width: 850px) {
   .login-layout {
     grid-template-columns: 1fr;
