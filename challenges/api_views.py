@@ -1,9 +1,10 @@
 from django.core.exceptions import ValidationError
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
+from .decorators import ratelimit_endpoint, require_superuser_json
 from .models import Challenge, Participation
 from .utils import proses_checkin
 
@@ -18,13 +19,30 @@ def _ambil_tantangan_atau_none(pk):
 
 @require_GET
 def api_daftar_tantangan(request):
-    """Mengembalikan daftar seluruh tantangan dalam format JSON, mendukung filter kategori."""
-    kategori = request.GET.get("kategori", "")
+    """Mengembalikan daftar seluruh tantangan dalam format JSON.
+
+    Mendukung filter kategori, pencarian kata kunci (q), dan pengurutan (sort).
+    """
+    kategori = request.GET.get("kategori", "").strip()
+    q = request.GET.get("q", "").strip()
+    sort = request.GET.get("sort", "").strip()
+
     qs = Challenge.objects.annotate(
         participants=Count("participations__user", distinct=True)
     ).select_related("badge")
+
     if kategori in Challenge.Category.values:
         qs = qs.filter(category=kategori)
+
+    if q:
+        qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q))
+
+    if sort == "poin":
+        qs = qs.order_by("-points")
+    elif sort == "durasi":
+        qs = qs.order_by("duration_days")
+    elif sort == "peserta":
+        qs = qs.order_by("-participants")
 
     joined_ids = set()
     if request.user.is_authenticated:
@@ -87,6 +105,7 @@ def api_detail_tantangan(request, id):
 
 
 @require_POST
+@ratelimit_endpoint(max_requests=25, window_seconds=60)
 def api_ikuti(request, id):
     """Endpoint JSON untuk mendaftarkan pengguna mengikuti sebuah tantangan."""
     if not request.user.is_authenticated:
@@ -142,8 +161,9 @@ def api_ikuti(request, id):
 
 
 @require_POST
+@ratelimit_endpoint(max_requests=25, window_seconds=60)
 def api_checkin(request, id):
-    """Endpoint JSON untuk mencatat check-in harian tantangan aktif pengguna."""
+    """Endpoint JSON untuk mencatat check-in harian pada tantangan aktif."""
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Autentikasi diperlukan."}, status=401)
 
@@ -151,22 +171,41 @@ def api_checkin(request, id):
     if challenge is None:
         return JsonResponse({"error": "Tantangan tidak ditemukan."}, status=404)
 
-    partisipasi = Participation.objects.filter(
-        user=request.user, challenge=challenge, status=Participation.Status.ACTIVE
-    ).first()
+    partisipasi = (
+        Participation.objects.filter(
+            user=request.user,
+            challenge=challenge,
+            status=Participation.Status.ACTIVE,
+        )
+        .select_related("challenge")
+        .first()
+    )
+
     if partisipasi is None:
         return JsonResponse(
-            {"error": "Kamu belum mengikuti tantangan ini."}, status=404
+            {"error": "Kamu belum mengikuti tantangan ini."}, status=400
         )
 
     hasil = proses_checkin(partisipasi, request.user)
-    if not hasil["baru_dibuat"]:
-        return JsonResponse({"error": "Kamu sudah check-in hari ini."}, status=409)
 
-    if hasil["selesai"]:
-        pesan = f'Selamat, "{challenge.title}" selesai! +{challenge.points} poin.'
-    else:
-        pesan = "Check-in hari ini tercatat."
+    if not hasil["baru_dibuat"]:
+        return JsonResponse(
+            {
+                "error": "Kamu sudah check-in hari ini.",
+                "data": {
+                    "done_days": partisipasi.check_ins.count(),
+                    "total_days": partisipasi.challenge.duration_days,
+                    "completed": False,
+                },
+            },
+            status=409,
+        )
+
+    pesan = (
+        f'Selamat, "{challenge.title}" selesai! +{challenge.points} poin.'
+        if hasil["selesai"]
+        else "Check-in hari ini tercatat."
+    )
 
     return JsonResponse(
         {
@@ -177,11 +216,13 @@ def api_checkin(request, id):
                 "done_days": hasil["progres"]["done_days"],
                 "total_days": hasil["progres"]["total_days"],
                 "percent": hasil["progres"]["percent"],
+                "completed": hasil["selesai"],
+                "badge": hasil["lencana_tantangan"],
+                "badge_earned": hasil["lencana_tantangan"],
+                "streak_badges": hasil["lencana_streak"],
                 "points_earned": hasil["points_earned"],
                 "total_points": hasil["total_points"],
                 "streak": hasil["streak"],
-                "badge": hasil["lencana_tantangan"],
-                "streak_badges": hasil["lencana_streak"],
             },
         },
         status=200,
@@ -189,6 +230,7 @@ def api_checkin(request, id):
 
 
 @require_POST
+@ratelimit_endpoint(max_requests=25, window_seconds=60)
 def api_berhenti(request, id):
     """Endpoint JSON untuk berhenti dari tantangan aktif yang sedang diikuti."""
     if not request.user.is_authenticated:
@@ -217,15 +259,9 @@ def api_berhenti(request, id):
 
 
 @require_POST
+@require_superuser_json
 def api_hapus(request, id):
     """Endpoint JSON untuk menghapus tantangan dari katalog (khusus superuser)."""
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Autentikasi diperlukan."}, status=401)
-    if not request.user.is_superuser:
-        return JsonResponse(
-            {"error": "Hanya superuser yang dapat menghapus tantangan."}, status=403
-        )
-
     challenge = _ambil_tantangan_atau_none(id)
     if challenge is None:
         return JsonResponse({"error": "Tantangan tidak ditemukan."}, status=404)
