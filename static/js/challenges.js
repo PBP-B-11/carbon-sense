@@ -174,10 +174,10 @@ function renderChallengesList(items) {
     let superuserActions = '';
     if (isSuperuser) {
       superuserActions = `
-        <a class="btn-edit" href="/challenges/ubah/${item.id}/" title="Ubah tantangan" style="color: var(--color-stone-text-subtle); display: inline-flex; align-items: center; padding: 4px;" aria-label="Ubah tantangan ${escapeHtml(item.title)}">
+        <a class="btn-edit" href="/challenges/${item.id}/ubah/" title="Ubah tantangan" style="color: var(--color-stone-text-subtle); display: inline-flex; align-items: center; padding: 4px;" aria-label="Ubah tantangan ${escapeHtml(item.title)}">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-pencil"/></svg>
         </a>
-        <a class="btn-delete" href="/challenges/hapus/${item.id}/" title="Hapus tantangan" style="color: var(--color-error-text); display: inline-flex; align-items: center; padding: 4px;" aria-label="Hapus tantangan ${escapeHtml(item.title)}">
+        <a class="btn-delete" href="/challenges/${item.id}/hapus/" title="Hapus tantangan" style="color: var(--color-error-text); display: inline-flex; align-items: center; padding: 4px;" aria-label="Hapus tantangan ${escapeHtml(item.title)}">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash-2"/></svg>
         </a>
       `;
@@ -243,6 +243,13 @@ function initCategoryFilter() {
       window.history.pushState({ category }, '', href);
     }
 
+    const grid = document.getElementById('challenge-grid');
+    if (grid) {
+      grid.style.opacity = '0.5';
+      grid.style.pointerEvents = 'none';
+      grid.style.transition = 'opacity 0.15s ease';
+    }
+
     try {
       const url = category ? `/api/tantangan/?kategori=${encodeURIComponent(category)}` : '/api/tantangan/';
       const response = await fetch(url, {
@@ -254,6 +261,11 @@ function initCategoryFilter() {
       }
     } catch (err) {
       console.error('Category filter fetch error:', err);
+    } finally {
+      if (grid) {
+        grid.style.opacity = '1';
+        grid.style.pointerEvents = '';
+      }
     }
   });
 
@@ -264,11 +276,23 @@ function initCategoryFilter() {
       chipsContainer.querySelectorAll('.chip').forEach((c) => c.classList.remove('chip--active'));
       targetChip.classList.add('chip--active');
     }
+    const grid = document.getElementById('challenge-grid');
+    if (grid) {
+      grid.style.opacity = '0.5';
+      grid.style.pointerEvents = 'none';
+      grid.style.transition = 'opacity 0.15s ease';
+    }
     const url = category ? `/api/tantangan/?kategori=${encodeURIComponent(category)}` : '/api/tantangan/';
     fetch(url, { headers: { 'Accept': 'application/json' } })
       .then((res) => res.json())
       .then((data) => renderChallengesList(data))
-      .catch((err) => console.error(err));
+      .catch((err) => console.error(err))
+      .finally(() => {
+        if (grid) {
+          grid.style.opacity = '1';
+          grid.style.pointerEvents = '';
+        }
+      });
   });
 }
 
