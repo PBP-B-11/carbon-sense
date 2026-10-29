@@ -4,7 +4,7 @@ import requests
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from .models import UserProfile
@@ -40,6 +40,25 @@ class ProfileTests(TestCase):
             f"{reverse('profil:login')}?next={reverse('profil:index')}"
         )
         self.assertContains(response, f'name="next" value="{reverse("profil:index")}"')
+
+    @override_settings(DEBUG=False, CSRF_COOKIE_SECURE=True)
+    def test_login_post_accepts_pws_https_origin(self):
+        client = Client(enforce_csrf_checks=True)
+        host = "faishal-falih-carbon-sense.pws.cs.ui.ac.id"
+        url = reverse("profil:login")
+        client.get(url, HTTP_HOST=host, HTTP_X_FORWARDED_PROTO="https")
+        response = client.post(
+            url,
+            {
+                "username": "nonexistent-user",
+                "password": "invalid-password",
+                "csrfmiddlewaretoken": client.cookies["csrftoken"].value,
+            },
+            HTTP_HOST=host,
+            HTTP_ORIGIN=f"https://{host}",
+            HTTP_X_FORWARDED_PROTO="https",
+        )
+        self.assertEqual(response.status_code, 200)
 
     @patch(
         "profil.views.environment_snapshot",

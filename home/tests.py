@@ -1,7 +1,8 @@
 from decimal import Decimal
+from tempfile import TemporaryDirectory
 
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -53,3 +54,16 @@ class HomePageTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.context["weekly_emissions"], Decimal("2.85"))
         self.assertContains(res, "2,9")
+
+
+class StaticFilesTests(SimpleTestCase):
+    def test_css_is_served_without_collectstatic(self):
+        with TemporaryDirectory() as static_root:
+            with override_settings(DEBUG=False, STATIC_ROOT=static_root):
+                response = self.client.get(
+                    "/static/css/styles.css",
+                    HTTP_HOST="faishal-falih-carbon-sense.pws.cs.ui.ac.id",
+                )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response["Content-Type"].startswith("text/css"))

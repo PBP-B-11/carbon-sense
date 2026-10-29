@@ -24,14 +24,18 @@ CLIMATIQ_API_KEY = os.getenv("CLIMATIQ_API_KEY", "")
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure--d*d!1c9w@xz1@0a66@#&w5gzz76)++n5*^7w986c+)mb^t@sz"
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+PRODUCTION = os.getenv("PRODUCTION", "False").lower() == "true"
+SECRET_KEY = (
+    os.environ["DJANGO_SECRET_KEY"]
+    if PRODUCTION
+    else "django-insecure--d*d!1c9w@xz1@0a66@#&w5gzz76)++n5*^7w986c+)mb^t@sz"
+)
+DEBUG = not PRODUCTION
+SESSION_COOKIE_SECURE = PRODUCTION
+CSRF_COOKIE_SECURE = PRODUCTION
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "faishal-falih-carbon-sense.pws.cs.ui.ac.id"]
-PRODUCTION = os.getenv("PRODUCTION", "False").lower() == "true"
+CSRF_TRUSTED_ORIGINS = ["https://faishal-falih-carbon-sense.pws.cs.ui.ac.id"]
 GNEWS_API_KEY = os.getenv("GNEWS_API_KEY", "")
 
 # Application definition
@@ -144,6 +148,7 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+WHITENOISE_USE_FINDERS = True
 
 LOGIN_URL = "/profil/login/"
 LOGIN_REDIRECT_URL = "/profil/"
