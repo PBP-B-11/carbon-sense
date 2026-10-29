@@ -10,7 +10,7 @@ class CityChoiceForm(forms.Form):
     city = forms.ChoiceField(
         label="Pilih kota",
         choices=[("", "Ketik di atas untuk mencari")],
-        widget=forms.Select(attrs={"data-city-results": ""}),
+        widget=forms.HiddenInput(attrs={"data-city-value": ""}),
     )
 
     def __init__(self, *args, cities=(), **kwargs):
@@ -39,7 +39,7 @@ class RegisterForm(UserCreationForm):
             label="Pilih kota",
             choices=[("", "Pilih kota")]
             + [(city["token"], city["label"]) for city in cities],
-            widget=forms.Select(attrs={"data-city-results": ""}),
+            widget=forms.HiddenInput(attrs={"data-city-value": ""}),
             error_messages={
                 "required": "Pilih kota dari hasil pencarian.",
                 "invalid_choice": "Pilih kota dari hasil pencarian.",

@@ -1,11 +1,43 @@
 document.querySelectorAll('[data-city-picker]').forEach((picker) => {
   const queryInput = picker.querySelector('[data-city-query]');
-  const citySelect = picker.querySelector('[data-city-results]');
+  const cityValue = picker.querySelector('[data-city-value]');
+  const suggestions = picker.querySelector('[data-city-suggestions]');
   const status = picker.querySelector('[data-city-status]');
   const saveForm = picker.querySelector('[data-city-save-form]');
+  const saveButton = saveForm?.querySelector('button[type="submit"]');
   const saveStatus = picker.querySelector('[data-city-save-status]');
   let timer;
   let controller;
+
+  const hideSuggestions = () => {
+    suggestions.hidden = true;
+    suggestions.replaceChildren();
+    queryInput.setAttribute('aria-expanded', 'false');
+  };
+
+  const showSuggestions = (results) => {
+    suggestions.replaceChildren(...results.map(({label, token}) => {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'city-suggestion';
+      option.textContent = label;
+      option.addEventListener('click', () => {
+        cityValue.value = token;
+        queryInput.value = label;
+        hideSuggestions();
+        status.textContent = saveButton ? 'Kota dipilih. Klik "Simpan kota" untuk menerapkan.' : 'Kota dipilih.';
+        if (saveButton) saveButton.disabled = false;
+        if (saveStatus) {
+          saveStatus.textContent = '';
+          saveStatus.hidden = true;
+        }
+        queryInput.focus();
+      });
+      return option;
+    }));
+    suggestions.hidden = results.length === 0;
+    queryInput.setAttribute('aria-expanded', String(results.length > 0));
+  };
 
   queryInput.addEventListener('input', () => {
     if (saveStatus) {
@@ -14,8 +46,9 @@ document.querySelectorAll('[data-city-picker]').forEach((picker) => {
     }
     clearTimeout(timer);
     controller?.abort();
-    citySelect.size = 1;
-    citySelect.replaceChildren(new Option('Ketik minimal 2 karakter untuk mencari', ''));
+    cityValue.value = '';
+    if (saveButton) saveButton.disabled = true;
+    hideSuggestions();
     const query = queryInput.value.trim();
 
     if (query.length < 2) {
@@ -35,36 +68,34 @@ document.querySelectorAll('[data-city-picker]').forEach((picker) => {
         const {results} = await response.json();
         if (query !== queryInput.value.trim()) return;
 
-        citySelect.size = Math.min(results.length || 1, 5);
-        citySelect.replaceChildren(new Option('Pilih kota', ''));
-        results.forEach(({label, token}) => citySelect.add(new Option(label, token)));
-        status.textContent = results.length ? 'Pilih kota dari daftar.' : 'Tidak ada kota yang ditemukan.';
+        showSuggestions(results);
+        status.textContent = results.length ? 'Pilih kota dari saran.' : 'Tidak ada kota yang ditemukan.';
       } catch (error) {
         if (error.name !== 'AbortError' && query === queryInput.value.trim()) {
-          citySelect.replaceChildren(new Option('Pencarian gagal', ''));
+          hideSuggestions();
           status.textContent = 'Pencarian kota gagal. Coba lagi.';
         }
       }
     }, 300);
   });
 
-  citySelect.addEventListener('change', () => {
-    if (citySelect.value) citySelect.size = 1;
-    if (saveStatus) {
-      saveStatus.textContent = '';
-      saveStatus.hidden = true;
+  queryInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') hideSuggestions();
+    if (event.key === 'ArrowDown' && !suggestions.hidden) {
+      event.preventDefault();
+      suggestions.querySelector('button')?.focus();
     }
   });
 
   if (saveForm) {
-    const saveButton = saveForm.querySelector('button[type="submit"]');
+    saveButton.disabled = !cityValue.value;
     saveForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const formData = new FormData(saveForm);
       let failure = 'Gagal menyimpan kota. Coba lagi.';
       saveButton.disabled = true;
       queryInput.disabled = true;
-      citySelect.disabled = true;
+      cityValue.disabled = true;
       saveStatus.hidden = false;
       saveStatus.textContent = 'Menyimpan kota...';
 
@@ -92,13 +123,13 @@ document.querySelectorAll('[data-city-picker]').forEach((picker) => {
       } catch {
         saveStatus.textContent = failure;
       } finally {
-        saveButton.disabled = false;
+        saveButton.disabled = !cityValue.value;
         queryInput.disabled = false;
-        citySelect.disabled = false;
+        cityValue.disabled = false;
       }
     });
   }
 
-  if (citySelect.value) status.textContent = 'Kota dipilih.';
+  if (cityValue.value) status.textContent = 'Kota dipilih.';
   else if (queryInput.value.trim().length >= 2) queryInput.dispatchEvent(new Event('input'));
 });
