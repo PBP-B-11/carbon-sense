@@ -1046,14 +1046,18 @@ main {
 
 .home-feature {
   display: grid;
-  grid-template-columns: 1.25fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 24px;
   margin-top: 71.5px;
+  align-items: stretch;
 }
 
 .tip {
   padding: 32px 40px;
-  height: 346px;
+  min-height: 346px;
+  height: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .tip h2 {
@@ -1075,12 +1079,23 @@ main {
 }
 
 .tip .btn {
-  margin-top: 29px;
+  margin-top: auto;
+  align-self: flex-start;
 }
 
 .news {
-  padding: 26px 28px 0;
-  height: 346px;
+  padding: 26px 28px;
+  min-height: 346px;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.news ul {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-grow: 1;
 }
 
 .news-head {

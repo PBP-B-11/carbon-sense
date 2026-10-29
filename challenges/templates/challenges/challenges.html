@@ -107,16 +107,22 @@
       </section>
 
       <section class="challenge-list" aria-labelledby="judul-daftar">
-        <div class="list-head">
+        <div class="list-head" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
           <h2 class="sec-title" id="judul-daftar">Pilih tantangan <span class="hl">berikutnya</span></h2>
-          <div class="chips" role="group" aria-label="Filter kategori">
-            <a class="chip{% if not selected_category %} chip--active{% endif %}" href="{% url 'challenges:index' %}">Semua</a>
-            {% for nilai, nama in categories %}
-            <a class="chip{% if selected_category == nilai %} chip--active{% endif %}" href="?kategori={{ nilai }}">{{ nama }}</a>
-            {% endfor %}
+          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div style="position: relative; display: inline-flex; align-items: center;">
+              <input type="text" id="challenge-search-input" placeholder="Cari tantangan..." value="{{ search_query }}" aria-label="Cari tantangan" style="padding: 7px 12px 7px 32px; border-radius: 999px; border: 1px solid var(--color-stone-border); background: var(--color-surface); font-size: 13px; color: var(--color-text-primary); outline: none; width: 170px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 10px; color: var(--color-stone-text-subtle); pointer-events: none;" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+            <div class="chips" role="group" aria-label="Filter kategori" id="challenge-category-chips">
+              <a class="chip{% if not selected_category %} chip--active{% endif %}" href="{% url 'challenges:index' %}" data-category="">Semua</a>
+              {% for nilai, nama in categories %}
+              <a class="chip{% if selected_category == nilai %} chip--active{% endif %}" href="?kategori={{ nilai }}" data-category="{{ nilai }}">{{ nama }}</a>
+              {% endfor %}
+            </div>
           </div>
         </div>
-        <ul class="challenge-grid">
+        <ul class="challenge-grid" id="challenge-grid" data-is-authenticated="{% if request.user.is_authenticated %}true{% else %}false{% endif %}" data-is-superuser="{% if request.user.is_superuser %}true{% else %}false{% endif %}" data-login-url="{% url 'profil:login' %}?next={{ request.path }}">
           {% for tantangan in challenges %}
           <li class="card card--{% cycle 'a' 'b' 'c' 'd' %}{% if tantangan.id in joined_ids %} card--emphasis{% endif %} challenge">
             <div class="top">

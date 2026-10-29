@@ -1,12 +1,14 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Count
-from django.http import Http404
+from django.core import serializers
+from django.core.exceptions import ValidationError
+from django.db.models import Count, Q
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from .decorators import require_superuser_html
 from .forms import TantanganForm
 from .models import Badge, Challenge, CheckIn, Participation, UserBadge
 from .utils import hitung_progres, hitung_streak, proses_checkin, total_poin
@@ -73,11 +75,9 @@ AKSI = {"ikut": ikuti, "checkin": checkin, "berhenti": berhenti}
 
 
 @login_required
+@require_superuser_html
 def tambah_tantangan(request):
     """Halaman tambah tantangan, dibatasi khusus untuk superuser."""
-    if not request.user.is_superuser:
-        raise PermissionDenied("Hanya superuser yang dapat menambahkan tantangan baru.")
-
     form = TantanganForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         tantangan = form.save()
@@ -87,11 +87,9 @@ def tambah_tantangan(request):
 
 
 @login_required
+@require_superuser_html
 def ubah_tantangan(request, id):
     """Halaman ubah tantangan, dibatasi khusus untuk superuser."""
-    if not request.user.is_superuser:
-        raise PermissionDenied("Hanya superuser yang dapat mengubah tantangan.")
-
     tantangan = get_object_or_404(Challenge, pk=id)
     form = TantanganForm(request.POST or None, instance=tantangan)
     if request.method == "POST" and form.is_valid():
@@ -104,11 +102,9 @@ def ubah_tantangan(request, id):
 
 
 @login_required
+@require_superuser_html
 def hapus_tantangan(request, id):
     """Menghapus tantangan dari katalog, dibatasi khusus untuk superuser."""
-    if not request.user.is_superuser:
-        raise PermissionDenied("Hanya superuser yang dapat menghapus tantangan.")
-
     tantangan = get_object_or_404(Challenge, pk=id)
     if request.method == "POST":
         judul = tantangan.title
@@ -138,10 +134,11 @@ def _bangun_kartu_aktif(partisipasi, hari_ini):
 
 
 def _ambil_data_pengguna(user):
-    """Mengambil seluruh data progres personal pengguna terautentikasi."""
+    """Mengambil seluruh data progres personal pengguna terautentikasi dengan query teroptimasi."""
     aktif = (
         Participation.objects.filter(user=user, status=Participation.Status.ACTIVE)
-        .select_related("challenge")
+        .select_related("challenge", "challenge__badge")
+        .prefetch_related("check_ins")
         .order_by("-started_at")
     )
     hari_ini = timezone.localdate()
@@ -164,7 +161,10 @@ def _ambil_data_pengguna(user):
 
 
 def daftar_tantangan(request):
-    """Menampilkan katalog tantangan publik dan progres pribadi pengguna terautentikasi."""
+    """Menampilkan katalog tantangan publik dan progres pribadi pengguna terautentikasi.
+
+    Mendukung dynamic filtering berdasarkan kategori, query pencarian (q), dan sorting.
+    """
     user = request.user
 
     if request.method == "POST":
@@ -183,12 +183,28 @@ def daftar_tantangan(request):
             aksi(request, tantangan)
         return redirect("challenges:index")
 
-    kategori = request.GET.get("kategori", "")
+    kategori = request.GET.get("kategori", "").strip()
+    q = request.GET.get("q", "").strip()
+    sort = request.GET.get("sort", "").strip()
+
     tantangan = Challenge.objects.annotate(
         participants=Count("participations__user", distinct=True)
-    )
+    ).select_related("badge")
+
     if kategori in Challenge.Category.values:
         tantangan = tantangan.filter(category=kategori)
+
+    if q:
+        tantangan = tantangan.filter(
+            Q(title__icontains=q) | Q(description__icontains=q)
+        )
+
+    if sort == "poin":
+        tantangan = tantangan.order_by("-points")
+    elif sort == "durasi":
+        tantangan = tantangan.order_by("duration_days")
+    elif sort == "peserta":
+        tantangan = tantangan.order_by("-participants")
 
     personal = (
         _ambil_data_pengguna(user)
@@ -207,8 +223,46 @@ def daftar_tantangan(request):
         "challenges": tantangan,
         "categories": Challenge.Category.choices,
         "selected_category": kategori,
+        "search_query": q,
+        "selected_sort": sort,
         "badges": Badge.objects.all(),
         "owned_badge_count": len(personal["owned_badge_ids"]),
         **personal,
     }
     return render(request, "challenges/challenges.html", context)
+
+
+def show_xml(request):
+    """Mengembalikan daftar seluruh tantangan dalam format XML standar Django."""
+    data = Challenge.objects.all()
+    return HttpResponse(
+        serializers.serialize("xml", data), content_type="application/xml"
+    )
+
+
+def show_json(request):
+    """Mengembalikan seluruh tantangan dalam format JSON bawaan Django serializers."""
+    data = Challenge.objects.all()
+    return HttpResponse(
+        serializers.serialize("json", data), content_type="application/json"
+    )
+
+
+def show_xml_by_id(request, id):
+    """Mengembalikan detail tantangan spesifik berdasarkan UUID dalam format XML."""
+    data = Challenge.objects.filter(pk=id)
+    if not data.exists():
+        raise Http404("Tantangan tidak ditemukan.")
+    return HttpResponse(
+        serializers.serialize("xml", data), content_type="application/xml"
+    )
+
+
+def show_json_by_id(request, id):
+    """Mengembalikan detail tantangan spesifik berdasarkan UUID dalam format JSON serializers."""
+    data = Challenge.objects.filter(pk=id)
+    if not data.exists():
+        raise Http404("Tantangan tidak ditemukan.")
+    return HttpResponse(
+        serializers.serialize("json", data), content_type="application/json"
+    )
