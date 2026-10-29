@@ -1,6 +1,10 @@
+from math import ceil
+from time import time
+
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, PasswordChangeView
+from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
@@ -18,6 +22,13 @@ from .forms import (
 )
 from .models import UserProfile
 from .services import city_from_token, city_token, environment_snapshot, search_cities
+
+PROFILE_UPDATE_COOLDOWN = 10
+
+
+def profile_update_wait(user_id):
+    expires_at = cache.get(f"profile-update:{user_id}")
+    return max(0, ceil(expires_at - time())) if expires_at else 0
 
 
 def city_options(query):
@@ -88,6 +99,7 @@ def index(request, email_form=None, profile_form=None, city_form=None):
             if profile_form is not None
             else ProfileForm(instance=profile),
             "city_form": city_form if city_form is not None else CityChoiceForm(),
+            "profile_update_wait": profile_update_wait(request.user.pk),
         },
     )
 
@@ -98,10 +110,41 @@ def update_profile(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
     email_form = EmailForm(request.POST, instance=request.user)
     profile_form = ProfileForm(request.POST, instance=profile)
+    ajax = request.headers.get("Accept") == "application/json"
     if email_form.is_valid() and profile_form.is_valid():
+        if not cache.add(
+            f"profile-update:{request.user.pk}",
+            time() + PROFILE_UPDATE_COOLDOWN,
+            timeout=PROFILE_UPDATE_COOLDOWN,
+        ):
+            wait = profile_update_wait(request.user.pk)
+            message = f"Kamu bisa mengubah profil lagi dalam {wait} detik."
+            if ajax:
+                return JsonResponse(
+                    {"message": message, "retry_after": wait}, status=429
+                )
+            email_form.add_error(None, message)
+            return index(request, email_form=email_form, profile_form=profile_form)
+
         email_form.save()
-        profile_form.save()
+        profile = profile_form.save()
+        if ajax:
+            return JsonResponse(
+                {
+                    "email": request.user.email,
+                    "bio": profile.bio
+                    or "Belum ada bio. Tambahkan cerita singkat tentang diri Anda.",
+                    "cooldown": PROFILE_UPDATE_COOLDOWN,
+                }
+            )
         return redirect("profil:index")
+    if ajax:
+        errors = {
+            name: [str(error) for error in field_errors]
+            for form in (email_form, profile_form)
+            for name, field_errors in form.errors.items()
+        }
+        return JsonResponse({"errors": errors}, status=400)
     return index(request, email_form=email_form, profile_form=profile_form)
 
 

@@ -18,9 +18,9 @@
         <span class="avatar" aria-hidden="true">{{ request.user.username|slice:":2"|upper }}</span>
         <div><h2>{{ request.user.username }}</h2><p class="handle">@{{ request.user.username }} · <span data-profile-city>{{ profile.city_name|default:"Kota belum dipilih" }}</span></p></div>
       </div>
-      <p class="profile-bio">{{ profile.bio|default:"Belum ada bio. Tambahkan cerita singkat tentang diri Anda." }}</p>
+      <p class="profile-bio" data-profile-bio>{{ profile.bio|default:"Belum ada bio. Tambahkan cerita singkat tentang diri Anda." }}</p>
       <dl class="profile-details">
-        <div><dt>Email</dt><dd>{{ request.user.email }}</dd></div>
+        <div><dt>Email</dt><dd data-profile-email>{{ request.user.email }}</dd></div>
         <div><dt>Kota domisili</dt><dd data-profile-city>{{ profile.city_name|default:"Belum dipilih" }}</dd></div>
         <div><dt>Poin</dt><dd>{{ challenge_stats.poin }}</dd></div>
         <div><dt>Streak</dt><dd>{{ challenge_stats.streak }} hari</dd></div>
@@ -35,11 +35,13 @@
     <section class="card card--b profile-edit">
       <div class="profile-edit-grid">
         <h2>Ubah profil</h2>
-        <form class="profile-edit-form" method="post" action="{% url 'profil:update' %}">
+        <form class="profile-edit-form" method="post" action="{% url 'profil:update' %}" data-profile-update-form data-cooldown="{{ profile_update_wait }}">
           {% csrf_token %}
+          {{ email_form.non_field_errors }}{{ profile_form.non_field_errors }}
           <div class="profile-field"><label for="{{ email_form.email.id_for_label }}">Email</label>{{ email_form.email }}{{ email_form.email.errors }}</div>
           <div class="profile-field"><label for="{{ profile_form.bio.id_for_label }}">Bio</label>{{ profile_form.bio }}{{ profile_form.bio.errors }}</div>
           <button class="btn btn--primary" type="submit">Simpan perubahan</button>
+          <p class="profile-hint" data-profile-save-status role="status" aria-live="polite" hidden></p>
         </form>
         <h3>Kota domisili</h3>
         <div class="profile-city" data-city-picker data-city-url="{% url 'profil:cities' %}">
@@ -68,4 +70,4 @@
 </div>
 {% endblock %}
 
-{% block scripts %}<script src="{% static 'js/city-search.js' %}?v=20261029b" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/city-search.js' %}?v=20261029b" defer></script><script src="{% static 'js/profile-update.js' %}?v=20261029a" defer></script>{% endblock %}
