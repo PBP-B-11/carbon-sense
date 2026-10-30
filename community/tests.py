@@ -925,3 +925,55 @@ class AssetPageTests(TestCase):
                 imports["/static/js/community/ui.js"],
                 f"/static/js/community/ui.js?v={version}",
             )
+
+
+class SortTieBreakTests(TestCase):
+    def test_equal_counts_are_ordered_newest_first(self):
+        from datetime import datetime, timezone
+
+        user = get_user_model().objects.create_user("u", password="x")
+        posts = []
+        for day, name in ((1, "lama"), (2, "tengah"), (3, "baru")):
+            post = Post.objects.create(author=user, content=name)
+            Post.objects.filter(pk=post.pk).update(
+                created_at=datetime(2026, 10, day, tzinfo=timezone.utc)
+            )
+            posts.append(post)
+        # Tanpa suka dan komentar, jumlahnya sama untuk semua post
+        for sort in ("popular", "komen"):
+            res = self.client.get(reverse("community:index"), {"sort": sort})
+            self.assertEqual(
+                [p.content for p in res.context["posts"]], ["baru", "tengah", "lama"]
+            )
+
+
+class NewsCategoryTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("u", password="x")
+        self.client.force_login(self.user)
+        self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+    def test_cannot_create_post_in_news_category(self):
+        res = self.client.post(
+            reverse("community:create_post"),
+            {"content": "halo", "category": "berita"},
+            **self.ajax,
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(Post.objects.exists())
+
+    def test_cannot_move_regular_post_to_news_category(self):
+        post = Post.objects.create(author=self.user, category="tips", content="halo")
+        res = self.client.post(
+            reverse("community:edit_post", args=[post.pk]),
+            {"content": "halo", "category": "berita"},
+            **self.ajax,
+        )
+        self.assertEqual(res.status_code, 400)
+        post.refresh_from_db()
+        self.assertEqual(post.category, "tips")
+
+    def test_composer_does_not_offer_news_chip_but_filter_does(self):
+        res = self.client.get(reverse("community:index"))
+        self.assertNotContains(res, 'name="category" value="berita"')
+        self.assertContains(res, 'data-category="berita"')

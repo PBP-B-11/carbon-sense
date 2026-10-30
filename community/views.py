@@ -13,6 +13,7 @@ from django.views.decorators.vary import vary_on_headers
 from .assets import community_assets
 from .forms import (
     COMMENT_MAX_LENGTH,
+    NEWS_CATEGORY,
     POST_MAX_LENGTH,
     CommentForm,
     PostForm,
@@ -122,9 +123,9 @@ def index(request):
     if sort == "old":
         posts = posts.order_by("created_at", "pk")
     elif sort == "popular":
-        posts = posts.order_by("-like_count", "pk")
+        posts = posts.order_by("-like_count", "-created_at", "-pk")
     elif sort == "komen":
-        posts = posts.order_by("-comment_count", "pk")
+        posts = posts.order_by("-comment_count", "-created_at", "-pk")
     else:
         posts = posts.order_by("-created_at", "-pk")
     paginator = Paginator(posts, PAGE_SIZE)
@@ -334,7 +335,7 @@ def share_news(request):
 
     post = Post.objects.create(
         author=request.user,
-        category="berita",
+        category=NEWS_CATEGORY,
         content=form.cleaned_data["content"],
         news_title=article["title"][:255],
         news_source=article["source"][:100],
