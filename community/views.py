@@ -1,3 +1,6 @@
+import math
+from datetime import timedelta
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
@@ -6,6 +9,7 @@ from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.http import require_POST
 from django.views.decorators.vary import vary_on_headers
@@ -28,6 +32,8 @@ COMMENT_PAGE_SIZE = 20
 CATEGORIES = {value for value, _ in Post.CATEGORY_CHOICES}
 SORTS = {"new", "old", "popular", "komen"}
 SEARCH_MAX_LENGTH = 100
+POST_COOLDOWN = timedelta(seconds=10)
+COMMENT_COOLDOWN = timedelta(seconds=10)
 
 
 def _is_ajax(request):
@@ -35,10 +41,10 @@ def _is_ajax(request):
     return request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
 
-def _fail(request, message, to="community:index", **kwargs):
-    """Respons gagal: JSON 400 untuk AJAX, atau pesan flash lalu redirect."""
+def _fail(request, message, to="community:index", *, status=400, **kwargs):
+    """Respons gagal: JSON (400 kecuali `status`) untuk AJAX, atau pesan flash lalu redirect."""
     if _is_ajax(request):
-        return JsonResponse({"error": message}, status=400)
+        return JsonResponse({"error": message}, status=status)
     messages.error(request, message)
     return redirect(to, **kwargs)
 
@@ -74,6 +80,30 @@ def _count_of(model):
         .values("total")
     )
     return Coalesce(Subquery(counts, output_field=IntegerField()), 0)
+
+
+def _cooldown_response(request, model, cooldown, verb, to="community:index", **kwargs):
+    """Respons 429 jika `model` terakhir milik user dibuat kurang dari `cooldown` yang lalu.
+
+    Selain itu None. `verb` mengisi pesan ("memposting", "berkomentar")."""
+    last = (
+        model.objects.filter(author=request.user)
+        .order_by("-created_at")
+        .values_list("created_at", flat=True)
+        .first()
+    )
+    if last is None:
+        return None
+    left = cooldown - (timezone.now() - last)
+    if left <= timedelta(0):
+        return None
+    return _fail(
+        request,
+        f"Tunggu {math.ceil(left.total_seconds())} detik sebelum {verb} lagi.",
+        to,
+        status=429,
+        **kwargs,
+    )
 
 
 def _feed_posts(user):
@@ -171,6 +201,9 @@ def index(request):
 @require_POST
 def create_post(request):
     """Buat postingan baru atas nama user yang login."""
+    blocked = _cooldown_response(request, Post, POST_COOLDOWN, "memposting")
+    if blocked:
+        return blocked
     form = PostForm(request.POST)
     if form.is_valid():
         post = form.save(commit=False)
@@ -264,6 +297,16 @@ def post_detail(request, pk):
 def add_comment(request, pk):
     """Tambah komentar pada postingan; AJAX mendapat HTML komentar dan jumlah terbaru."""
     post = get_object_or_404(Post, pk=pk)
+    blocked = _cooldown_response(
+        request,
+        Comment,
+        COMMENT_COOLDOWN,
+        "berkomentar",
+        "community:post_detail",
+        pk=post.pk,
+    )
+    if blocked:
+        return blocked
     form = CommentForm(request.POST)
     if form.is_valid():
         comment = form.save(commit=False)
@@ -325,6 +368,9 @@ def share_news(request):
     """Bagikan berita GNews sebagai post kategori berita.
 
     Data berita diambil dari cache server berdasarkan URL, bukan dari kiriman klien."""
+    blocked = _cooldown_response(request, Post, POST_COOLDOWN, "memposting")
+    if blocked:
+        return blocked
     article = find_article(request.POST.get("url", ""))
     if article is None:
         return _fail(request, "Berita tidak ditemukan atau sudah kedaluwarsa.")
