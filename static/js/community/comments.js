@@ -1,5 +1,5 @@
 import {getJson, parse, sendForm} from './http.js';
-import {htmlToEl, toast} from './ui.js';
+import {appendNew, htmlToEl, toast} from './ui.js';
 
 // Aksi komentar di halaman detail: kirim, edit, hapus, dan muat komentar berikutnya
 export function initComments() {
@@ -151,7 +151,7 @@ export function initComments() {
       const res = await getJson(`${window.location.pathname}?page=${page}`);
       if (!res.ok) throw new Error('load failed');
       const data = await res.json();
-      list.insertAdjacentHTML('beforeend', data.html);
+      appendNew(list, data.html);
       moreWrap.hidden = !data.has_next;
       moreBtn.dataset.nextPage = data.next_page ?? '';
     } catch {

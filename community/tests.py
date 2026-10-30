@@ -1,8 +1,28 @@
+from datetime import timedelta
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import Comment, Like, Post
+
+_cooldown_off = [
+    patch("community.views.POST_COOLDOWN", timedelta(0)),
+    patch("community.views.COMMENT_COOLDOWN", timedelta(0)),
+]
+
+
+# Tes lain membuat beberapa post/komentar berturut-turut atas nama user yang sama
+def setUpModule():
+    for patcher in _cooldown_off:
+        patcher.start()
+
+
+def tearDownModule():
+    for patcher in _cooldown_off:
+        patcher.stop()
 
 
 class CommunityFlowTests(TestCase):
@@ -752,7 +772,7 @@ class CommentPaginationTests(TestCase):
     def test_first_page_shows_20_newest_first_and_total_count(self):
         res = self.client.get(self.url)
         html = res.content.decode()
-        self.assertEqual(html.count('<div class="comment">'), 20)
+        self.assertEqual(html.count('class="comment"'), 20)
         self.assertLess(html.index("komentar 24"), html.index("komentar 23"))
         self.assertNotIn("komentar 04", html)
         self.assertContains(res, '<span id="comment-count">25</span>')
@@ -760,7 +780,7 @@ class CommentPaginationTests(TestCase):
 
     def test_ajax_second_page_returns_the_oldest_five(self):
         data = self.client.get(self.url, {"page": 2}, **self.ajax).json()
-        self.assertEqual(data["html"].count('<div class="comment">'), 5)
+        self.assertEqual(data["html"].count('class="comment"'), 5)
         self.assertIn("komentar 00", data["html"])
         self.assertFalse(data["has_next"])
 
@@ -779,3 +799,343 @@ class ConsistencyTests(TestCase):
         res = self.client.get(reverse("community:index"))
         self.assertContains(res, "beserta suka dan komentarnya")
         self.assertNotContains(res, "likes dan")
+
+
+@override_settings(GNEWS_API_KEY="test-key")
+class NewsRobustnessTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+
+    @staticmethod
+    def _response(articles):
+        class Resp:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"articles": articles}
+
+        return Resp()
+
+    def _fetch(self, articles):
+        from unittest.mock import patch
+
+        from .news import fetch_news
+
+        with patch(
+            "community.news.requests.get", return_value=self._response(articles)
+        ):
+            return fetch_news()
+
+    def test_null_fields_do_not_crash(self):
+        got = self._fetch(
+            [
+                {"title": "A", "url": None, "description": None},
+                {
+                    "title": "B",
+                    "url": "https://e.com/b",
+                    "description": None,
+                    "source": None,
+                    "publishedAt": None,
+                },
+            ]
+        )
+        self.assertEqual([a["url"] for a in got], ["https://e.com/b"])
+        self.assertEqual(got[0]["snippet"], "")
+        self.assertEqual(got[0]["source"], "")
+
+    def test_url_longer_than_column_is_dropped(self):
+        long_url = "https://e.com/" + "a" * 200
+        got = self._fetch([{"title": "A", "url": long_url}])
+        self.assertEqual(got, [])
+
+    def test_share_rejects_null_character_in_caption(self):
+        from django.core.cache import cache
+
+        cache.set(
+            "community:gnews",
+            [
+                {
+                    "title": "J",
+                    "snippet": "",
+                    "url": "https://e.com/a",
+                    "source": "M",
+                    "published_at": None,
+                }
+            ],
+        )
+        user = get_user_model().objects.create_user("u", password="x")
+        self.client.force_login(user)
+        res = self.client.post(
+            reverse("community:share_news"),
+            {"url": "https://e.com/a", "content": "a\x00b"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(Post.objects.exists())
+
+
+class VaryHeaderTests(TestCase):
+    def test_feed_and_detail_vary_on_ajax_header(self):
+        user = get_user_model().objects.create_user("u", password="x")
+        post = Post.objects.create(author=user, content="halo")
+        for url in (
+            reverse("community:index"),
+            reverse("community:post_detail", args=[post.pk]),
+        ):
+            res = self.client.get(url)
+            self.assertIn("X-Requested-With", res.headers["Vary"])
+
+
+class TimestampTests(TestCase):
+    def test_times_are_shown_as_wib_date_and_hour(self):
+        from datetime import datetime, timezone
+
+        user = get_user_model().objects.create_user("u", password="x")
+        post = Post.objects.create(author=user, content="halo")
+        Post.objects.filter(pk=post.pk).update(
+            created_at=datetime(2026, 10, 29, 23, 30, tzinfo=timezone.utc)
+        )
+        res = self.client.get(reverse("community:index"))
+        self.assertContains(res, "30 Okt 2026, 06:30")
+
+
+class AssetVersionTests(SimpleTestCase):
+    def test_version_changes_when_script_content_changes(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        from .assets import community_assets
+
+        with (
+            TemporaryDirectory() as directory,
+            override_settings(BASE_DIR=Path(directory)),
+        ):
+            scripts = Path(directory) / "static" / "js" / "community"
+            scripts.mkdir(parents=True)
+            script = scripts / "ui.js"
+            script.write_text("old", encoding="utf-8")
+            previous = community_assets()["js_version"]
+            self.assertEqual(community_assets()["js_version"], previous)
+            script.write_text("new", encoding="utf-8")
+            self.assertNotEqual(community_assets()["js_version"], previous)
+
+
+class AssetPageTests(TestCase):
+    def test_pages_version_entry_script_and_every_imported_module(self):
+        import json
+        import re
+
+        user = get_user_model().objects.create_user("u", password="x")
+        post = Post.objects.create(author=user, content="halo")
+        pages = (
+            (reverse("community:index"), "feed-page.js"),
+            (reverse("community:post_detail", args=[post.pk]), "detail-page.js"),
+        )
+        for url, entry in pages:
+            res = self.client.get(url)
+            version = res.context["js_version"]
+            self.assertContains(res, f"js/community/{entry}?v={version}")
+            html = res.content.decode()
+            raw = re.search(r'<script type="importmap">(.*?)</script>', html).group(1)
+            imports = json.loads(raw)["imports"]
+            self.assertEqual(
+                imports["/static/js/community/ui.js"],
+                f"/static/js/community/ui.js?v={version}",
+            )
+
+
+class SortTieBreakTests(TestCase):
+    def test_equal_counts_are_ordered_newest_first(self):
+        from datetime import datetime, timezone
+
+        user = get_user_model().objects.create_user("u", password="x")
+        posts = []
+        for day, name in ((1, "lama"), (2, "tengah"), (3, "baru")):
+            post = Post.objects.create(author=user, content=name)
+            Post.objects.filter(pk=post.pk).update(
+                created_at=datetime(2026, 10, day, tzinfo=timezone.utc)
+            )
+            posts.append(post)
+        # Tanpa suka dan komentar, jumlahnya sama untuk semua post
+        for sort in ("popular", "komen"):
+            res = self.client.get(reverse("community:index"), {"sort": sort})
+            self.assertEqual(
+                [p.content for p in res.context["posts"]], ["baru", "tengah", "lama"]
+            )
+
+
+class NewsCategoryTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("u", password="x")
+        self.client.force_login(self.user)
+        self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+    def test_cannot_create_post_in_news_category(self):
+        res = self.client.post(
+            reverse("community:create_post"),
+            {"content": "halo", "category": "berita"},
+            **self.ajax,
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(Post.objects.exists())
+
+    def test_cannot_move_regular_post_to_news_category(self):
+        post = Post.objects.create(author=self.user, category="tips", content="halo")
+        res = self.client.post(
+            reverse("community:edit_post", args=[post.pk]),
+            {"content": "halo", "category": "berita"},
+            **self.ajax,
+        )
+        self.assertEqual(res.status_code, 400)
+        post.refresh_from_db()
+        self.assertEqual(post.category, "tips")
+
+    def test_composer_does_not_offer_news_chip_but_filter_does(self):
+        res = self.client.get(reverse("community:index"))
+        self.assertNotContains(res, 'name="category" value="berita"')
+        self.assertContains(res, 'data-category="berita"')
+
+
+class PostCooldownTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        self.user = get_user_model().objects.create_user("me", password="x")
+        self.client.force_login(self.user)
+        self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+        self.create = reverse("community:create_post")
+        patcher = patch("community.views.POST_COOLDOWN", timedelta(seconds=10))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_second_post_within_cooldown_is_rejected(self):
+        self.assertEqual(
+            self.client.post(
+                self.create, {"content": "a", "category": "tips"}, **self.ajax
+            ).status_code,
+            200,
+        )
+        res = self.client.post(
+            self.create, {"content": "b", "category": "tips"}, **self.ajax
+        )
+        self.assertEqual(res.status_code, 429)
+        self.assertIn("detik", res.json()["error"])
+        self.assertEqual(Post.objects.count(), 1)
+
+    def test_post_is_allowed_again_after_cooldown(self):
+        self.client.post(self.create, {"content": "a", "category": "tips"}, **self.ajax)
+        Post.objects.update(created_at=timezone.now() - timedelta(seconds=11))
+        res = self.client.post(
+            self.create, {"content": "b", "category": "tips"}, **self.ajax
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(Post.objects.count(), 2)
+
+    def test_cooldown_is_per_user(self):
+        self.client.post(self.create, {"content": "a", "category": "tips"}, **self.ajax)
+        other = get_user_model().objects.create_user("other", password="x")
+        self.client.force_login(other)
+        res = self.client.post(
+            self.create, {"content": "b", "category": "tips"}, **self.ajax
+        )
+        self.assertEqual(res.status_code, 200)
+
+    def test_sharing_news_also_counts(self):
+        from django.core.cache import cache
+
+        cache.set(
+            "community:gnews",
+            [
+                {
+                    "title": "J",
+                    "snippet": "",
+                    "url": "https://e.com/a",
+                    "source": "M",
+                    "published_at": None,
+                }
+            ],
+        )
+        self.client.post(self.create, {"content": "a", "category": "tips"}, **self.ajax)
+        res = self.client.post(
+            reverse("community:share_news"), {"url": "https://e.com/a"}, **self.ajax
+        )
+        self.assertEqual(res.status_code, 429)
+        self.assertEqual(Post.objects.count(), 1)
+
+    def test_plain_request_gets_flash_message_and_redirect(self):
+        self.client.post(self.create, {"content": "a", "category": "tips"})
+        res = self.client.post(
+            self.create, {"content": "b", "category": "tips"}, follow=True
+        )
+        self.assertContains(res, "sebelum memposting lagi")
+        self.assertEqual(Post.objects.count(), 1)
+
+
+class CommentCooldownTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("me", password="x")
+        self.client.force_login(self.user)
+        self.ajax = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+        self.post = Post.objects.create(author=self.user, category="tips", content="p")
+        self.add = reverse("community:add_comment", args=[self.post.pk])
+        for target in ("POST_COOLDOWN", "COMMENT_COOLDOWN"):
+            patcher = patch(f"community.views.{target}", timedelta(seconds=10))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_second_comment_within_cooldown_is_rejected(self):
+        self.assertEqual(
+            self.client.post(self.add, {"content": "a"}, **self.ajax).status_code, 200
+        )
+        res = self.client.post(self.add, {"content": "b"}, **self.ajax)
+        self.assertEqual(res.status_code, 429)
+        self.assertIn("berkomentar", res.json()["error"])
+        self.assertEqual(Comment.objects.count(), 1)
+
+    def test_comment_is_allowed_again_after_cooldown(self):
+        self.client.post(self.add, {"content": "a"}, **self.ajax)
+        Comment.objects.update(created_at=timezone.now() - timedelta(seconds=11))
+        res = self.client.post(self.add, {"content": "b"}, **self.ajax)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(Comment.objects.count(), 2)
+
+    def test_cooldown_is_per_user(self):
+        self.client.post(self.add, {"content": "a"}, **self.ajax)
+        other = get_user_model().objects.create_user("other", password="x")
+        self.client.force_login(other)
+        res = self.client.post(self.add, {"content": "b"}, **self.ajax)
+        self.assertEqual(res.status_code, 200)
+
+    def test_post_and_comment_cooldowns_are_separate(self):
+        # Post tadi (di setUp) tidak menahan komentar...
+        res = self.client.post(self.add, {"content": "a"}, **self.ajax)
+        self.assertEqual(res.status_code, 200)
+        # ...dan komentar tidak menahan post berikutnya setelah jeda post lewat
+        Post.objects.update(created_at=timezone.now() - timedelta(seconds=11))
+        res = self.client.post(
+            reverse("community:create_post"),
+            {"content": "b", "category": "tips"},
+            **self.ajax,
+        )
+        self.assertEqual(res.status_code, 200)
+
+    def test_editing_a_comment_is_not_limited(self):
+        self.client.post(self.add, {"content": "a"}, **self.ajax)
+        comment = Comment.objects.get()
+        url = reverse("community:edit_comment", args=[comment.pk])
+        for text in ("b", "c"):
+            res = self.client.post(url, {"content": text}, **self.ajax)
+            self.assertEqual(res.status_code, 200)
+        comment.refresh_from_db()
+        self.assertEqual(comment.content, "c")
+
+    def test_plain_request_redirects_to_detail_with_message(self):
+        self.client.post(self.add, {"content": "a"})
+        res = self.client.post(self.add, {"content": "b"}, follow=True)
+        self.assertRedirects(res, reverse("community:post_detail", args=[self.post.pk]))
+        self.assertContains(res, "sebelum berkomentar lagi")
+        self.assertEqual(Comment.objects.count(), 1)

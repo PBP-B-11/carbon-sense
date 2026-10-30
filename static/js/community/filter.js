@@ -1,5 +1,5 @@
 import {getJson} from './http.js';
-import {toast} from './ui.js';
+import {appendNew, toast} from './ui.js';
 
 const SEARCH_DELAY = 300;
 
@@ -15,18 +15,25 @@ export function initFilter() {
   let latest = 0;
   let timer;
 
-  function buildParams(category, page) {
+  function buildParams({category, query, sort}, page) {
     const params = new URLSearchParams();
-    const query = queryInput.value.trim();
     if (category) params.set('category', category);
     if (query) params.set('q', query);
-    if (sortSelect.value !== 'new') params.set('sort', sortSelect.value);
+    if (sort !== 'new') params.set('sort', sort);
     if (page) params.set('page', page);
     return params;
   }
 
-  async function fetchPage(category, page) {
-    const res = await getJson(`${window.location.pathname}?${buildParams(category, page)}`);
+  // Yang sedang diketik di form, dan yang dipakai untuk merender isi `list` saat ini
+  const typed = (category) => ({category, query: queryInput.value.trim(), sort: sortSelect.value});
+  const rendered = () => ({
+    category: list.dataset.category || '',
+    query: list.dataset.query || '',
+    sort: list.dataset.sort || 'new',
+  });
+
+  async function fetchPage(filters, page) {
+    const res = await getJson(`${window.location.pathname}?${buildParams(filters, page)}`);
     if (!res.ok) throw new Error('load failed');
     return res.json();
   }
@@ -37,10 +44,10 @@ export function initFilter() {
   }
 
   // Dibaca modul lain untuk memutuskan apakah kartu baru boleh disisipkan
-  function remember(category) {
+  function remember({category, query, sort}) {
     list.dataset.category = category;
-    list.dataset.query = queryInput.value.trim();
-    list.dataset.sort = sortSelect.value;
+    list.dataset.query = query;
+    list.dataset.sort = sort;
   }
 
   function markActive(category) {
@@ -55,15 +62,16 @@ export function initFilter() {
   // Hasil yang datang terlambat (kalah cepat oleh pencarian berikutnya) dibuang
   async function reload(category) {
     const mine = ++latest;
+    const filters = typed(category);
     list.setAttribute('aria-busy', 'true');
     try {
-      const data = await fetchPage(category, 1);
+      const data = await fetchPage(filters, 1);
       if (mine !== latest) return;
       list.innerHTML = data.html;
-      remember(category);
+      remember(filters);
       markActive(category);
       showMore(data);
-      const url = buildParams(category).toString();
+      const url = buildParams(filters).toString();
       window.history.replaceState(null, '', url ? `?${url}` : window.location.pathname);
     } catch {
       if (mine === latest) toast('Gagal memuat postingan. Coba lagi.', 'danger');
@@ -94,17 +102,21 @@ export function initFilter() {
 
   sortSelect.addEventListener('change', () => reload(currentCategory()));
 
+  // Halaman berikutnya diminta dengan filter yang dipakai merender `list`, bukan isi form
+  // saat ini, dan dibuang jika `list` keburu diganti oleh reload.
   moreBtn.addEventListener('click', async (event) => {
     event.preventDefault();
     const page = Number(moreBtn.dataset.nextPage);
-    if (!page) return;
+    if (!page || moreBtn.hasAttribute('aria-disabled')) return;
+    const mine = latest;
     moreBtn.setAttribute('aria-disabled', 'true');
     try {
-      const data = await fetchPage(currentCategory(), page);
-      list.insertAdjacentHTML('beforeend', data.html);
+      const data = await fetchPage(rendered(), page);
+      if (mine !== latest) return;
+      appendNew(list, data.html);
       showMore(data);
     } catch {
-      toast('Gagal memuat postingan. Coba lagi.', 'danger');
+      if (mine === latest) toast('Gagal memuat postingan. Coba lagi.', 'danger');
     } finally {
       moreBtn.removeAttribute('aria-disabled');
     }
