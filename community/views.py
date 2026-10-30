@@ -10,6 +10,7 @@ from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.http import require_POST
 from django.views.decorators.vary import vary_on_headers
 
+from .assets import community_assets
 from .forms import (
     COMMENT_MAX_LENGTH,
     POST_MAX_LENGTH,
@@ -160,6 +161,7 @@ def index(request):
             "form": PostForm(),
             "news": fetch_news(),
             "post_max": POST_MAX_LENGTH,
+            **community_assets(),
         },
     )
 
@@ -251,6 +253,7 @@ def post_detail(request, pk):
             "comments": paginator.get_page(request.GET.get("page")),
             "comment_total": paginator.count,
             "comment_max": COMMENT_MAX_LENGTH,
+            **community_assets(),
         },
     )
 

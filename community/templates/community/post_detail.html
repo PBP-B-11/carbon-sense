@@ -84,5 +84,6 @@
 
     <div class="toast-region" id="toast-region" role="status" aria-live="polite"></div>
 
-    <script type="module" src="{% static 'js/community/detail-page.js' %}"></script>
+    <script type="importmap">{{ js_importmap }}</script>
+    <script type="module" src="{% static 'js/community/detail-page.js' %}?v={{ js_version }}"></script>
 {% endblock %}

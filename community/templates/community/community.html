@@ -137,5 +137,6 @@
       </form>
     </dialog>
 
-    <script type="module" src="{% static 'js/community/feed-page.js' %}"></script>
+    <script type="importmap">{{ js_importmap }}</script>
+    <script type="module" src="{% static 'js/community/feed-page.js' %}?v={{ js_version }}"></script>
 {% endblock %}

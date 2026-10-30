@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from .models import Comment, Like, Post
@@ -880,3 +880,48 @@ class TimestampTests(TestCase):
         )
         res = self.client.get(reverse("community:index"))
         self.assertContains(res, "30 Okt 2026, 06:30")
+
+
+class AssetVersionTests(SimpleTestCase):
+    def test_version_changes_when_script_content_changes(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        from .assets import community_assets
+
+        with (
+            TemporaryDirectory() as directory,
+            override_settings(BASE_DIR=Path(directory)),
+        ):
+            scripts = Path(directory) / "static" / "js" / "community"
+            scripts.mkdir(parents=True)
+            script = scripts / "ui.js"
+            script.write_text("old", encoding="utf-8")
+            previous = community_assets()["js_version"]
+            self.assertEqual(community_assets()["js_version"], previous)
+            script.write_text("new", encoding="utf-8")
+            self.assertNotEqual(community_assets()["js_version"], previous)
+
+
+class AssetPageTests(TestCase):
+    def test_pages_version_entry_script_and_every_imported_module(self):
+        import json
+        import re
+
+        user = get_user_model().objects.create_user("u", password="x")
+        post = Post.objects.create(author=user, content="halo")
+        pages = (
+            (reverse("community:index"), "feed-page.js"),
+            (reverse("community:post_detail", args=[post.pk]), "detail-page.js"),
+        )
+        for url, entry in pages:
+            res = self.client.get(url)
+            version = res.context["js_version"]
+            self.assertContains(res, f"js/community/{entry}?v={version}")
+            html = res.content.decode()
+            raw = re.search(r'<script type="importmap">(.*?)</script>', html).group(1)
+            imports = json.loads(raw)["imports"]
+            self.assertEqual(
+                imports["/static/js/community/ui.js"],
+                f"/static/js/community/ui.js?v={version}",
+            )
