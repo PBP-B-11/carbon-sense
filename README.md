@@ -4,6 +4,7 @@
 
 > **Tautan Deployment:** [http://faishal-falih-carbon-sense.pws.cs.ui.ac.id/](http://faishal-falih-carbon-sense.pws.cs.ui.ac.id/)
 
+> **Tautan Deployment:** [https://www.figma.com/design/YGZ8m922M5M7lBTRx4B9pE/Design-System-Carbon-Sense%5C?node-id=34-2&t=I44cmNm79RROIjzy-1](https://www.figma.com/design/YGZ8m922M5M7lBTRx4B9pE/Design-System-Carbon-Sense?node-id=34-2&t=E8dPkeL3XgQr08HM-1)
 ---
 
 ## Anggota Kelompok (PBP B-11)
@@ -81,7 +82,7 @@ Estimasi daging menggunakan faktor total terpisah untuk ayam dan sapi dari CONCI
 ### 4. Modul "Green Community" (Forum & Hot News)
 - **Fokus Utama:** Ruang sosial (*feed*) bagi pengguna untuk berbagi tips dan berdiskusi isu lingkungan.
 - **Komponen CRUD:**
-  - **Create:** Membuat postingan (tips, diskusi, atau *share link* berita dari GNews API).
+  - **Create:** Membuat postingan (tips, diskusi, atau *share link* berita dari GNews API) dan komentar.
   - **Read:** Menampilkan feed publik berisi postingan pengguna lain dan kolom berita iklim.
   - **Update:** Mengedit isi postingan sendiri.
   - **Delete:** Menghapus postingan sendiri.
@@ -91,7 +92,7 @@ Estimasi daging menggunakan faktor total terpisah untuk ayam dan sapi dari CONCI
 ## Integrasi Data Eksternal & Public API
 
 - **Open-Meteo (Weather & Air Quality):** [https://open-meteo.com/](https://open-meteo.com/) — Digunakan pada Modul Profil untuk menyajikan indeks kualitas udara (AQI), suhu, kecepatan angin, dan kondisi cuaca berdasarkan kota domisili pengguna.
-- **GNews API:** [https://gnews.io/](https://gnews.io/) — Digunakan pada Modul Green Community dan Beranda untuk menampilkan berita iklim dan lingkungan terkini secara terkurasi.
+- **GNews API:** [https://gnews.io/](https://gnews.io/) — Digunakan pada Modul 4 (Green Community) dan Beranda untuk menampilkan berita iklim dan lingkungan terkini secara terkurasi.
 - **Climatiq Carbon Calculator API:** [https://www.climatiq.io/docs/api-reference](https://www.climatiq.io/docs/api-reference) — Digunakan pada Modul Carbon Tracker untuk menghitung estimasi emisi gas rumah kaca berbasis faktor emisi standar.
 
 ---
@@ -158,17 +159,15 @@ python manage.py test challenges
 
 ---
 
-## AI Disclosure (Pernyataan Penggunaan AI)
-
-Sesuai dengan ketentuan transparansi akademik dan rubrik evaluasi proyek PBP:
+## AI Disclosure
 
 ### 1. Alat Bantu AI & Coding Assistant yang Digunakan
-Secara kolaboratif, anggota tim memanfaatkan beberapa platform AI dan *coding assistant* untuk mendukung proses rekayasa perangkat lunak proyek Carbon Sense, antara lain:
+Secara kolaboratif, kami memanfaatkan beberapa platform AI dan *coding assistant* untuk mendukung proses rekayasa perangkat lunak proyek Carbon Sense, antara lain:
 - **Google Antigravity Coding Assistant**
-- **Anthropic Claude**
+- **Anthropic Claude Code**
 - **OpenAI ChatGPT & GitHub Copilot**
 
-Secara umum di seluruh modul, alat-alat bantu AI tersebut dimanfaatkan oleh tim untuk:
+Secara umum di seluruh modul, alat-alat bantu AI tersebut kami manfaatkan untuk:
 - Akselerasi penulisan kode *boilerplate* (seperti serializers data, skema model Django, dan formulir validasi).
 - Perancangan arsitektur dan *refactoring* logika bisnis (seperti decorator keamanan, *rate limiting*, dan optimasi query).
 - Pembuatan struktur awal template HTML/CSS berbasis desain sistem Figma serta interaktivitas JavaScript modular (*optimistic UI updates*).
@@ -179,13 +178,13 @@ Secara umum di seluruh modul, alat-alat bantu AI tersebut dimanfaatkan oleh tim 
 - **Test-Driven Development (TDD) Prompting:** Asisten AI diarahkan untuk merumuskan test case lengkap terlebih dahulu (mencakup kasus positif, kasus batas, input tak valid, dan status HTTP 400, 401, 403, 404, 409, 429) sebelum logika view diimplementasikan.
 - **Design System Conformance:** Instruksi prompt secara ketat membatasi AI agar menggunakan kelas komponen dan variabel CSS bawaan proyek tanpa memasukkan library CSS eksternal baru yang dapat merusak konsistensi tata letak.
 
-### 3. Analisis Kritis Batasan AI (*AI Limitations*)
-Dalam proses pengembangan, tim menemukan beberapa batasan nyata dari kode yang di-generate oleh AI:
+### 3. Keterbatasan AI
+Dalam proses pengembangan, kami menemukan beberapa kekurangan dari kode yang di-generate oleh AI:
 1. **URL Routing Mismatch:** Asisten AI sempat menghasilkan pola URL terbalik pada kode JavaScript kartu dinamis (`/challenges/ubah/${id}/` alih-alih `/challenges/${id}/ubah/`), yang berpotensi menghasilkan galat 404 Not Found jika tidak diaudit secara teliti terhadap `urls.py`.
 2. **State Leakage pada Cache Runner Unit Test:** Saat mengimplementasikan decorator *rate limiting*, AI tidak mengantisipasi bahwa backend `LocMemCache` pada Django test runner mempertahankan state antar-metode pengujian, sehingga pengujian berikutnya terkena pemblokiran 429 tanpa pembersihan cache yang eksplisit.
 3. **Kerapuhan Tata Letak Responsif Mobile:** Template HTML yang diusulkan AI awalnya mengalami sedikit *overflow* pada layar sempit (<390px) karena ukuran padding yang terlalu kaku dan belum memperhitungkan *touch target* minimal 44px.
 
 ### 4. Verifikasi dan Intervensi Manual (*Manual Fixes*)
-- Seluruh kode yang dihasilkan asisten AI tidak pernah langsung di-merge, melainkan wajib melalui peninjauan manual (*peer review*) oleh anggota tim di GitHub Pull Request.
-- Anggota tim melakukan audit baris demi baris, memperbaiki rute URL di `challenges.js`, menambahkan manajemen isolasi cache (`cache.clear()`) pada test suite, serta menyesuaikan media query CSS secara mandiri.
+- Seluruh kode yang dihasilkan asisten AI tidak pernah langsung di-merge, melainkan wajib melalui peninjauan manual (*peer review*) oleh kami di GitHub Pull Request.
+- Kami melakukan audit baris demi baris, memperbaiki rute URL di `challenges.js`, menambahkan manajemen isolasi cache (`cache.clear()`) pada test suite, serta menyesuaikan media query CSS secara mandiri.
 - Setiap perubahan divalidasi kelulusannya melalui eksekusi pengujian otomatis (`python manage.py test`) dengan 45 test case berstatus lulus 100% serta pemeriksaan linter *Ruff* sebelum kode dipublikasikan ke branch utama.
