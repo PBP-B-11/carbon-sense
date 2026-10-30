@@ -1,11 +1,6 @@
 /**
  * challenges.js
  * Modul interaktivitas client-side untuk Eco-Challenges (Modul 3).
- * Mengimplementasikan:
- * 1. Optimistic UI Updates (instant visual feedback & rollback saat error).
- * 2. Complex dynamic filtering (Kategori + Live Search ter-debounce + URL pushState/popstate).
- * 3. Event delegation pada document untuk form submit (Check-in, Ikuti, Berhenti).
- * 4. Toast notification manager dengan HTML Popover API fallback.
  */
 
 // ============================================================================
