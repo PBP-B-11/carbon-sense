@@ -3163,6 +3163,10 @@ main {
   margin-top: 14px;
 }
 
+.cat-choice[hidden] {
+  display: none;
+}
+
 .cat-choice .chip {
   cursor: pointer;
 }
