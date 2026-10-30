@@ -65,7 +65,6 @@ function initEdit(feed, list) {
     form.action = btn.dataset.action;
     form.elements.content.value = btn.dataset.content;
     form.elements.content.required = !hasNews;
-    form.querySelector('.cat-choice').hidden = hasNews;
     form.querySelectorAll('input[name=category]').forEach((radio) => {
       radio.checked = radio.value === btn.dataset.category;
       radio.disabled = hasNews;

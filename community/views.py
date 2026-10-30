@@ -1,6 +1,3 @@
-import math
-from datetime import timedelta
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
@@ -9,19 +6,15 @@ from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
-from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.http import require_POST
-from django.views.decorators.vary import vary_on_headers
 
-from .assets import community_assets
 from .forms import (
     COMMENT_MAX_LENGTH,
-    NEWS_CATEGORY,
     POST_MAX_LENGTH,
     CommentForm,
     PostForm,
-    ShareNewsForm,
+    normalize_newlines,
 )
 from .models import Comment, Like, Post
 from .news import fetch_news, find_article
@@ -32,8 +25,6 @@ COMMENT_PAGE_SIZE = 20
 CATEGORIES = {value for value, _ in Post.CATEGORY_CHOICES}
 SORTS = {"new", "old", "popular", "komen"}
 SEARCH_MAX_LENGTH = 100
-POST_COOLDOWN = timedelta(seconds=10)
-COMMENT_COOLDOWN = timedelta(seconds=10)
 
 
 def _is_ajax(request):
@@ -41,10 +32,10 @@ def _is_ajax(request):
     return request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
 
-def _fail(request, message, to="community:index", *, status=400, **kwargs):
-    """Respons gagal: JSON (400 kecuali `status`) untuk AJAX, atau pesan flash lalu redirect."""
+def _fail(request, message, to="community:index", **kwargs):
+    """Respons gagal: JSON 400 untuk AJAX, atau pesan flash lalu redirect."""
     if _is_ajax(request):
-        return JsonResponse({"error": message}, status=status)
+        return JsonResponse({"error": message}, status=400)
     messages.error(request, message)
     return redirect(to, **kwargs)
 
@@ -82,30 +73,6 @@ def _count_of(model):
     return Coalesce(Subquery(counts, output_field=IntegerField()), 0)
 
 
-def _cooldown_response(request, model, cooldown, verb, to="community:index", **kwargs):
-    """Respons 429 jika `model` terakhir milik user dibuat kurang dari `cooldown` yang lalu.
-
-    Selain itu None. `verb` mengisi pesan ("memposting", "berkomentar")."""
-    last = (
-        model.objects.filter(author=request.user)
-        .order_by("-created_at")
-        .values_list("created_at", flat=True)
-        .first()
-    )
-    if last is None:
-        return None
-    left = cooldown - (timezone.now() - last)
-    if left <= timedelta(0):
-        return None
-    return _fail(
-        request,
-        f"Tunggu {math.ceil(left.total_seconds())} detik sebelum {verb} lagi.",
-        to,
-        status=429,
-        **kwargs,
-    )
-
-
 def _feed_posts(user):
     """Queryset post lengkap dengan jumlah suka/komentar dan status suka milik `user`."""
     posts = Post.objects.select_related("author").annotate(
@@ -128,7 +95,6 @@ def _post_card_json(request, post):
     return JsonResponse({"html": html})
 
 
-@vary_on_headers("X-Requested-With")
 def index(request):
     """Feed komunitas dengan filter kategori, pencarian, urutan, dan paginasi.
 
@@ -153,9 +119,9 @@ def index(request):
     if sort == "old":
         posts = posts.order_by("created_at", "pk")
     elif sort == "popular":
-        posts = posts.order_by("-like_count", "-created_at", "-pk")
+        posts = posts.order_by("-like_count", "pk")
     elif sort == "komen":
-        posts = posts.order_by("-comment_count", "-created_at", "-pk")
+        posts = posts.order_by("-comment_count", "pk")
     else:
         posts = posts.order_by("-created_at", "-pk")
     paginator = Paginator(posts, PAGE_SIZE)
@@ -192,7 +158,6 @@ def index(request):
             "form": PostForm(),
             "news": fetch_news(),
             "post_max": POST_MAX_LENGTH,
-            **community_assets(),
         },
     )
 
@@ -201,9 +166,6 @@ def index(request):
 @require_POST
 def create_post(request):
     """Buat postingan baru atas nama user yang login."""
-    blocked = _cooldown_response(request, Post, POST_COOLDOWN, "memposting")
-    if blocked:
-        return blocked
     form = PostForm(request.POST)
     if form.is_valid():
         post = form.save(commit=False)
@@ -260,7 +222,6 @@ def toggle_like(request, pk):
     return redirect("community:index")
 
 
-@vary_on_headers("X-Requested-With")
 def post_detail(request, pk):
     """Halaman satu postingan dengan komentarnya (terbaru dulu, dipaginasi)."""
     post = get_object_or_404(_feed_posts(request.user), pk=pk)
@@ -287,7 +248,6 @@ def post_detail(request, pk):
             "comments": paginator.get_page(request.GET.get("page")),
             "comment_total": paginator.count,
             "comment_max": COMMENT_MAX_LENGTH,
-            **community_assets(),
         },
     )
 
@@ -297,16 +257,6 @@ def post_detail(request, pk):
 def add_comment(request, pk):
     """Tambah komentar pada postingan; AJAX mendapat HTML komentar dan jumlah terbaru."""
     post = get_object_or_404(Post, pk=pk)
-    blocked = _cooldown_response(
-        request,
-        Comment,
-        COMMENT_COOLDOWN,
-        "berkomentar",
-        "community:post_detail",
-        pk=post.pk,
-    )
-    if blocked:
-        return blocked
     form = CommentForm(request.POST)
     if form.is_valid():
         comment = form.save(commit=False)
@@ -368,21 +318,18 @@ def share_news(request):
     """Bagikan berita GNews sebagai post kategori berita.
 
     Data berita diambil dari cache server berdasarkan URL, bukan dari kiriman klien."""
-    blocked = _cooldown_response(request, Post, POST_COOLDOWN, "memposting")
-    if blocked:
-        return blocked
     article = find_article(request.POST.get("url", ""))
     if article is None:
         return _fail(request, "Berita tidak ditemukan atau sudah kedaluwarsa.")
 
-    form = ShareNewsForm(request.POST)
-    if not form.is_valid():
-        return _fail(request, _form_error(form, "Caption tidak valid."))
+    content = normalize_newlines(request.POST.get("content", "")).strip()
+    if len(content) > POST_MAX_LENGTH:
+        return _fail(request, f"Caption maksimal {POST_MAX_LENGTH} karakter.")
 
     post = Post.objects.create(
         author=request.user,
-        category=NEWS_CATEGORY,
-        content=form.cleaned_data["content"],
+        category="berita",
+        content=content,
         news_title=article["title"][:255],
         news_source=article["source"][:100],
         news_url=article["url"],

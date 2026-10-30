@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static tz %}
+{% load community_tags static %}
 
 {% block title %}Carbon Sense: Green Community{% endblock %}
 
@@ -82,7 +82,7 @@
             {% for article in news %}
             <li class="news-item">
               <h3><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">{{ article.title }}</a></h3>
-              <p>{{ article.source }}{% if article.published_at %}, {{ article.published_at|timezone:"Asia/Jakarta"|date:"d M Y, H:i" }}{% endif %}</p>
+              <p>{{ article.source }}{% if article.published_at %}, {{ article.published_at|ago }}{% endif %}</p>
               {% if user.is_authenticated %}
               <button type="button" class="js-share" data-url="{{ article.url }}" data-title="{{ article.title }}">Bagikan ke feed</button>
               {% endif %}
@@ -137,6 +137,5 @@
       </form>
     </dialog>
 
-    <script type="importmap">{{ js_importmap }}</script>
-    <script type="module" src="{% static 'js/community/feed-page.js' %}?v={{ js_version }}"></script>
+    <script type="module" src="{% static 'js/community/feed-page.js' %}"></script>
 {% endblock %}

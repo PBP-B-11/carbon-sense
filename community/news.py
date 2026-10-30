@@ -4,8 +4,6 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 
-from .models import Post
-
 logger = logging.getLogger(__name__)
 
 GNEWS_URL = "https://gnews.io/api/v4/search"
@@ -13,8 +11,6 @@ CACHE_KEY = "community:gnews"
 CACHE_SECONDS = 10 * 60
 FAILED_KEY = "community:gnews:failed"
 FAILED_SECONDS = 2 * 60
-# Postgres menolak URL yang melebihi kolom news_url
-URL_MAX_LENGTH = Post._meta.get_field("news_url").max_length
 
 
 def fetch_news(limit=5):
@@ -43,19 +39,16 @@ def fetch_news(limit=5):
         cache.set(FAILED_KEY, True, FAILED_SECONDS)
         return []
 
-    # GNews kadang mengirim null, bukan string kosong, jadi pakai `or` bukan default get()
     articles = [
         {
-            "title": a.get("title") or "",
-            "snippet": a.get("description") or "",
-            "url": a.get("url") or "",
-            "source": (a.get("source") or {}).get("name") or "",
-            "published_at": parse_datetime(a.get("publishedAt") or ""),
+            "title": a.get("title", ""),
+            "snippet": a.get("description", ""),
+            "url": a.get("url", ""),
+            "source": (a.get("source") or {}).get("name", ""),
+            "published_at": parse_datetime(a.get("publishedAt", "")),
         }
         for a in data.get("articles", [])
-        if a.get("title")
-        and (a.get("url") or "").startswith(("http://", "https://"))
-        and len(a["url"]) <= URL_MAX_LENGTH
+        if a.get("title") and a.get("url", "").startswith(("http://", "https://"))
     ]
     cache.set(CACHE_KEY, articles, CACHE_SECONDS)
     return articles[:limit]

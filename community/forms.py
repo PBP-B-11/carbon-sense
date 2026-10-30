@@ -4,7 +4,6 @@ from .models import Comment, Post
 
 POST_MAX_LENGTH = 1000
 COMMENT_MAX_LENGTH = 500
-NEWS_CATEGORY = "berita"
 
 
 def normalize_newlines(text):
@@ -32,10 +31,6 @@ class PostForm(forms.ModelForm):
         if not self.instance._state.adding and self.instance.has_news:
             self.fields["content"].required = False
             self.fields["category"].disabled = True
-        else:
-            # Kategori berita hanya untuk hasil share_news
-            field = self.fields["category"]
-            field.choices = [c for c in field.choices if c[0] != NEWS_CATEGORY]
 
 
 class CommentForm(forms.ModelForm):
@@ -44,7 +39,3 @@ class CommentForm(forms.ModelForm):
     class Meta:
         model = Comment
         fields = ["content"]
-
-
-class ShareNewsForm(forms.Form):
-    content = NormalizedCharField(max_length=POST_MAX_LENGTH, required=False)

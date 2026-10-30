@@ -1,6 +1,6 @@
-{% load tz %}
-<div class="comment" data-id="{{ comment.pk }}">
-  <strong>{{ comment.author.username }}</strong> <small>{{ comment.created_at|timezone:"Asia/Jakarta"|date:"d M Y, H:i" }}</small>
+{% load community_tags %}
+<div class="comment">
+  <strong>{{ comment.author.username }}</strong> <small>{{ comment.created_at|ago }}</small>
   <p>{{ comment.content|linebreaksbr }}</p>
   {% if comment.author_id == user.id %}
   <span class="comment-actions">
