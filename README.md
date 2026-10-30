@@ -27,9 +27,9 @@
    - Mendaftarkan akun, masuk, dan mengatur kota domisili serta target emisi mingguan.
    - Mencatat log aktivitas harian (transportasi, konsumsi listrik, dan makanan) secara cepat.
    - Mengikuti misi hijau pada katalog tantangan, melakukan check-in harian, menjaga streak, dan mengoleksi lencana prestasi.
-   - Membaca berita lingkungan dan berinteraksi di linimasa komunitas.
+   - Membaca berita lingkungan dan berinteraksi di timeline komunitas.
 2. **Administrator / Superuser:**
-   - Memiliki wewenang kurasi dan manajemen penuh terhadap katalog tantangan (menambah, mengubah, dan menghapus tantangan) melalui antarmuka web yang terproteksi.
+   - Memiliki wewenang kurasi dan manajemen penuh terhadap katalog tantangan di modul 3 (menambah, mengubah, dan menghapus tantangan) melalui antarmuka web yang terproteksi.
 
 ---
 
@@ -91,9 +91,9 @@ Estimasi daging menggunakan faktor total terpisah untuk ayam dan sapi dari CONCI
 
 ## Integrasi Data Eksternal & Public API
 
-- **Open-Meteo (Weather & Air Quality):** [https://open-meteo.com/](https://open-meteo.com/) — Digunakan pada Modul Profil untuk menyajikan indeks kualitas udara (AQI), suhu, kecepatan angin, dan kondisi cuaca berdasarkan kota domisili pengguna.
+- **Open-Meteo (Weather & Air Quality):** [https://open-meteo.com/](https://open-meteo.com/) — Digunakan pada Modul 2 (Profil) untuk menyajikan indeks kualitas udara (AQI), suhu, kecepatan angin, dan kondisi cuaca berdasarkan kota domisili pengguna.
 - **GNews API:** [https://gnews.io/](https://gnews.io/) — Digunakan pada Modul 4 (Green Community) dan Beranda untuk menampilkan berita iklim dan lingkungan terkini secara terkurasi.
-- **Climatiq Carbon Calculator API:** [https://www.climatiq.io/docs/api-reference](https://www.climatiq.io/docs/api-reference) — Digunakan pada Modul Carbon Tracker untuk menghitung estimasi emisi gas rumah kaca berbasis faktor emisi standar.
+- **Climatiq Carbon Calculator API:** [https://www.climatiq.io/docs/api-reference](https://www.climatiq.io/docs/api-reference) — Digunakan pada Modul 1 (Carbon Tracker) untuk menghitung estimasi emisi gas rumah kaca berbasis faktor emisi standar.
 
 ---
 
@@ -162,7 +162,7 @@ python manage.py test challenges
 ## AI Disclosure
 
 ### 1. Alat Bantu AI & Coding Assistant yang Digunakan
-Secara kolaboratif, kami memanfaatkan beberapa platform AI dan *coding assistant* untuk mendukung proses rekayasa perangkat lunak proyek Carbon Sense, antara lain:
+Secara kolaboratif, kami memanfaatkan beberapa platform AI dan *coding assistant* untuk mendukung proses pengembangan proyek Carbon Sense, antara lain:
 - **Google Antigravity Coding Assistant**
 - **Anthropic Claude Code**
 - **OpenAI ChatGPT & GitHub Copilot**
@@ -173,7 +173,7 @@ Secara umum di seluruh modul, alat-alat bantu AI tersebut kami manfaatkan untuk:
 - Pembuatan struktur awal template HTML/CSS berbasis desain sistem Figma serta interaktivitas JavaScript modular (*optimistic UI updates*).
 - Penyusunan skenario pengujian unit (*test cases*) komprehensif untuk memvalidasi kasus batas (*boundary conditions*, hak akses pengguna, dan penanganan kode status HTTP).
 
-### 2. Strategi Prompting Terstruktur
+### 2. Strategi Prompting
 - **Specification-First Prompting:** Setiap permintaan ke AI diawali dengan menyertakan dokumen spesifikasi teknis (PRD/TRD), definisi model data, serta konvensi token desain Figma (`styles.css`) agar kode yang dihasilkan konsisten secara arsitektural.
 - **Test-Driven Development (TDD) Prompting:** Asisten AI diarahkan untuk merumuskan test case lengkap terlebih dahulu (mencakup kasus positif, kasus batas, input tak valid, dan status HTTP 400, 401, 403, 404, 409, 429) sebelum logika view diimplementasikan.
 - **Design System Conformance:** Instruksi prompt secara ketat membatasi AI agar menggunakan kelas komponen dan variabel CSS bawaan proyek tanpa memasukkan library CSS eksternal baru yang dapat merusak konsistensi tata letak.
@@ -184,7 +184,7 @@ Dalam proses pengembangan, kami menemukan beberapa kekurangan dari kode yang di-
 2. **State Leakage pada Cache Runner Unit Test:** Saat mengimplementasikan decorator *rate limiting*, AI tidak mengantisipasi bahwa backend `LocMemCache` pada Django test runner mempertahankan state antar-metode pengujian, sehingga pengujian berikutnya terkena pemblokiran 429 tanpa pembersihan cache yang eksplisit.
 3. **Kerapuhan Tata Letak Responsif Mobile:** Template HTML yang diusulkan AI awalnya mengalami sedikit *overflow* pada layar sempit (<390px) karena ukuran padding yang terlalu kaku dan belum memperhitungkan *touch target* minimal 44px.
 
-### 4. Verifikasi dan Intervensi Manual (*Manual Fixes*)
+### 4. Verifikasi dan Pengecekan Manual
 - Seluruh kode yang dihasilkan asisten AI tidak pernah langsung di-merge, melainkan wajib melalui peninjauan manual (*peer review*) oleh kami di GitHub Pull Request.
 - Kami melakukan audit baris demi baris, memperbaiki rute URL di `challenges.js`, menambahkan manajemen isolasi cache (`cache.clear()`) pada test suite, serta menyesuaikan media query CSS secara mandiri.
 - Setiap perubahan divalidasi kelulusannya melalui eksekusi pengujian otomatis (`python manage.py test`) dengan 45 test case berstatus lulus 100% serta pemeriksaan linter *Ruff* sebelum kode dipublikasikan ke branch utama.
