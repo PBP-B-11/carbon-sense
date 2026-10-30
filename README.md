@@ -4,7 +4,7 @@
 
 > **Tautan Deployment:** [http://faishal-falih-carbon-sense.pws.cs.ui.ac.id/](http://faishal-falih-carbon-sense.pws.cs.ui.ac.id/)
 
-> **Tautan Deployment:** [https://www.figma.com/design/YGZ8m922M5M7lBTRx4B9pE/Design-System-Carbon-Sense%5C?node-id=34-2&t=I44cmNm79RROIjzy-1](https://www.figma.com/design/YGZ8m922M5M7lBTRx4B9pE/Design-System-Carbon-Sense%5C?node-id=34-2&t=I44cmNm79RROIjzy-1)
+> **Tautan Deployment:** [https://www.figma.com/design/YGZ8m922M5M7lBTRx4B9pE/Design-System-Carbon-Sense%5C?node-id=34-2&t=I44cmNm79RROIjzy-1](https://www.figma.com/design/YGZ8m922M5M7lBTRx4B9pE/Design-System-Carbon-Sense?node-id=34-2&t=E8dPkeL3XgQr08HM-1)
 ---
 
 ## Anggota Kelompok (PBP B-11)
