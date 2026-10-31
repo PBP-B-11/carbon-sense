@@ -1,0 +1,47 @@
+name: CI and Deploy
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: python manage.py test
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Push to PWS
+        env:
+          PWS_USERNAME: ${{ secrets.PWS_USERNAME }}
+          PWS_PASSWORD: ${{ secrets.PWS_PASSWORD }}
+          GIT_ASKPASS: ${{ runner.temp }}/pws-askpass
+          GIT_TERMINAL_PROMPT: 0
+        run: |
+          test -n "$PWS_USERNAME"
+          test -n "$PWS_PASSWORD"
+          cat > "$GIT_ASKPASS" <<'EOF'
+          #!/bin/sh
+          case "$1" in
+            *Username*) printf '%s\n' "$PWS_USERNAME" ;;
+            *Password*) printf '%s\n' "$PWS_PASSWORD" ;;
+            *) exit 1 ;;
+          esac
+          EOF
+          chmod 700 "$GIT_ASKPASS"
+          trap 'rm -f "$GIT_ASKPASS"' EXIT
+          git remote add pws https://pws.cs.ui.ac.id/faishal.falih/carbon-sense
+          git push pws HEAD:master
