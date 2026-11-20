@@ -11,46 +11,31 @@ from django.utils import timezone
 from .decorators import require_superuser_html
 from .forms import TantanganForm
 from .models import Badge, Challenge, CheckIn, Participation, UserBadge
-from .utils import hitung_progres, hitung_streak, proses_checkin, total_poin
+from .utils import (
+    hitung_progres,
+    hitung_streak,
+    mulai_tantangan,
+    proses_checkin,
+    total_poin,
+)
 
 
 def ikuti(request, tantangan):
     """Mendaftarkan pengguna mengikuti tantangan baru jika belum memiliki tantangan aktif."""
-    partisipasi_aktif = (
-        Participation.objects.filter(
-            user=request.user, status=Participation.Status.ACTIVE
-        )
-        .select_related("challenge")
-        .first()
-    )
-
-    if partisipasi_aktif:
-        if partisipasi_aktif.challenge_id == tantangan.id:
-            messages.warning(request, "Tantangan ini sudah kamu ikuti.")
-        else:
-            messages.warning(
-                request,
-                f'Kamu masih memiliki tantangan aktif: "{partisipasi_aktif.challenge.title}". '
-                "Selesaikan atau batalkan tantangan tersebut terlebih dahulu.",
-            )
+    _, error = mulai_tantangan(request.user, tantangan)
+    if error:
+        messages.warning(request, error)
         return
-
-    Participation.objects.create(
-        user=request.user, challenge=tantangan, started_at=timezone.localdate()
-    )
     messages.success(request, f'Kamu mengikuti "{tantangan.title}".')
 
 
 def checkin(request, tantangan):
     """Mencatat check-in harian untuk tantangan aktif melalui form submission."""
-    partisipasi = Participation.objects.filter(
-        user=request.user, challenge=tantangan, status=Participation.Status.ACTIVE
-    ).first()
-    if partisipasi is None:
+    hasil = proses_checkin(request.user, tantangan)
+    if hasil is None:
         messages.error(request, "Kamu belum mengikuti tantangan ini.")
         return
 
-    hasil = proses_checkin(partisipasi, request.user)
     if not hasil["baru_dibuat"]:
         messages.warning(request, "Kamu sudah check-in hari ini.")
     elif hasil["selesai"]:

@@ -86,24 +86,29 @@ def _cooldown_response(request, model, cooldown, verb, to="community:index", **k
     """Respons 429 jika `model` terakhir milik user dibuat kurang dari `cooldown` yang lalu.
 
     Selain itu None. `verb` mengisi pesan ("memposting", "berkomentar")."""
+    wait = cooldown_wait(request.user, model, cooldown)
+    if not wait:
+        return None
+    return _fail(
+        request,
+        f"Tunggu {wait} detik sebelum {verb} lagi.",
+        to,
+        status=429,
+        **kwargs,
+    )
+
+
+def cooldown_wait(user, model, cooldown):
     last = (
-        model.objects.filter(author=request.user)
+        model.objects.filter(author=user)
         .order_by("-created_at")
         .values_list("created_at", flat=True)
         .first()
     )
     if last is None:
-        return None
+        return 0
     left = cooldown - (timezone.now() - last)
-    if left <= timedelta(0):
-        return None
-    return _fail(
-        request,
-        f"Tunggu {math.ceil(left.total_seconds())} detik sebelum {verb} lagi.",
-        to,
-        status=429,
-        **kwargs,
-    )
+    return max(0, math.ceil(left.total_seconds()))
 
 
 def _feed_posts(user):
@@ -128,20 +133,16 @@ def _post_card_json(request, post):
     return JsonResponse({"html": html})
 
 
-@vary_on_headers("X-Requested-With")
-def index(request):
-    """Feed komunitas dengan filter kategori, pencarian, urutan, dan paginasi.
-
-    AJAX hanya mendapat satu halaman potongan HTML; request biasa mendapat halaman penuh."""
-    category = request.GET.get("category", "")
+def filter_feed(user, params):
+    category = params.get("category", "")
     if category not in CATEGORIES:
         category = ""
-    query = request.GET.get("q", "").strip()[:SEARCH_MAX_LENGTH]
-    sort = request.GET.get("sort", "")
+    query = params.get("q", "").strip()[:SEARCH_MAX_LENGTH]
+    sort = params.get("sort", "")
     if sort not in SORTS:
         sort = "new"
 
-    posts = _feed_posts(request.user)
+    posts = _feed_posts(user)
     if category:
         posts = posts.filter(category=category)
     if query:
@@ -158,6 +159,15 @@ def index(request):
         posts = posts.order_by("-comment_count", "-created_at", "-pk")
     else:
         posts = posts.order_by("-created_at", "-pk")
+    return posts, category, query, sort
+
+
+@vary_on_headers("X-Requested-With")
+def index(request):
+    """Feed komunitas dengan filter kategori, pencarian, urutan, dan paginasi.
+
+    AJAX hanya mendapat satu halaman potongan HTML; request biasa mendapat halaman penuh."""
+    posts, category, query, sort = filter_feed(request.user, request.GET)
     paginator = Paginator(posts, PAGE_SIZE)
 
     if _is_ajax(request):
@@ -379,16 +389,19 @@ def share_news(request):
     if not form.is_valid():
         return _fail(request, _form_error(form, "Caption tidak valid."))
 
-    post = Post.objects.create(
-        author=request.user,
+    post = create_news_post(request.user, article, form.cleaned_data["content"])
+    if _is_ajax(request):
+        return _post_card_json(request, post)
+    return redirect("community:index")
+
+
+def create_news_post(user, article, content):
+    return Post.objects.create(
+        author=user,
         category=NEWS_CATEGORY,
-        content=form.cleaned_data["content"],
+        content=content,
         news_title=article["title"][:255],
         news_source=article["source"][:100],
         news_url=article["url"],
         news_snippet=article["snippet"],
     )
-
-    if _is_ajax(request):
-        return _post_card_json(request, post)
-    return redirect("community:index")

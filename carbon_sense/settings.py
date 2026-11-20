@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.humanize",
+    "rest_framework",
+    "rest_framework.authtoken",
     "home",
     "tracker",
     "profil",
@@ -152,6 +154,17 @@ WHITENOISE_USE_FINDERS = True
 
 LOGIN_URL = "/profil/login/"
 LOGIN_REDIRECT_URL = "/profil/"
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+}
 
 # Cache dipakai bersama oleh semua worker gunicorn (LocMemCache bersifat per proses),
 # supaya berita yang dirender worker A bisa ditemukan saat dibagikan lewat worker B.

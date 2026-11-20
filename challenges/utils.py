@@ -1,10 +1,35 @@
 from datetime import timedelta
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
 from .models import Badge, CheckIn, Participation, PointEntry, UserBadge
+
+
+@transaction.atomic
+def mulai_tantangan(user, challenge):
+    # Kunci akun agar request web dan mobile tidak membuat dua partisipasi aktif.
+    get_user_model().objects.select_for_update().get(pk=user.pk)
+    active = (
+        Participation.objects.filter(user=user, status=Participation.Status.ACTIVE)
+        .select_related("challenge")
+        .first()
+    )
+    if active is not None:
+        if active.challenge_id == challenge.pk:
+            return None, "Tantangan ini sudah kamu ikuti."
+        return None, (
+            f'Kamu masih memiliki tantangan aktif: "{active.challenge.title}". '
+            "Selesaikan atau batalkan tantangan tersebut terlebih dahulu."
+        )
+    return (
+        Participation.objects.create(
+            user=user, challenge=challenge, started_at=timezone.localdate()
+        ),
+        None,
+    )
 
 
 def hitung_progres(partisipasi):
@@ -96,16 +121,24 @@ def periksa_lencana_streak(user):
     return lencana_diberikan
 
 
-def proses_checkin(partisipasi, user):
+def proses_checkin(user, challenge):
     """Mengeksekusi logika check-in harian, pembaruan progres, pemberian poin, dan lencana."""
     with transaction.atomic():
+        partisipasi = (
+            Participation.objects.select_for_update()
+            .filter(user=user, challenge=challenge, status=Participation.Status.ACTIVE)
+            .first()
+        )
+        if partisipasi is None:
+            return None
+
         hari_ini = timezone.localdate()
-        checkin_objek, baru_dibuat = partisipasi.check_ins.get_or_create(date=hari_ini)
+        _, baru_dibuat = partisipasi.check_ins.get_or_create(date=hari_ini)
+        progres = hitung_progres(partisipasi)
         if not baru_dibuat:
-            return {"baru_dibuat": False}
+            return {"baru_dibuat": False, "progres": progres}
 
         lencana_streak = periksa_lencana_streak(user)
-        progres = hitung_progres(partisipasi)
         selesai = progres["done_days"] >= progres["total_days"]
         lencana_tantangan = None
 

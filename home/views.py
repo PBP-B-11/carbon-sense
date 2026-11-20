@@ -32,15 +32,14 @@ FALLBACK_NEWS = [
 ]
 
 
-def index(request):
-    """Halaman utama (Beranda) yang mengintegrasikan data dinamis dari seluruh modul."""
+def home_data(user):
     today = timezone.localdate()
     week_start = today - timedelta(days=today.weekday())
 
     # 1. Total emisi minggu ini dari Modul Tracker
-    if request.user.is_authenticated:
+    if user.is_authenticated:
         total_emission = CarbonActivity.objects.filter(
-            user=request.user, date__range=(week_start, today)
+            user=user, date__range=(week_start, today)
         ).aggregate(total=Sum("emission_kg"))["total"] or Decimal("0")
     else:
         total_emission = Decimal("0")
@@ -72,9 +71,13 @@ def index(request):
     else:
         news_items = FALLBACK_NEWS
 
-    context = {
+    return {
         "weekly_emissions": total_emission,
         "tip": featured_tip,
         "news": news_items,
     }
-    return render(request, "home/index.html", context)
+
+
+def index(request):
+    """Halaman utama (Beranda) yang mengintegrasikan data dinamis dari seluruh modul."""
+    return render(request, "home/index.html", home_data(request.user))

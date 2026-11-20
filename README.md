@@ -97,6 +97,77 @@ Estimasi daging menggunakan faktor total terpisah untuk ayam dan sapi dari CONCI
 
 ---
 
+## Integrasi Flutter dengan Situs Web PWS
+
+Flutter dan situs web Carbon Sense menggunakan backend Django serta basis data yang sama di PWS. Browser mengakses view Django dengan sesi login web. Flutter mengirim permintaan HTTPS ke Django REST Framework (DRF) dan menerima respons JSON. Keduanya menggunakan akun Django yang sama.
+
+```mermaid
+flowchart LR
+    Bitrise["Bitrise"] -->|Build dan distribusi| Flutter["Aplikasi Flutter"]
+    Flutter <-->|HTTPS dan JSON| DRF["Django REST Framework di PWS"]
+    Browser["Browser"] <-->|HTTPS dan HTML| Web["View Django di PWS"]
+    DRF <--> DB[("Model Django dan basis data bersama")]
+    Web <--> DB
+```
+
+1. Pengguna Flutter masuk dengan username dan kata sandi akun web. DRF memvalidasi kredensial dan mengembalikan token. Flutter menyimpan token di penyimpanan aman perangkat, lalu mengirim header `Authorization: Token <token>` pada permintaan yang memerlukan akun.
+2. Saat pengguna menyimpan aktivitas, misalnya, Flutter mengirim `POST /api/v1/tracker/activities/` dengan jenis, jumlah, dan tanggal aktivitas. Django memvalidasi data, menghitung emisi, lalu menyimpan aktivitas untuk akun tersebut. DRF mengembalikan data yang tersimpan dengan status `201 Created`.
+3. Saat pengguna membuka ulang Tracker di situs web, view Django membaca aktivitas tadi dari basis data. Aktivitas yang dibuat lewat web juga muncul di Flutter pada permintaan API berikutnya. Pola yang sama berlaku untuk perubahan profil, progres tantangan, dan interaksi komunitas. Aplikasi memerlukan koneksi internet untuk membaca atau menyimpan data.
+4. Bitrise menerima URL dasar API melalui konfigurasi build Flutter, misalnya `--dart-define=API_BASE_URL=https://faishal-falih-carbon-sense.pws.cs.ui.ac.id/api/v1/`. ID akun, kata sandi, dan token pengguna diperoleh saat aplikasi dijalankan. Django berjalan di PWS dan migrasi `python manage.py migrate` harus diterapkan di sana sebelum login mobile tersedia.
+
+### Daftar endpoint DRF
+
+Semua path pada tabel diawali `/api/v1`. Kirim `Content-Type: application/json` untuk request dengan body. Akses publik dapat menyertakan token untuk mendapatkan data personal pada endpoint yang mendukungnya.
+
+DRF menggunakan satu token per akun tanpa kedaluwarsa otomatis. Logout dari Flutter atau perubahan kata sandi melalui profil mencabut token tersebut. Flutter menghapus token dari penyimpanan perangkat setelah logout atau setelah API menolak token dengan status `401`.
+
+| Modul | Metode | Path | Akses | Fungsi dan input |
+| --- | --- | --- | --- | --- |
+| Beranda | GET | `/home/` | Publik | Emisi minggu ini, tips unggulan, dan berita. Emisi personal memerlukan token. |
+| Profil | POST | `/auth/register/` | Publik | Daftar dengan `username`, `email`, `password1`, `password2`, dan `city` (token hasil pencarian). Mengembalikan `token` dan `username`. |
+| Profil | POST | `/auth/login/` | Publik | Masuk dengan `username` dan `password`. Mengembalikan `token` dan `username`. |
+| Profil | POST | `/auth/logout/` | Token | Cabut token untuk akun tersebut. |
+| Profil | GET, PUT, DELETE | `/profile/` | Token | Baca profil dan ringkasan tantangan. PUT menerima `email` dan `bio`. DELETE memerlukan `password` dan `confirm: true`. |
+| Profil | GET | `/profile/cities/` | Publik | Cari kota Indonesia dengan `?q=Depok`. Setiap hasil berisi `label` dan `token`. |
+| Profil | PUT | `/profile/city/` | Token | Pilih kota dengan `city` (token hasil pencarian). |
+| Profil | GET | `/profile/environment/` | Token | Ambil cuaca dan estimasi US AQI kota profil. `snapshot` bernilai `null` jika data tidak tersedia. |
+| Profil | POST | `/profile/password/` | Token | Ubah kata sandi dengan `old_password`, `new_password1`, dan `new_password2`. Login ulang untuk mendapatkan token baru. |
+| Tracker | POST | `/tracker/estimate/` | Publik | Pratinjau estimasi dengan `activity_type`, `quantity`, `date`, dan `description` opsional. |
+| Tracker | GET | `/tracker/dashboard/` | Token | Baca total, rincian kategori, dan grafik. Gunakan `?period=week`, `month`, atau `year`. |
+| Tracker | GET, POST | `/tracker/activities/` | Token | Baca riwayat sendiri atau simpan aktivitas dengan field estimasi. |
+| Tracker | GET, PUT, DELETE | `/tracker/activities/{id}/` | Pemilik | Baca, ganti data, atau hapus aktivitas. PUT menggunakan field estimasi. |
+| Tantangan | GET | `/challenges/` | Publik | Baca katalog. Mendukung `kategori` (`transportasi`, `energi`, `makanan`), `q`, dan `sort` (`poin`, `durasi`, `peserta`). |
+| Tantangan | GET | `/challenges/{id}/` | Publik | Baca detail tantangan. |
+| Tantangan | GET | `/challenges/progress/` | Token | Baca progres tantangan aktif, poin, streak, dan jumlah lencana. |
+| Tantangan | GET | `/challenges/badges/` | Publik | Baca katalog lencana. `earned_at` berisi tanggal perolehan jika pengguna dengan token memiliki lencana. |
+| Tantangan | POST | `/challenges/{id}/join/` | Token | Mulai tantangan. Satu akun dapat memiliki satu tantangan aktif. |
+| Tantangan | POST | `/challenges/{id}/checkin/` | Token | Catat check-in harian dan perbarui progres serta hadiah. |
+| Tantangan | POST | `/challenges/{id}/leave/` | Token | Berhenti dari tantangan aktif. |
+| Komunitas | GET, POST | `/community/posts/` | GET publik, POST token | Baca feed dengan `category`, `q`, atau `sort` (`new`, `old`, `popular`, `komen`). Buat post dengan `category` (`tips` atau `diskusi`) dan `content`. |
+| Komunitas | GET, PUT, DELETE | `/community/posts/{id}/` | GET publik, PUT/DELETE pemilik | Baca, edit, atau hapus post. PUT menerima `category` dan `content`. Edit caption berita melalui `content`. |
+| Komunitas | PUT, DELETE | `/community/posts/{id}/like/` | Token | Beri atau batalkan suka. Respons memuat `liked` dan `count`. |
+| Komunitas | GET, POST | `/community/posts/{id}/comments/` | GET publik, POST token | Baca komentar atau tambahkan komentar dengan `content`. |
+| Komunitas | PUT, DELETE | `/community/comments/{id}/` | Pemilik | Edit komentar dengan `content` atau hapus komentar. |
+| Komunitas | GET | `/community/news/` | Publik | Baca berita lingkungan. |
+| Komunitas | POST | `/community/news/share/` | Token | Bagikan berita dengan `url` dari daftar berita dan `content` opsional. |
+
+Riwayat aktivitas, feed, dan komentar mendukung `?page=2` serta mengembalikan `count`, `next`, `previous`, dan `results`. ID aktivitas dan komentar berupa integer. ID postingan dan tantangan berupa UUID. Tanggal aktivitas memakai format `YYYY-MM-DD`. Nilai `quantity` dan `emission_kg` pada respons aktivitas dikirim sebagai string desimal.
+
+Contoh body JSON untuk menyimpan aktivitas Tracker:
+
+```json
+{
+  "activity_type": "car_travel",
+  "quantity": "12.50",
+  "date": "2026-11-20",
+  "description": "Perjalanan ke kampus"
+}
+```
+
+`car_travel` memakai kilometer, `electricity` memakai kWh, dan `chicken` serta `beef` memakai gram. Saat berhasil, server mengembalikan `id`, field input, dan `emission_kg` dalam kg CO₂e.
+
+Tangani `204` sebagai respons tanpa body. Kesalahan validasi `400` berisi pesan per field, `detail`, atau `error`. `401` meminta pengguna login, `404` berarti objek tidak tersedia untuk akun itu, `409` dapat muncul saat check-in diulang, dan `429` berarti pengguna harus menunggu sebelum mencoba kembali.
+
 ## Panduan Instalasi & Menjalankan Proyek (Setup Instructions)
 
 ### 1. Prasyarat Sistem

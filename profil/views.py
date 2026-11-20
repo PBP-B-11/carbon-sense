@@ -5,11 +5,13 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.core.cache import cache
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.views.decorators.http import require_GET, require_POST
+from rest_framework.authtoken.models import Token
 
 from challenges.utils import ringkasan_pengguna
 
@@ -49,15 +51,29 @@ def city_search(request):
     return JsonResponse({"results": city_options(request.GET.get("q", "").strip())})
 
 
-def token_city(request):
-    city = city_from_token(request.POST.get("city", ""))
-    return (
-        [{"token": request.POST.get("city", ""), "label": city["name"]}] if city else []
+def token_city(data):
+    token = data.get("city", "")
+    city = city_from_token(token) if isinstance(token, str) else None
+    return [{"token": token, "label": city["name"]}] if city else []
+
+
+def claim_profile_update(user_id):
+    return cache.add(
+        f"profile-update:{user_id}",
+        time() + PROFILE_UPDATE_COOLDOWN,
+        timeout=PROFILE_UPDATE_COOLDOWN,
     )
 
 
+def save_city(profile, city):
+    profile.city_name = city["name"]
+    profile.latitude = city["latitude"]
+    profile.longitude = city["longitude"]
+    profile.save(update_fields=["city_name", "latitude", "longitude"])
+
+
 def register(request):
-    options = token_city(request) if request.method == "POST" else ()
+    options = token_city(request.POST) if request.method == "POST" else ()
     form = RegisterForm(request.POST or None, cities=options)
     if request.method == "POST" and form.is_valid():
         user = form.save()
@@ -80,6 +96,12 @@ class SignInView(LoginView):
 class ChangePasswordView(PasswordChangeView):
     template_name = "profil/password.html"
     success_url = reverse_lazy("profil:index")
+
+    @transaction.atomic
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        Token.objects.filter(user=self.request.user).delete()
+        return response
 
 
 @login_required
@@ -112,11 +134,7 @@ def update_profile(request):
     profile_form = ProfileForm(request.POST, instance=profile)
     ajax = request.headers.get("Accept") == "application/json"
     if email_form.is_valid() and profile_form.is_valid():
-        if not cache.add(
-            f"profile-update:{request.user.pk}",
-            time() + PROFILE_UPDATE_COOLDOWN,
-            timeout=PROFILE_UPDATE_COOLDOWN,
-        ):
+        if not claim_profile_update(request.user.pk):
             wait = profile_update_wait(request.user.pk)
             message = f"Kamu bisa mengubah profil lagi dalam {wait} detik."
             if ajax:
@@ -126,8 +144,9 @@ def update_profile(request):
             email_form.add_error(None, message)
             return index(request, email_form=email_form, profile_form=profile_form)
 
-        email_form.save()
-        profile = profile_form.save()
+        email_form.save(commit=False).save(update_fields=["email"])
+        profile = profile_form.save(commit=False)
+        profile.save(update_fields=["bio"])
         if ajax:
             return JsonResponse(
                 {
@@ -151,15 +170,11 @@ def update_profile(request):
 @login_required
 @require_POST
 def update_city(request):
-    form = CityChoiceForm(request.POST, cities=token_city(request))
+    form = CityChoiceForm(request.POST, cities=token_city(request.POST))
     ajax = request.headers.get("Accept") == "application/json"
     if form.is_valid():
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
-        city = form.cleaned_data["city"]
-        profile.city_name = city["name"]
-        profile.latitude = city["latitude"]
-        profile.longitude = city["longitude"]
-        profile.save()
+        save_city(profile, form.cleaned_data["city"])
         if ajax:
             return JsonResponse(
                 {
