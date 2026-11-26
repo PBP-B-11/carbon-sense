@@ -38,6 +38,13 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1", "faishal-falih-carbon-sense.pws.cs.ui
 CSRF_TRUSTED_ORIGINS = ["https://faishal-falih-carbon-sense.pws.cs.ui.ac.id"]
 GNEWS_API_KEY = os.getenv("GNEWS_API_KEY", "")
 
+# Flutter Chrome uses a fixed origin for local testing against the token API.
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:7357",
+    "http://127.0.0.1:7357",
+]
+CORS_URLS_REGEX = r"^/api/v1/"
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -48,6 +55,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.humanize",
+    "corsheaders",
     "rest_framework",
     "rest_framework.authtoken",
     "home",
@@ -59,6 +67,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
